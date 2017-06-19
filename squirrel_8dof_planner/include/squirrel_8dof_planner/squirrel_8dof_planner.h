@@ -29,38 +29,54 @@
 namespace SquirrelMotionPlanner
 {
 
+/**
+ * @brief Planner class, used for 8dof planning from the current robot pose to a desired goal pose or end effector location.
+ * Uses a 2-stage planning approach that first
+ */
 class Planner
 {
   /*
    * ROS message handling
    */
-  ros::NodeHandle nh, nhPrivate;
-  ros::Publisher publisherOccupancyMap, publisherPlanningScene, publisher2DPath, publisherTrajectory;
-  ros::Subscriber subscriberBase, subscriberArm, subscriberGoalEndEffector, subscriberGoalPose, subscriberGoalMarkerExecute;
-  interactive_markers::InteractiveMarkerServer interactiveMarkerServer;
-  visualization_msgs::InteractiveMarker interactiveMarker;
-  std::vector<Real> poseGoalMarker;
+  ros::NodeHandle nh;     ///< ROS node handle with global namespace.
+  ros::NodeHandle nhPrivate;     ///< ROS node handle with namespace relative to current node.
+  ros::Publisher publisherPlanningScene;     ///< ROS publisher. Publishes the octree as a planning scene for moveit.
+  ros::Publisher publisher2DPath;     ///< ROS publisher. Publishes the 2D projection of the 8D trajectory.
+  ros::Publisher publisherTrajectory;     ///< ROS publisher. Publishes the full 8D trajectory.
+  ros::Subscriber subscriberBase;     ///< ROS subscriber. Subscribes to /base/joint_angles.
+  ros::Subscriber subscriberArm;     ///< ROS subscriber. Subscribes to /arm_controller/joint_states.
+  ros::Subscriber subscriberGoalEndEffector;     ///< ROS subscriber. Subscribes to goal_end_effector.
+  ros::Subscriber subscriberGoalPose;     ///< ROS subscriber. Subscribes to goal_pose.
+  ros::Subscriber subscriberGoalMarkerExecute;     ///< ROS subscriber. Subscribes to goal_marker_execute.
+  interactive_markers::InteractiveMarkerServer interactiveMarkerServer;     ///< Server that commuincates with Rviz to receive 6D end effector poses.
+  visualization_msgs::InteractiveMarker interactiveMarker;     ///< Interactive marker used by interactiveMarkerServer.
+  std::vector<Real> poseGoalMarker;     ///< Current pose of the interactive marker in RViz.
 
   /*
    * General search settings
    */
-  std::vector<Real> poseInit;
-  Real distanceBirrtStarPlanning;
-  Real obstacleInflationRadius;
+  std::vector<Real> poseInit;     ///< Vector with the 5 joint angles of the retracted arm during 2D planning.
+  Real distanceBirrtStarPlanning;     ///< Distance to the goal pose from where the 8D planning is performed.
+  Real obstacleInflationRadius;     ///< Inflation radius around occupied cells in occupancyMap.
 
   /*
    *  Current robot and planning poses
    */
-  std::vector<Real> poseCurrent;
-  std::vector<Real> poseGoal;
-  std::vector<std::vector<Real> > poses;
+  std::vector<Real> poseCurrent;     ///< 8D vector with the current robot pose, given as [x, y, theta, arm1, arm2, arm3, arm4, arm5].
+  std::vector<Real> poseGoal;      ///< 8D vector with the goal pose for the robot, given as [x, y, theta, arm1, arm2, arm3, arm4, arm5].
+  std::vector<std::vector<Real> > poses;   ///< Vector of 8D poses that contains the last succesfully computed trajectory from poseCurrent to poseGoal.
 
   /*
    * Octomap
    */
-  octomap::OcTree octree;
-  std::vector<std::vector<bool> > occupancyMap;
-  Real minX, minY, minZ, maxX, maxY, maxZ;
+  octomap::OcTree octree;     ///< Current octree, used for computing occupancyMap and during 8dof planning.
+  std::vector<std::vector<bool> > occupancyMap;     ///< Current occupancy map, computed from octree and inflated by obstalceInflationRadius.
+  Real minX;
+  Real minY;
+  Real minZ;
+  Real maxX;
+  Real maxY;
+  Real maxZ;
   Int cellMinX, cellMinY, cellMaxX, cellMaxY, cellMinZ, cellMaxZ;
 
   /*

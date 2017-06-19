@@ -18,16 +18,30 @@ typedef int32_t Int;
 typedef uint32_t UInt;
 typedef double Real;
 
+/**
+ * @brief A 2D cell structure with an x and y coordinate.
+ * Used for representing positive integer of a 2D cell, e.g., indices of a 2D array.
+ */
 struct Cell2D
 {
-  UInt x, y;
+  UInt x;     ///< x coordinate of the 2D cell.
+  UInt y;     ///< y coordinate of the 2D cell.
 
   /**
-   * @brief Constructor, leaves
+   * @brief Constructor, leaves x and y uninitialized.
    */
   Cell2D();
+
+  /**
+   * @brief Constructor, initializes x and y with the provided values.
+   */
   Cell2D(const UInt &x, const UInt &y);
 
+  /**
+   * @brief Equal to operator, compares x and y with the x and y values of cell.
+   * @param cell The cell to which the current x and y coordinates are to be compared.
+   * @return Returns false if either x or y differ from the current values.
+   */
   bool operator==(const Cell2D &cell) const;
 };
 

@@ -7,7 +7,7 @@ Cell2D::Cell2D()
 {
 }
 
-Cell2D::Cell2D(UInt x, UInt y) :
+Cell2D::Cell2D(const UInt &x, const UInt &y) :
     x(x), y(y)
 {
 }
