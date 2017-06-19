@@ -45,11 +45,13 @@ void Planner::initializeParameters()
   loadParameter("pose_folded_arm4", poseInit[6], -1.654);
   loadParameter("pose_folded_arm5", poseInit[7], -0.492);
 
-  loadParameter("distance_birrt_star_planning", distanceBirrtStarPlanning, 5.0);
+  loadParameter("occupancy_height_min", octreeMinZ, 0.0);
+  loadParameter("occupancy_height_max", octreeMaxZ, 2.0);
   loadParameter("astar_safety_distance", obstacleInflationRadius, 0.3);
   loadParameter("astar_smoothing_factor", AStarPathSmoothingFactor, 2.0);
   loadParameter("astar_smoothing_distance", AStarPathSmoothingDistance, 0.2);
   loadParameter("astar_final_smoothed_point_distance", AStarPathSmoothedPointDistance, 0.02);
+  loadParameter("distance_birrt_star_planning", distanceBirrtStarPlanning, 1.2);
 
   poseGoalMarker.resize(6, 0.0);
 
@@ -161,41 +163,6 @@ void Planner::loadOctomapToMoveit()
   octomap_msgs::fullMapToMsg(octree, msgScene.world.octomap.octomap);
 
   publisherPlanningScene.publish(msgScene);
-}
-
-void Planner::publishOccupancyMap() const
-{
-  if (publisherOccupancyMap.getNumSubscribers() == 0)
-    return;
-
-  nav_msgs::OccupancyGrid msg;
-
-  msg.header.frame_id = "map";
-  msg.header.seq = 0;
-
-  int sizeX = occupancyMap.size(), sizeY = occupancyMap[0].size();
-  msg.info.resolution = octree.getResolution();
-  msg.info.width = sizeX;
-  msg.info.height = sizeY;
-
-  msg.info.origin.position.x = minX;
-  msg.info.origin.position.y = minY;
-  msg.data.resize(sizeX * sizeY);
-
-  int cell = 0;
-  for (int y = 0; y < sizeY; ++y)
-  {
-    for (int x = 0; x < sizeX; ++x)
-    {
-      if (occupancyMap[x][y])
-        msg.data[cell] = 100;
-      else
-        msg.data[cell] = 0;
-      ++cell;
-    }
-  }
-
-  publisherOccupancyMap.publish(msg);
 }
 
 void Planner::publish2DPath() const
@@ -312,22 +279,22 @@ void Planner::interactiveMarkerHandler(const visualization_msgs::InteractiveMark
 
 void Planner::create2DMap()
 {
-  octree.getMetricMin(minX, minY, minZ);
-  octree.getMetricMax(maxX, maxY, maxZ);
+  octree.getMetricMin(octreeMinX, octreeMinY, octreeMinZ);
+  octree.getMetricMax(octreeMaxX, octreeMaxY, octreeMaxZ);
   Real resolution = octree.getResolution();
 
-  octomap::OcTreeKey keyMinPlane = octree.coordToKey(minX + resolution * 0.5, minY + resolution * 0.5, minZ + resolution * 0.5);
-  octomap::OcTreeKey keyMaxPlane = octree.coordToKey(maxX - resolution * 0.5, maxY - resolution * 0.5, maxZ - resolution * 0.5);
+  octomap::OcTreeKey keyMinPlane = octree.coordToKey(octreeMinX + resolution * 0.5, octreeMinY + resolution * 0.5, octreeMinZ + resolution * 0.5);
+  octomap::OcTreeKey keyMaxPlane = octree.coordToKey(octreeMaxX - resolution * 0.5, octreeMaxY - resolution * 0.5, octreeMaxZ - resolution * 0.5);
 
-  cellMinX = keyMinPlane[0];
-  cellMinY = keyMinPlane[1];
-  cellMaxX = keyMaxPlane[0];
-  cellMaxY = keyMaxPlane[1];
-  cellMinZ = octree.coordToKey(0.0, 0.0, resolution * 0.5)[2];
-  cellMaxZ = octree.coordToKey(0.0, 0.0, 2.0 - resolution * 0.5)[2];
+  octreeKeyMinX = keyMinPlane[0];
+  octreeKeyMinY = keyMinPlane[1];
+  octreeKeyMaxX = keyMaxPlane[0];
+  octreeKeyMaxY = keyMaxPlane[1];
+  octreeKeyMinZ = octree.coordToKey(0.0, 0.0, resolution * 0.5)[2];
+  octreeKeyMaxZ = octree.coordToKey(0.0, 0.0, 2.0 - resolution * 0.5)[2];
 
-  occupancyMap.resize(cellMaxX - cellMinX + 1, std::vector<bool>(cellMaxY - cellMinY + 1, false));
-  AStarNodes.resize(cellMaxX - cellMinX + 1, std::vector<AStarNode>(cellMaxY - cellMinY + 1));
+  occupancyMap.resize(octreeKeyMaxX - octreeKeyMinX + 1, std::vector<bool>(octreeKeyMaxY - octreeKeyMinY + 1, false));
+  AStarNodes.resize(octreeKeyMaxX - octreeKeyMinX + 1, std::vector<AStarNode>(octreeKeyMaxY - octreeKeyMinY + 1));
 
   octomap::OcTreeKey key;
   for (UInt x = 0; x < occupancyMap.size(); ++x)
@@ -353,16 +320,16 @@ void Planner::create2DMap()
       if (x - 1 < AStarNodes.size() && y - 1 < AStarNodes[0].size())
         AStarNodes[x][y].neighbors.push_back(std::make_pair(&AStarNodes[x - 1][y - 1], M_SQRT2));
 
-      for (UInt z = 0; z < cellMaxZ - cellMinZ; ++z)
+      for (UInt z = 0; z < octreeKeyMaxZ - octreeKeyMinZ; ++z)
       {
-        key[0] = x + cellMinX;
-        key[1] = y + cellMinY;
-        key[2] = z + cellMinZ;
+        key[0] = x + octreeKeyMinX;
+        key[1] = y + octreeKeyMinY;
+        key[2] = z + octreeKeyMinZ;
         if (isOctreeNodeOccupied(key))
         {
           AStarNodes[x][y].occupied = AStarNodes[x][y].closed = true;
           occupancyMap[x][y] = true;
-          z = cellMaxZ - cellMinZ;
+          z = octreeKeyMaxZ - octreeKeyMinZ;
         }
       }
     }
@@ -669,10 +636,10 @@ bool Planner::findTrajectoryBirrtStar()
     birrtStarPlanner.reset_planner_and_config();
 
   std::vector<Real> dimX(2), dimY(2);
-  dimX[0] = minX;
-  dimX[1] = maxX;
-  dimY[0] = minY;
-  dimY[1] = maxY;
+  dimX[0] = octreeMinX;
+  dimX[1] = octreeMaxX;
+  dimY[0] = octreeMinY;
+  dimY[1] = octreeMaxY;
 
   birrtStarPlanner.setPlanningSceneInfo(dimX, dimY, "scenario");
 
@@ -704,31 +671,31 @@ void Planner::findAStarPath(const Tuple2D startPoint, const Tuple2D goalPoint)
       if (!AStarNodes[x][y].occupied)
         AStarNodes[x][y].open = AStarNodes[x][y].closed = false;
 
-  startCell = getCellFromPoint(startPoint);
-  goalCell = getCellFromPoint(goalPoint);
+  AStarCellStart = getCellFromPoint(startPoint);
+  AStarCellGoal = getCellFromPoint(goalPoint);
 
-  if (startCell == goalCell)
+  if (AStarCellStart == AStarCellGoal)
   {
-    AStarPath.cells.push_back(goalCell);
-    AStarPath.points.push_back(getPointFromCell(goalCell));
+    AStarPath.cells.push_back(AStarCellGoal);
+    AStarPath.points.push_back(getPointFromCell(AStarCellGoal));
     AStarPath.valid = true;
     return;
   }
 
   openListNodes.clear();
   openListNodes.push_back(Cell2D(-1, -1));
-  openListNodes.push_back(startCell);
+  openListNodes.push_back(AStarCellStart);
 
   //initialize starting nodes
-  AStarNodes[startCell.x][startCell.y].cellParent = Cell2D(-1, -1);
-  AStarNodes[startCell.x][startCell.y].g = 0;
-  AStarNodes[startCell.x][startCell.y].indexOpenList = 1;
-  updateFCost(AStarNodes[startCell.x][startCell.y]);
+  AStarNodes[AStarCellStart.x][AStarCellStart.y].cellParent = Cell2D(-1, -1);
+  AStarNodes[AStarCellStart.x][AStarCellStart.y].g = 0;
+  AStarNodes[AStarCellStart.x][AStarCellStart.y].indexOpenList = 1;
+  updateFCost(AStarNodes[AStarCellStart.x][AStarCellStart.y]);
 
   while (openListNodes.size() > 1)
   {
     AStarNode &nodeCurrent = AStarNodes[openListNodes[1].x][openListNodes[1].y];
-    if (nodeCurrent.cell == goalCell)
+    if (nodeCurrent.cell == AStarCellGoal)
     {
       constructAStarPath();
       AStarPath.valid = true;
@@ -862,11 +829,11 @@ void Planner::constructAStarPath()
 {
   std::deque<Cell2D> cellList;
 
-  Cell2D cellTemp = goalCell;
+  Cell2D cellTemp = AStarCellGoal;
   while (true)
   {
     cellList.push_front(cellTemp);
-    if (cellTemp == startCell)
+    if (cellTemp == AStarCellStart)
       break;
     cellTemp = AStarNodes[cellTemp.x][cellTemp.y].cellParent;
   }
@@ -932,12 +899,12 @@ inline bool Planner::isOctreeNodeOccupied(const octomap::OcTreeKey &key) const
 
 inline Tuple2D Planner::getPointFromCell(const Cell2D &cell) const
 {
-  return Tuple2D(minX + (cell.x + 0.5) * octree.getResolution(), minY + (cell.y + 0.5) * octree.getResolution());
+  return Tuple2D(octreeMinX + (cell.x + 0.5) * octree.getResolution(), octreeMinY + (cell.y + 0.5) * octree.getResolution());
 }
 
 inline Cell2D Planner::getCellFromPoint(const Tuple2D &point) const
 {
-  return Cell2D((UInt)((point.x - minX) / octree.getResolution()), (UInt)((point.y - minY) / octree.getResolution()));
+  return Cell2D((UInt)((point.x - octreeMinX) / octree.getResolution()), (UInt)((point.y - octreeMinY) / octree.getResolution()));
 }
 
 inline Real Planner::distanceCells(const Cell2D &cell1, const Cell2D &cell2)
@@ -952,8 +919,8 @@ inline bool Planner::isCellOccupied(const Cell2D &cell) const
 
 inline void Planner::updateFCost(AStarNode &node) const
 {
-  Real dx = abs((Real)node.cell.x - (Real)goalCell.x);
-  Real dy = abs((Real)node.cell.y - (Real)goalCell.y);
+  Real dx = abs((Real)node.cell.x - (Real)AStarCellGoal.x);
+  Real dy = abs((Real)node.cell.y - (Real)AStarCellGoal.y);
   node.f = node.g + std::min(dx, dy) * M_SQRT2 + abs(dx - dy);
 }
 

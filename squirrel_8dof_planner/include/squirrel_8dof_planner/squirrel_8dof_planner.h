@@ -31,7 +31,8 @@ namespace SquirrelMotionPlanner
 
 /**
  * @brief Planner class, used for 8dof planning from the current robot pose to a desired goal pose or end effector location.
- * Uses a 2-stage planning approach that first
+ * Uses a 2-stage planning approach that first searches for a 2D A* path to the goal, shortens the path by a fixed distance,
+ * and then smoothens the path. The last pose is then used to find a full 8D plan that includes the arm movement.
  */
 class Planner
 {
@@ -71,42 +72,48 @@ class Planner
    */
   octomap::OcTree octree;     ///< Current octree, used for computing occupancyMap and during 8dof planning.
   std::vector<std::vector<bool> > occupancyMap;     ///< Current occupancy map, computed from octree and inflated by obstalceInflationRadius.
-  Real minX;
-  Real minY;
-  Real minZ;
-  Real maxX;
-  Real maxY;
-  Real maxZ;
-  Int cellMinX, cellMinY, cellMaxX, cellMaxY, cellMinZ, cellMaxZ;
+  Real octreeMinX;     ///< Minimum metric x-value of octree that is used for the 2D planning.
+  Real octreeMinY;     ///< Minimum metric y-value of octree that is used for the 2D planning.
+  Real octreeMinZ;     ///< Minimum metric z-value of octree that is used for the 2D planning.
+  Real octreeMaxX;     ///< Maximum metric x-value of octree that is used for the 2D planning.
+  Real octreeMaxY;     ///< Maximum metric y-value of octree that is used for the 2D planning.
+  Real octreeMaxZ;     ///< Maximum metric z-value of octree that is used for the 2D planning.
+  Int octreeKeyMinX;     ///< Minimum octree key x-value that is used for creating occupancyMap.
+  Int octreeKeyMinY;     ///< Minimum octree key y-value that is used for creating occupancyMap.
+  Int octreeKeyMinZ;     ///< Minimum octree key z-value that is used for creating occupancyMap.
+  Int octreeKeyMaxX;     ///< Maximum octree key x-value that is used for creating occupancyMap.
+  Int octreeKeyMaxY;     ///< Maximum octree key y-value that is used for creating occupancyMap.
+  Int octreeKeyMaxZ;     ///< Maximum octree key z-value that is used for creating occupancyMap.
 
   /*
    * AStar
    */
-  AStarPath2D AStarPath;
-  Cell2D startCell, goalCell;
-  std::vector<std::vector<AStarNode> > AStarNodes;
-  std::vector<Cell2D> openListNodes;
-  Real AStarPathSmoothingFactor; //good value is between 1.5 and 2.5
-  Real AStarPathSmoothingDistance; //maximum distance from intermediate corners that is used for smoothing
-  Real AStarPathSmoothedPointDistance; //approximate final distance between points
+  AStarPath2D AStarPath;     ///< Full A* grid path that is found during the 2D planning part.
+  Cell2D AStarCellStart;     ///< Start cell for the current 2D path search.
+  Cell2D AStarCellGoal;     ///< Goal cell for the current 2D path search.
+  std::vector<std::vector<AStarNode> > AStarNodes;     ///< Structured map of A* nodes that is used during the path search.
+  std::vector<Cell2D> openListNodes;     ///< Priority queue of grid cells on AStarNodes for the A* path search.
+  Real AStarPathSmoothingFactor;     ///< Factor that indicates the smoothing behavior of the A* path; good value lies between 1.5 and 2.5.
+  Real AStarPathSmoothingDistance;     ///< Maximum distance from intermediate corners that is used during the A* path smoothing.
+  Real AStarPathSmoothedPointDistance;     ///< The approximate final distance between points of the smoothed A* path.
 
   /*
    * Bi2RRTStar
    */
-  birrt_star_motion_planning::BiRRTstarPlanner birrtStarPlanner;
-  Int birrtStarPlanningNumber;
+  birrt_star_motion_planning::BiRRTstarPlanner birrtStarPlanner;     ///< Instance of the 8dof BiRRT* planner.
+  Int birrtStarPlanningNumber;     ///< The current planning number of the BiRRT* planner; increases by 1 after every planning attempt.
 
 public:
 
   /**
-   * @brief Constructur initializes everything, mainly calls all initialize* methods. All planning and communication is done via ROS.
+   * @brief Constructur initializes everything, mainly calls all initialize methods. All planning and communication is done via ROS.
    */
   Planner();
 
 private:
 
   /**
-   * @brief Loads all necessary parameters from the ros parameter server and initializeses further internal parameters.
+   * @brief Loads all necessary parameters from the ROS parameter server and initializeses further internal parameters.
    */
   void initializeParameters();
 
@@ -129,11 +136,6 @@ private:
    * @brief Publishes the loaded octomap to the planning_scene topic for collision checks of moveit used in birrtstar.
    */
   void loadOctomapToMoveit();
-
-  /**
-   * @brief Publishes the occupancy map that was generated from the octomap, which is used for the 2D planning.
-   */
-  void publishOccupancyMap() const;
 
   /**
    * @brief Publishes a 2D path that follows the base of the full trajectory after planning.
