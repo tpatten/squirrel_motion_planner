@@ -1,0 +1,669 @@
+\hypertarget{classSquirrelMotionPlanner_1_1Planner}{\section{Squirrel\-Motion\-Planner\-:\-:Planner Class Reference}
+\label{classSquirrelMotionPlanner_1_1Planner}\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+}
+
+
+\hyperlink{classSquirrelMotionPlanner_1_1Planner}{Planner} class, used for 8dof planning from the current robot pose to a desired goal pose or end effector location. Uses a 2-\/stage planning approach that first searches for a 2\-D A$\ast$ path to the goal, shortens the path by a fixed distance, and then smoothens the path. The last pose is then used to find a full 8\-D plan that includes the arm movement.  
+
+
+
+
+{\ttfamily \#include $<$squirrel\-\_\-8dof\-\_\-planner.\-h$>$}
+
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a37ec9eb4651a26d956e8226e2b6e435b}{\hyperlink{classSquirrelMotionPlanner_1_1Planner_a37ec9eb4651a26d956e8226e2b6e435b}{Planner} ()}\label{classSquirrelMotionPlanner_1_1Planner_a37ec9eb4651a26d956e8226e2b6e435b}
+
+\begin{DoxyCompactList}\small\item\em Constructur initializes everything, mainly calls all initialize methods. All planning and communication is done via R\-O\-S. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\subsection*{Private Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a71457b2533a3684dfacc377a991096ea}{void \hyperlink{classSquirrelMotionPlanner_1_1Planner_a71457b2533a3684dfacc377a991096ea}{initialize\-Parameters} ()}\label{classSquirrelMotionPlanner_1_1Planner_a71457b2533a3684dfacc377a991096ea}
+
+\begin{DoxyCompactList}\small\item\em Loads all necessary parameters from the R\-O\-S parameter server and initializeses further internal parameters. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a10ab2a3d7cd966ba65606109d0284992}{void \hyperlink{classSquirrelMotionPlanner_1_1Planner_a10ab2a3d7cd966ba65606109d0284992}{initialize\-Message\-Handling} ()}\label{classSquirrelMotionPlanner_1_1Planner_a10ab2a3d7cd966ba65606109d0284992}
+
+\begin{DoxyCompactList}\small\item\em Advertises and subscribes to all topics used for getting the current robot pose and handle planning requests. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a8d867020888b975aed450643b066eccf}{void \hyperlink{classSquirrelMotionPlanner_1_1Planner_a8d867020888b975aed450643b066eccf}{initialize\-A\-Star\-Planning} ()}\label{classSquirrelMotionPlanner_1_1Planner_a8d867020888b975aed450643b066eccf}
+
+\begin{DoxyCompactList}\small\item\em Initializeses the map used for the 2\-D astar planning. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a58fec3f4e3ddf1dde94c78aeddc2bf6c}{void \hyperlink{classSquirrelMotionPlanner_1_1Planner_a58fec3f4e3ddf1dde94c78aeddc2bf6c}{initialize\-Interactive\-Marker} ()}\label{classSquirrelMotionPlanner_1_1Planner_a58fec3f4e3ddf1dde94c78aeddc2bf6c}
+
+\begin{DoxyCompactList}\small\item\em Initializses and interactive marker that can be used for planning to specific end effector poses in rviz. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a47e7dde8c4854ad9aa13a16ff13046b8}{void \hyperlink{classSquirrelMotionPlanner_1_1Planner_a47e7dde8c4854ad9aa13a16ff13046b8}{load\-Octomap\-To\-Moveit} ()}\label{classSquirrelMotionPlanner_1_1Planner_a47e7dde8c4854ad9aa13a16ff13046b8}
+
+\begin{DoxyCompactList}\small\item\em Publishes the loaded octomap to the planning\-\_\-scene topic for collision checks of moveit used in birrtstar. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a2db0a451251d3af7380020a6a2fca628}{void \hyperlink{classSquirrelMotionPlanner_1_1Planner_a2db0a451251d3af7380020a6a2fca628}{publish2\-D\-Path} () const }\label{classSquirrelMotionPlanner_1_1Planner_a2db0a451251d3af7380020a6a2fca628}
+
+\begin{DoxyCompactList}\small\item\em Publishes a 2\-D path that follows the base of the full trajectory after planning. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_adad08aeca16028ef57963993215698e4}{void \hyperlink{classSquirrelMotionPlanner_1_1Planner_adad08aeca16028ef57963993215698e4}{publish\-Trajectory} () const }\label{classSquirrelMotionPlanner_1_1Planner_adad08aeca16028ef57963993215698e4}
+
+\begin{DoxyCompactList}\small\item\em Publishes a vector of subsequent poses from the current robot position to the requested goal after planning. \end{DoxyCompactList}\item 
+void \hyperlink{classSquirrelMotionPlanner_1_1Planner_a8af321d1e0532e1b61d64c2b8be9d48b}{subscriber\-Base\-Handler} (const sensor\-\_\-msgs\-::\-Joint\-State \&msg)
+\begin{DoxyCompactList}\small\item\em Handler for the base position of the robot. \end{DoxyCompactList}\item 
+void \hyperlink{classSquirrelMotionPlanner_1_1Planner_a1cc55ecbf721cb8e03bd2d1d119986b7}{subscriber\-Arm\-Handler} (const sensor\-\_\-msgs\-::\-Joint\-State \&msg)
+\begin{DoxyCompactList}\small\item\em Handler for the arm joints of the robot. \end{DoxyCompactList}\item 
+void \hyperlink{classSquirrelMotionPlanner_1_1Planner_a1ae3894762068a1f33732ffe0eb1a823}{subscriber\-Goal\-End\-Effector\-Handler} (const std\-\_\-msgs\-::\-Float64\-Multi\-Array \&msg)
+\begin{DoxyCompactList}\small\item\em Handler for starting the planner to the requested end effector position. \end{DoxyCompactList}\item 
+void \hyperlink{classSquirrelMotionPlanner_1_1Planner_ad547ede001e005bb1ceb8aa5e277f3b7}{subscriber\-Goal\-Marker\-Execute\-Handler} (const std\-\_\-msgs\-::\-Empty \&msg)
+\begin{DoxyCompactList}\small\item\em Used to signal a request for finding a trajectory to the current interactive marker pose for the endeffector. \end{DoxyCompactList}\item 
+void \hyperlink{classSquirrelMotionPlanner_1_1Planner_a8f43c92360856238d16e452c3dd68544}{subscriber\-Goal\-Pose\-Handler} (const std\-\_\-msgs\-::\-Float64\-Multi\-Array \&msg)
+\begin{DoxyCompactList}\small\item\em Handler for starting the planner to the requested goal pose. \end{DoxyCompactList}\item 
+void \hyperlink{classSquirrelMotionPlanner_1_1Planner_ab56495a3b985e0f3782eee5a485c7d85}{interactive\-Marker\-Handler} (const visualization\-\_\-msgs\-::\-Interactive\-Marker\-Feedback\-Const\-Ptr \&msg)
+\begin{DoxyCompactList}\small\item\em Handles the feedback message of the interactive marker. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a98216b69fac9035580583ed5842fd4a3}{void \hyperlink{classSquirrelMotionPlanner_1_1Planner_a98216b69fac9035580583ed5842fd4a3}{create2\-D\-Map} ()}\label{classSquirrelMotionPlanner_1_1Planner_a98216b69fac9035580583ed5842fd4a3}
+
+\begin{DoxyCompactList}\small\item\em Loops through the loaded octree and creates an occupancy map if any node is occupied between min\-Z and max\-Z. Also adds all neighbours to the A\-Star\-Nodes map. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a0c14abeecb551395d123fe494e33f034}{void \hyperlink{classSquirrelMotionPlanner_1_1Planner_a0c14abeecb551395d123fe494e33f034}{inflate2\-D\-Map} ()}\label{classSquirrelMotionPlanner_1_1Planner_a0c14abeecb551395d123fe494e33f034}
+
+\begin{DoxyCompactList}\small\item\em Loops through the occupancy map and inflates it by a radius given by obstacle\-Inflation\-Radius. \end{DoxyCompactList}\item 
+bool \hyperlink{classSquirrelMotionPlanner_1_1Planner_aa3b43ad32ef2dbca9fd4c3fedfab1ae6}{find\-Trajectory\-End\-Effector} (const std\-::vector$<$ Real $>$ \&pose\-End\-Effector)
+\begin{DoxyCompactList}\small\item\em Finds a combined 2\-D and 8\-D trajectory from the current robot pose such that it reaches a requested end effector pose, saves it as an 8\-D trajectory to poses, and publishes the trajectory. \end{DoxyCompactList}\item 
+bool \hyperlink{classSquirrelMotionPlanner_1_1Planner_ac682a2ee500b2b5b8f70fc9b22c65a29}{find\-Trajectory\-Pose} (const std\-::vector$<$ Real $>$ \&pose\-Goal\-New)
+\begin{DoxyCompactList}\small\item\em Finds a combined 2\-D and 8\-D trajectory from the current robot pose such that it reaches a requested goal pose, saves it to poses, and publishes the trajectory. \end{DoxyCompactList}\item 
+bool \hyperlink{classSquirrelMotionPlanner_1_1Planner_a20d0554b6a2df4d5d8f8a128d93a61d4}{find\-Goal\-Pose} (const std\-::vector$<$ Real $>$ \&pose\-End\-Effector)
+\begin{DoxyCompactList}\small\item\em Uses inverse kinematic to find a possible 8\-D pose for a requested 6\-D end effector pose. \end{DoxyCompactList}\item 
+bool \hyperlink{classSquirrelMotionPlanner_1_1Planner_a683a5bf0c8383d4a491d1738a6600ed6}{find\-Trajectory} ()
+\begin{DoxyCompactList}\small\item\em Finds a 2\-D and 8\-D trajectory to the goal pose saved in pose\-Goal, it is called by both find\-Trajectory\-Pose and find\-Trajectory\-End\-Effector which both save a new goal pose to pose\-Goal. \end{DoxyCompactList}\item 
+bool \hyperlink{classSquirrelMotionPlanner_1_1Planner_a4be47ed5faec330e83da9edd0c5ac1ec}{find\-Trajectory\-Retracted\-Arm} ()
+\begin{DoxyCompactList}\small\item\em Finds a 2\-D path from the cell of the current robot position (pose\-Current) to the cell of pose\-Goal, then shortens the path by distance\-Birrt\-Star\-Planning, smoothens the path and saves it as 8\-D poses using pose\-Init for the arm joints. \end{DoxyCompactList}\item 
+bool \hyperlink{classSquirrelMotionPlanner_1_1Planner_a4b28a4fda103fc6c47c5923f4eb61271}{find\-Trajectory\-Birrt\-Star} ()
+\begin{DoxyCompactList}\small\item\em Finds an 8\-D path using birrt star from the last item in poses to pose\-Goal and also adds the remaining path to poses. \end{DoxyCompactList}\item 
+void \hyperlink{classSquirrelMotionPlanner_1_1Planner_a1729538766406aa345e382441b45ca6a}{find\-A\-Star\-Path} (const Tuple2\-D start\-Point, const Tuple2\-D goal\-Point)
+\begin{DoxyCompactList}\small\item\em Finds an A$\ast$ actual path between two points and saves it to A\-Star\-Path. If no path could be found, the flag valid is set to false and true otherwise. \end{DoxyCompactList}\item 
+void \hyperlink{classSquirrelMotionPlanner_1_1Planner_a0423f516b51ad039a0002553b39423f1}{expand\-A\-Star\-Node} (const A\-Star\-Node \&node)
+\begin{DoxyCompactList}\small\item\em Expands an A\-Star\-Node by its neighbours, if they are free and adds them to open\-List. \end{DoxyCompactList}\item 
+void \hyperlink{classSquirrelMotionPlanner_1_1Planner_aa0195b884350f348200790e01fe7d028}{open\-List\-Insert\-Node} (A\-Star\-Node \&node)
+\begin{DoxyCompactList}\small\item\em Inserts a node to open\-List and sorts it using an integer based binary tree according to its F cost value. \end{DoxyCompactList}\item 
+void \hyperlink{classSquirrelMotionPlanner_1_1Planner_af8e3f71f2905c6bbe2d8bd4272cdb950}{open\-List\-Update\-Node} (A\-Star\-Node \&node)
+\begin{DoxyCompactList}\small\item\em Updates a node in open\-List and sorts it using an integer based binary tree according to its F cost value. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a036b1d33c1a7fb4c5ac73f9109d36954}{void \hyperlink{classSquirrelMotionPlanner_1_1Planner_a036b1d33c1a7fb4c5ac73f9109d36954}{open\-List\-Remove\-Front\-Node} ()}\label{classSquirrelMotionPlanner_1_1Planner_a036b1d33c1a7fb4c5ac73f9109d36954}
+
+\begin{DoxyCompactList}\small\item\em Removes the front item of open\-List and resorts it if necessary. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a4736f700b52b48e04f5c4b6fe7101fbf}{void \hyperlink{classSquirrelMotionPlanner_1_1Planner_a4736f700b52b48e04f5c4b6fe7101fbf}{construct\-A\-Star\-Path} ()}\label{classSquirrelMotionPlanner_1_1Planner_a4736f700b52b48e04f5c4b6fe7101fbf}
+
+\begin{DoxyCompactList}\small\item\em Goes over A\-Star\-Nodes starting at the goal node, finds the actual cells belonging to the path, and saves it to A\-Star\-Path. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a8c4b5aacc6c337a767f4b880bc8e6b43}{void \hyperlink{classSquirrelMotionPlanner_1_1Planner_a8c4b5aacc6c337a767f4b880bc8e6b43}{get\-Smooth\-Traj\-From\-A\-Star\-Path} ()}\label{classSquirrelMotionPlanner_1_1Planner_a8c4b5aacc6c337a767f4b880bc8e6b43}
+
+\begin{DoxyCompactList}\small\item\em Loops through A\-Star\-Path, finds shortest connected line segments, smoothens corners between segments, and saves the trajectory to poses. \end{DoxyCompactList}\item 
+bool \hyperlink{classSquirrelMotionPlanner_1_1Planner_a06bc0ce6344e84f31dca4c06d9986732}{is\-Connection\-Line\-Free} (const Tuple2\-D \&point\-Start, const Tuple2\-D \&point\-End)
+\begin{DoxyCompactList}\small\item\em Moves directly between two points and checks if all cells on the connecting line are free according to occupancy\-Map. \end{DoxyCompactList}\item 
+void \hyperlink{classSquirrelMotionPlanner_1_1Planner_a963470ef70623c6115b8cb004e500263}{load\-Parameter} (const string \&name, Real \&member, const Real \&default\-Value)
+\begin{DoxyCompactList}\small\item\em Loads a parameter from the R\-O\-S parameter server and saves it to a member varible . If the parameter could not be found or has an invalid name the default value is used instead. \end{DoxyCompactList}\item 
+bool \hyperlink{classSquirrelMotionPlanner_1_1Planner_a39d2cf7e35e9b17f64ec8ff8d5376d61}{is\-Octree\-Node\-Occupied} (const octomap\-::\-Oc\-Tree\-Key \&key) const 
+\begin{DoxyCompactList}\small\item\em Checks if an octree node is occupied in the currently loaded octree. \end{DoxyCompactList}\item 
+Tuple2\-D \hyperlink{classSquirrelMotionPlanner_1_1Planner_ae890ed4157ce8a06f27d39e4af57c18e}{get\-Point\-From\-Cell} (const Cell2\-D \&cell) const 
+\begin{DoxyCompactList}\small\item\em Converts a cell to metric coordinates according to min\-X, min\-Y and the resolution of occupancy\-Map (or octree, which is the same) \end{DoxyCompactList}\item 
+Cell2\-D \hyperlink{classSquirrelMotionPlanner_1_1Planner_a93073378ce0a34770bc52a032758d065}{get\-Cell\-From\-Point} (const Tuple2\-D \&point) const 
+\begin{DoxyCompactList}\small\item\em Converts a metric point to an integer cell according to min\-X, min\-Y and the resolution of occupancy\-Map (or octree, which is the same) \end{DoxyCompactList}\item 
+Real \hyperlink{classSquirrelMotionPlanner_1_1Planner_acb7e51aef59c75deaa8ecb4881849334}{distance\-Cells} (const Cell2\-D \&cell1, const Cell2\-D \&cell2)
+\begin{DoxyCompactList}\small\item\em Finds the distance between two cells in cell coordinates. The distance is not metric, but according to the rule that the distance between two adjecent cells is 1. \end{DoxyCompactList}\item 
+bool \hyperlink{classSquirrelMotionPlanner_1_1Planner_a871d5a2cb60ea87eba1b6f1b61a4b5eb}{is\-Cell\-Occupied} (const Cell2\-D \&cell) const 
+\begin{DoxyCompactList}\small\item\em Checks if a cell is occpuied according to occupancy\-Map. \end{DoxyCompactList}\item 
+void \hyperlink{classSquirrelMotionPlanner_1_1Planner_aa88fa9332acb8f16edfb52c8fb57bb6f}{update\-F\-Cost} (A\-Star\-Node \&node) const 
+\begin{DoxyCompactList}\small\item\em Updates the F cost value of an A\-Star\-Node accoring to its G cost and an optimal admissable heuristics for grid maps. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a0f757a7ba2b25eee89f7634cee9c7553}{ros\-::\-Node\-Handle \hyperlink{classSquirrelMotionPlanner_1_1Planner_a0f757a7ba2b25eee89f7634cee9c7553}{nh}}\label{classSquirrelMotionPlanner_1_1Planner_a0f757a7ba2b25eee89f7634cee9c7553}
+
+\begin{DoxyCompactList}\small\item\em R\-O\-S node handle with global namespace. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a5fcf87fc35090bbfc889362e14be5cfe}{ros\-::\-Node\-Handle \hyperlink{classSquirrelMotionPlanner_1_1Planner_a5fcf87fc35090bbfc889362e14be5cfe}{nh\-Private}}\label{classSquirrelMotionPlanner_1_1Planner_a5fcf87fc35090bbfc889362e14be5cfe}
+
+\begin{DoxyCompactList}\small\item\em R\-O\-S node handle with namespace relative to current node. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_aeed82573cd001be6ddf2cbabd7539491}{ros\-::\-Publisher \hyperlink{classSquirrelMotionPlanner_1_1Planner_aeed82573cd001be6ddf2cbabd7539491}{publisher\-Planning\-Scene}}\label{classSquirrelMotionPlanner_1_1Planner_aeed82573cd001be6ddf2cbabd7539491}
+
+\begin{DoxyCompactList}\small\item\em R\-O\-S publisher. Publishes the octree as a planning scene for moveit. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a23f7e2cf37f33a9ea98404b194ccb279}{ros\-::\-Publisher \hyperlink{classSquirrelMotionPlanner_1_1Planner_a23f7e2cf37f33a9ea98404b194ccb279}{publisher2\-D\-Path}}\label{classSquirrelMotionPlanner_1_1Planner_a23f7e2cf37f33a9ea98404b194ccb279}
+
+\begin{DoxyCompactList}\small\item\em R\-O\-S publisher. Publishes the 2\-D projection of the 8\-D trajectory. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_aaaab0174414dd693a0227d90da18636e}{ros\-::\-Publisher \hyperlink{classSquirrelMotionPlanner_1_1Planner_aaaab0174414dd693a0227d90da18636e}{publisher\-Trajectory}}\label{classSquirrelMotionPlanner_1_1Planner_aaaab0174414dd693a0227d90da18636e}
+
+\begin{DoxyCompactList}\small\item\em R\-O\-S publisher. Publishes the full 8\-D trajectory. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a29acfed405c437282c2af348fa86bc46}{ros\-::\-Subscriber \hyperlink{classSquirrelMotionPlanner_1_1Planner_a29acfed405c437282c2af348fa86bc46}{subscriber\-Base}}\label{classSquirrelMotionPlanner_1_1Planner_a29acfed405c437282c2af348fa86bc46}
+
+\begin{DoxyCompactList}\small\item\em R\-O\-S subscriber. Subscribes to /base/joint\-\_\-angles. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a2a0a56a4b25dde9efe31ad6a6f1f9418}{ros\-::\-Subscriber \hyperlink{classSquirrelMotionPlanner_1_1Planner_a2a0a56a4b25dde9efe31ad6a6f1f9418}{subscriber\-Arm}}\label{classSquirrelMotionPlanner_1_1Planner_a2a0a56a4b25dde9efe31ad6a6f1f9418}
+
+\begin{DoxyCompactList}\small\item\em R\-O\-S subscriber. Subscribes to /arm\-\_\-controller/joint\-\_\-states. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_af5f696116c28499c40f5a681782fe108}{ros\-::\-Subscriber \hyperlink{classSquirrelMotionPlanner_1_1Planner_af5f696116c28499c40f5a681782fe108}{subscriber\-Goal\-End\-Effector}}\label{classSquirrelMotionPlanner_1_1Planner_af5f696116c28499c40f5a681782fe108}
+
+\begin{DoxyCompactList}\small\item\em R\-O\-S subscriber. Subscribes to goal\-\_\-end\-\_\-effector. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_aec86250d8a7eddd67f308e7f13912f16}{ros\-::\-Subscriber \hyperlink{classSquirrelMotionPlanner_1_1Planner_aec86250d8a7eddd67f308e7f13912f16}{subscriber\-Goal\-Pose}}\label{classSquirrelMotionPlanner_1_1Planner_aec86250d8a7eddd67f308e7f13912f16}
+
+\begin{DoxyCompactList}\small\item\em R\-O\-S subscriber. Subscribes to goal\-\_\-pose. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a46d8e61d68603e6151cf93b41f4ed42e}{ros\-::\-Subscriber \hyperlink{classSquirrelMotionPlanner_1_1Planner_a46d8e61d68603e6151cf93b41f4ed42e}{subscriber\-Goal\-Marker\-Execute}}\label{classSquirrelMotionPlanner_1_1Planner_a46d8e61d68603e6151cf93b41f4ed42e}
+
+\begin{DoxyCompactList}\small\item\em R\-O\-S subscriber. Subscribes to goal\-\_\-marker\-\_\-execute. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a09904527326121bd2d4d073aefaebae0}{interactive\-\_\-markers\-::\-Interactive\-Marker\-Server \hyperlink{classSquirrelMotionPlanner_1_1Planner_a09904527326121bd2d4d073aefaebae0}{interactive\-Marker\-Server}}\label{classSquirrelMotionPlanner_1_1Planner_a09904527326121bd2d4d073aefaebae0}
+
+\begin{DoxyCompactList}\small\item\em Server that commuincates with Rviz to receive 6\-D end effector poses. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_aad666531f05d04ec62293f177dd93413}{visualization\-\_\-msgs\-::\-Interactive\-Marker \hyperlink{classSquirrelMotionPlanner_1_1Planner_aad666531f05d04ec62293f177dd93413}{interactive\-Marker}}\label{classSquirrelMotionPlanner_1_1Planner_aad666531f05d04ec62293f177dd93413}
+
+\begin{DoxyCompactList}\small\item\em Interactive marker used by interactive\-Marker\-Server. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a7e6fea3cb4c74dbd612554508c5ab3c5}{std\-::vector$<$ Real $>$ \hyperlink{classSquirrelMotionPlanner_1_1Planner_a7e6fea3cb4c74dbd612554508c5ab3c5}{pose\-Goal\-Marker}}\label{classSquirrelMotionPlanner_1_1Planner_a7e6fea3cb4c74dbd612554508c5ab3c5}
+
+\begin{DoxyCompactList}\small\item\em Current pose of the interactive marker in R\-Viz. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_aa2c99667a318f73c089de92e3fcc4bc1}{std\-::vector$<$ Real $>$ \hyperlink{classSquirrelMotionPlanner_1_1Planner_aa2c99667a318f73c089de92e3fcc4bc1}{pose\-Init}}\label{classSquirrelMotionPlanner_1_1Planner_aa2c99667a318f73c089de92e3fcc4bc1}
+
+\begin{DoxyCompactList}\small\item\em Vector with the 5 joint angles of the retracted arm during 2\-D planning. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a65871b26093a618442ed4c8e578e936b}{Real \hyperlink{classSquirrelMotionPlanner_1_1Planner_a65871b26093a618442ed4c8e578e936b}{distance\-Birrt\-Star\-Planning}}\label{classSquirrelMotionPlanner_1_1Planner_a65871b26093a618442ed4c8e578e936b}
+
+\begin{DoxyCompactList}\small\item\em Distance to the goal pose from where the 8\-D planning is performed. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_af237d3ea9fa294b8a36f69a450a2f54f}{Real \hyperlink{classSquirrelMotionPlanner_1_1Planner_af237d3ea9fa294b8a36f69a450a2f54f}{obstacle\-Inflation\-Radius}}\label{classSquirrelMotionPlanner_1_1Planner_af237d3ea9fa294b8a36f69a450a2f54f}
+
+\begin{DoxyCompactList}\small\item\em Inflation radius around occupied cells in occupancy\-Map. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_aa5a0935070f588666ab8bc593fcfefd7}{std\-::vector$<$ Real $>$ \hyperlink{classSquirrelMotionPlanner_1_1Planner_aa5a0935070f588666ab8bc593fcfefd7}{pose\-Current}}\label{classSquirrelMotionPlanner_1_1Planner_aa5a0935070f588666ab8bc593fcfefd7}
+
+\begin{DoxyCompactList}\small\item\em 8\-D vector with the current robot pose, given as \mbox{[}x, y, theta, arm1, arm2, arm3, arm4, arm5\mbox{]}. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a5c75ba9728d5f36e82f64cb3b55c5a61}{std\-::vector$<$ Real $>$ \hyperlink{classSquirrelMotionPlanner_1_1Planner_a5c75ba9728d5f36e82f64cb3b55c5a61}{pose\-Goal}}\label{classSquirrelMotionPlanner_1_1Planner_a5c75ba9728d5f36e82f64cb3b55c5a61}
+
+\begin{DoxyCompactList}\small\item\em 8\-D vector with the goal pose for the robot, given as \mbox{[}x, y, theta, arm1, arm2, arm3, arm4, arm5\mbox{]}. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a2b73c0833137af6903850a38257a1bb5}{std\-::vector$<$ std\-::vector$<$ Real $>$ $>$ \hyperlink{classSquirrelMotionPlanner_1_1Planner_a2b73c0833137af6903850a38257a1bb5}{poses}}\label{classSquirrelMotionPlanner_1_1Planner_a2b73c0833137af6903850a38257a1bb5}
+
+\begin{DoxyCompactList}\small\item\em Vector of 8\-D poses that contains the last succesfully computed trajectory from pose\-Current to pose\-Goal. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a04067c4cc6fade0c2f8f1de98a44053f}{octomap\-::\-Oc\-Tree \hyperlink{classSquirrelMotionPlanner_1_1Planner_a04067c4cc6fade0c2f8f1de98a44053f}{octree}}\label{classSquirrelMotionPlanner_1_1Planner_a04067c4cc6fade0c2f8f1de98a44053f}
+
+\begin{DoxyCompactList}\small\item\em Current octree, used for computing occupancy\-Map and during 8dof planning. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a95a04f970e8537226dd739cd98000af4}{std\-::vector$<$ std\-::vector$<$ bool $>$ $>$ \hyperlink{classSquirrelMotionPlanner_1_1Planner_a95a04f970e8537226dd739cd98000af4}{occupancy\-Map}}\label{classSquirrelMotionPlanner_1_1Planner_a95a04f970e8537226dd739cd98000af4}
+
+\begin{DoxyCompactList}\small\item\em Current occupancy map, computed from octree and inflated by obstalce\-Inflation\-Radius. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_ae16ef85b49f65c1542a3693233268710}{Real \hyperlink{classSquirrelMotionPlanner_1_1Planner_ae16ef85b49f65c1542a3693233268710}{octree\-Min\-X}}\label{classSquirrelMotionPlanner_1_1Planner_ae16ef85b49f65c1542a3693233268710}
+
+\begin{DoxyCompactList}\small\item\em Minimum metric x-\/value of octree that is used for the 2\-D planning. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a829d45c3d2d2c1cf35f58f1e838aeb57}{Real \hyperlink{classSquirrelMotionPlanner_1_1Planner_a829d45c3d2d2c1cf35f58f1e838aeb57}{octree\-Min\-Y}}\label{classSquirrelMotionPlanner_1_1Planner_a829d45c3d2d2c1cf35f58f1e838aeb57}
+
+\begin{DoxyCompactList}\small\item\em Minimum metric y-\/value of octree that is used for the 2\-D planning. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_af4b14098727a16a4fc44a12cc91e269e}{Real \hyperlink{classSquirrelMotionPlanner_1_1Planner_af4b14098727a16a4fc44a12cc91e269e}{octree\-Min\-Z}}\label{classSquirrelMotionPlanner_1_1Planner_af4b14098727a16a4fc44a12cc91e269e}
+
+\begin{DoxyCompactList}\small\item\em Minimum metric z-\/value of octree that is used for the 2\-D planning. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_aa15972180e604f20990aab54ada681d0}{Real \hyperlink{classSquirrelMotionPlanner_1_1Planner_aa15972180e604f20990aab54ada681d0}{octree\-Max\-X}}\label{classSquirrelMotionPlanner_1_1Planner_aa15972180e604f20990aab54ada681d0}
+
+\begin{DoxyCompactList}\small\item\em Maximum metric x-\/value of octree that is used for the 2\-D planning. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a4cc576a0e7b99895f285f6e385c8454a}{Real \hyperlink{classSquirrelMotionPlanner_1_1Planner_a4cc576a0e7b99895f285f6e385c8454a}{octree\-Max\-Y}}\label{classSquirrelMotionPlanner_1_1Planner_a4cc576a0e7b99895f285f6e385c8454a}
+
+\begin{DoxyCompactList}\small\item\em Maximum metric y-\/value of octree that is used for the 2\-D planning. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a8926f86a99e6fb47b7188d3cadb9ec9f}{Real \hyperlink{classSquirrelMotionPlanner_1_1Planner_a8926f86a99e6fb47b7188d3cadb9ec9f}{octree\-Max\-Z}}\label{classSquirrelMotionPlanner_1_1Planner_a8926f86a99e6fb47b7188d3cadb9ec9f}
+
+\begin{DoxyCompactList}\small\item\em Maximum metric z-\/value of octree that is used for the 2\-D planning. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_aa56c105ca2caf7f04926787f3f7eb07f}{Int \hyperlink{classSquirrelMotionPlanner_1_1Planner_aa56c105ca2caf7f04926787f3f7eb07f}{octree\-Key\-Min\-X}}\label{classSquirrelMotionPlanner_1_1Planner_aa56c105ca2caf7f04926787f3f7eb07f}
+
+\begin{DoxyCompactList}\small\item\em Minimum octree key x-\/value that is used for creating occupancy\-Map. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a35360139defeedf1801a8dcdfdba2e36}{Int \hyperlink{classSquirrelMotionPlanner_1_1Planner_a35360139defeedf1801a8dcdfdba2e36}{octree\-Key\-Min\-Y}}\label{classSquirrelMotionPlanner_1_1Planner_a35360139defeedf1801a8dcdfdba2e36}
+
+\begin{DoxyCompactList}\small\item\em Minimum octree key y-\/value that is used for creating occupancy\-Map. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a86a65b641d51d58afafe9035f56bdc34}{Int \hyperlink{classSquirrelMotionPlanner_1_1Planner_a86a65b641d51d58afafe9035f56bdc34}{octree\-Key\-Min\-Z}}\label{classSquirrelMotionPlanner_1_1Planner_a86a65b641d51d58afafe9035f56bdc34}
+
+\begin{DoxyCompactList}\small\item\em Minimum octree key z-\/value that is used for creating occupancy\-Map. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_af96fecbdc43020d174368caba84abda9}{Int \hyperlink{classSquirrelMotionPlanner_1_1Planner_af96fecbdc43020d174368caba84abda9}{octree\-Key\-Max\-X}}\label{classSquirrelMotionPlanner_1_1Planner_af96fecbdc43020d174368caba84abda9}
+
+\begin{DoxyCompactList}\small\item\em Maximum octree key x-\/value that is used for creating occupancy\-Map. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a24019af948c378b311798311bff9328f}{Int \hyperlink{classSquirrelMotionPlanner_1_1Planner_a24019af948c378b311798311bff9328f}{octree\-Key\-Max\-Y}}\label{classSquirrelMotionPlanner_1_1Planner_a24019af948c378b311798311bff9328f}
+
+\begin{DoxyCompactList}\small\item\em Maximum octree key y-\/value that is used for creating occupancy\-Map. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a6107429acc8e0d32c1508a33f690bcef}{Int \hyperlink{classSquirrelMotionPlanner_1_1Planner_a6107429acc8e0d32c1508a33f690bcef}{octree\-Key\-Max\-Z}}\label{classSquirrelMotionPlanner_1_1Planner_a6107429acc8e0d32c1508a33f690bcef}
+
+\begin{DoxyCompactList}\small\item\em Maximum octree key z-\/value that is used for creating occupancy\-Map. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_aa789bbca3cfa5c0f71b73f2c912e3cfb}{A\-Star\-Path2\-D \hyperlink{classSquirrelMotionPlanner_1_1Planner_aa789bbca3cfa5c0f71b73f2c912e3cfb}{A\-Star\-Path}}\label{classSquirrelMotionPlanner_1_1Planner_aa789bbca3cfa5c0f71b73f2c912e3cfb}
+
+\begin{DoxyCompactList}\small\item\em Full A$\ast$ grid path that is found during the 2\-D planning part. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a73e28409a7e36fd48fe696cd748540d0}{Cell2\-D \hyperlink{classSquirrelMotionPlanner_1_1Planner_a73e28409a7e36fd48fe696cd748540d0}{A\-Star\-Cell\-Start}}\label{classSquirrelMotionPlanner_1_1Planner_a73e28409a7e36fd48fe696cd748540d0}
+
+\begin{DoxyCompactList}\small\item\em Start cell for the current 2\-D path search. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a494391751e3e9002c1f633d448a2a656}{Cell2\-D \hyperlink{classSquirrelMotionPlanner_1_1Planner_a494391751e3e9002c1f633d448a2a656}{A\-Star\-Cell\-Goal}}\label{classSquirrelMotionPlanner_1_1Planner_a494391751e3e9002c1f633d448a2a656}
+
+\begin{DoxyCompactList}\small\item\em Goal cell for the current 2\-D path search. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_abebc97ea1ae51a31a8724955aea75bf1}{std\-::vector$<$ std\-::vector\\*
+$<$ A\-Star\-Node $>$ $>$ \hyperlink{classSquirrelMotionPlanner_1_1Planner_abebc97ea1ae51a31a8724955aea75bf1}{A\-Star\-Nodes}}\label{classSquirrelMotionPlanner_1_1Planner_abebc97ea1ae51a31a8724955aea75bf1}
+
+\begin{DoxyCompactList}\small\item\em Structured map of A$\ast$ nodes that is used during the path search. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_ae9771d5b68969a7c62116e63e3dae3ea}{std\-::vector$<$ Cell2\-D $>$ \hyperlink{classSquirrelMotionPlanner_1_1Planner_ae9771d5b68969a7c62116e63e3dae3ea}{open\-List\-Nodes}}\label{classSquirrelMotionPlanner_1_1Planner_ae9771d5b68969a7c62116e63e3dae3ea}
+
+\begin{DoxyCompactList}\small\item\em Priority queue of grid cells on A\-Star\-Nodes for the A$\ast$ path search. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_acaec47eaa6b7ea907e3c5462d3862041}{Real \hyperlink{classSquirrelMotionPlanner_1_1Planner_acaec47eaa6b7ea907e3c5462d3862041}{A\-Star\-Path\-Smoothing\-Factor}}\label{classSquirrelMotionPlanner_1_1Planner_acaec47eaa6b7ea907e3c5462d3862041}
+
+\begin{DoxyCompactList}\small\item\em Factor that indicates the smoothing behavior of the A$\ast$ path; good value lies between 1.\-5 and 2.\-5. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_ad6118dc6c8464d298a8deb7276d2857a}{Real \hyperlink{classSquirrelMotionPlanner_1_1Planner_ad6118dc6c8464d298a8deb7276d2857a}{A\-Star\-Path\-Smoothing\-Distance}}\label{classSquirrelMotionPlanner_1_1Planner_ad6118dc6c8464d298a8deb7276d2857a}
+
+\begin{DoxyCompactList}\small\item\em Maximum distance from intermediate corners that is used during the A$\ast$ path smoothing. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_afe3217a29a166cac2e0e7922e406da59}{Real \hyperlink{classSquirrelMotionPlanner_1_1Planner_afe3217a29a166cac2e0e7922e406da59}{A\-Star\-Path\-Smoothed\-Point\-Distance}}\label{classSquirrelMotionPlanner_1_1Planner_afe3217a29a166cac2e0e7922e406da59}
+
+\begin{DoxyCompactList}\small\item\em The approximate final distance between points of the smoothed A$\ast$ path. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a2413e0d4242e976e8ba1ed2a11110edd}{birrt\-\_\-star\-\_\-motion\-\_\-planning\-::\-Bi\-R\-R\-Tstar\-Planner \hyperlink{classSquirrelMotionPlanner_1_1Planner_a2413e0d4242e976e8ba1ed2a11110edd}{birrt\-Star\-Planner}}\label{classSquirrelMotionPlanner_1_1Planner_a2413e0d4242e976e8ba1ed2a11110edd}
+
+\begin{DoxyCompactList}\small\item\em Instance of the 8dof Bi\-R\-R\-T$\ast$ planner. \end{DoxyCompactList}\item 
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_af516201f114a1d0cbd04447c240a38ae}{Int \hyperlink{classSquirrelMotionPlanner_1_1Planner_af516201f114a1d0cbd04447c240a38ae}{birrt\-Star\-Planning\-Number}}\label{classSquirrelMotionPlanner_1_1Planner_af516201f114a1d0cbd04447c240a38ae}
+
+\begin{DoxyCompactList}\small\item\em The current planning number of the Bi\-R\-R\-T$\ast$ planner; increases by 1 after every planning attempt. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+\hyperlink{classSquirrelMotionPlanner_1_1Planner}{Planner} class, used for 8dof planning from the current robot pose to a desired goal pose or end effector location. Uses a 2-\/stage planning approach that first searches for a 2\-D A$\ast$ path to the goal, shortens the path by a fixed distance, and then smoothens the path. The last pose is then used to find a full 8\-D plan that includes the arm movement. 
+
+\subsection{Member Function Documentation}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_acb7e51aef59c75deaa8ecb4881849334}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!distance\-Cells@{distance\-Cells}}
+\index{distance\-Cells@{distance\-Cells}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{distance\-Cells}]{\setlength{\rightskip}{0pt plus 5cm}Real Squirrel\-Motion\-Planner\-::\-Planner\-::distance\-Cells (
+\begin{DoxyParamCaption}
+\item[{const Cell2\-D \&}]{cell1, }
+\item[{const Cell2\-D \&}]{cell2}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_acb7e51aef59c75deaa8ecb4881849334}
+
+
+Finds the distance between two cells in cell coordinates. The distance is not metric, but according to the rule that the distance between two adjecent cells is 1. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em cell1} & The first cell for finding the distance. \\
+\hline
+{\em cell2} & The second cell for finding the distance. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+Returns the distance between two cells. 
+\end{DoxyReturn}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a0423f516b51ad039a0002553b39423f1}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!expand\-A\-Star\-Node@{expand\-A\-Star\-Node}}
+\index{expand\-A\-Star\-Node@{expand\-A\-Star\-Node}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{expand\-A\-Star\-Node}]{\setlength{\rightskip}{0pt plus 5cm}void Squirrel\-Motion\-Planner\-::\-Planner\-::expand\-A\-Star\-Node (
+\begin{DoxyParamCaption}
+\item[{const A\-Star\-Node \&}]{node}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_a0423f516b51ad039a0002553b39423f1}
+
+
+Expands an A\-Star\-Node by its neighbours, if they are free and adds them to open\-List. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em node} & The A\-Star\-Node that is to be expanded by its neighbours. \\
+\hline
+\end{DoxyParams}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a1729538766406aa345e382441b45ca6a}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!find\-A\-Star\-Path@{find\-A\-Star\-Path}}
+\index{find\-A\-Star\-Path@{find\-A\-Star\-Path}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{find\-A\-Star\-Path}]{\setlength{\rightskip}{0pt plus 5cm}void Squirrel\-Motion\-Planner\-::\-Planner\-::find\-A\-Star\-Path (
+\begin{DoxyParamCaption}
+\item[{const Tuple2\-D}]{start\-Point, }
+\item[{const Tuple2\-D}]{goal\-Point}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_a1729538766406aa345e382441b45ca6a}
+
+
+Finds an A$\ast$ actual path between two points and saves it to A\-Star\-Path. If no path could be found, the flag valid is set to false and true otherwise. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em start\-Point} & The start point for the path planning in metric coordinates. \\
+\hline
+{\em goal\-Point} & The goal point for the path planning in metric coordinates. \\
+\hline
+\end{DoxyParams}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a20d0554b6a2df4d5d8f8a128d93a61d4}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!find\-Goal\-Pose@{find\-Goal\-Pose}}
+\index{find\-Goal\-Pose@{find\-Goal\-Pose}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{find\-Goal\-Pose}]{\setlength{\rightskip}{0pt plus 5cm}bool Squirrel\-Motion\-Planner\-::\-Planner\-::find\-Goal\-Pose (
+\begin{DoxyParamCaption}
+\item[{const std\-::vector$<$ Real $>$ \&}]{pose\-End\-Effector}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_a20d0554b6a2df4d5d8f8a128d93a61d4}
+
+
+Uses inverse kinematic to find a possible 8\-D pose for a requested 6\-D end effector pose. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em pose\-End\-Effector} & The 6\-D pose, given in \mbox{[}x, y, z, R, P, Y\mbox{]}, for which a free pose should be found. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+Returns true if a free pose could be found and false otherwise. 
+\end{DoxyReturn}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a683a5bf0c8383d4a491d1738a6600ed6}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!find\-Trajectory@{find\-Trajectory}}
+\index{find\-Trajectory@{find\-Trajectory}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{find\-Trajectory}]{\setlength{\rightskip}{0pt plus 5cm}bool Squirrel\-Motion\-Planner\-::\-Planner\-::find\-Trajectory (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_a683a5bf0c8383d4a491d1738a6600ed6}
+
+
+Finds a 2\-D and 8\-D trajectory to the goal pose saved in pose\-Goal, it is called by both find\-Trajectory\-Pose and find\-Trajectory\-End\-Effector which both save a new goal pose to pose\-Goal. 
+
+\begin{DoxyReturn}{Returns}
+True if a free trajectory could be found, returns false if either the 2\-D or the 8\-D search fails. 
+\end{DoxyReturn}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a4b28a4fda103fc6c47c5923f4eb61271}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!find\-Trajectory\-Birrt\-Star@{find\-Trajectory\-Birrt\-Star}}
+\index{find\-Trajectory\-Birrt\-Star@{find\-Trajectory\-Birrt\-Star}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{find\-Trajectory\-Birrt\-Star}]{\setlength{\rightskip}{0pt plus 5cm}bool Squirrel\-Motion\-Planner\-::\-Planner\-::find\-Trajectory\-Birrt\-Star (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_a4b28a4fda103fc6c47c5923f4eb61271}
+
+
+Finds an 8\-D path using birrt star from the last item in poses to pose\-Goal and also adds the remaining path to poses. 
+
+\begin{DoxyReturn}{Returns}
+True if a path could be found, false if the planner could not be initialized or no plan could be found. 
+\end{DoxyReturn}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_aa3b43ad32ef2dbca9fd4c3fedfab1ae6}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!find\-Trajectory\-End\-Effector@{find\-Trajectory\-End\-Effector}}
+\index{find\-Trajectory\-End\-Effector@{find\-Trajectory\-End\-Effector}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{find\-Trajectory\-End\-Effector}]{\setlength{\rightskip}{0pt plus 5cm}bool Squirrel\-Motion\-Planner\-::\-Planner\-::find\-Trajectory\-End\-Effector (
+\begin{DoxyParamCaption}
+\item[{const std\-::vector$<$ Real $>$ \&}]{pose\-End\-Effector}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_aa3b43ad32ef2dbca9fd4c3fedfab1ae6}
+
+
+Finds a combined 2\-D and 8\-D trajectory from the current robot pose such that it reaches a requested end effector pose, saves it as an 8\-D trajectory to poses, and publishes the trajectory. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em pose\-End\-Effector} & The 6\-D pose of the end effector to which the robot should plan, given in \mbox{[}x, y, z, R, P, Y\mbox{]}. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+False if no trajectory could be found or if no free pose could be found to the end effector, returns true otherwise. 
+\end{DoxyReturn}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_ac682a2ee500b2b5b8f70fc9b22c65a29}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!find\-Trajectory\-Pose@{find\-Trajectory\-Pose}}
+\index{find\-Trajectory\-Pose@{find\-Trajectory\-Pose}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{find\-Trajectory\-Pose}]{\setlength{\rightskip}{0pt plus 5cm}bool Squirrel\-Motion\-Planner\-::\-Planner\-::find\-Trajectory\-Pose (
+\begin{DoxyParamCaption}
+\item[{const std\-::vector$<$ Real $>$ \&}]{pose\-Goal\-New}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_ac682a2ee500b2b5b8f70fc9b22c65a29}
+
+
+Finds a combined 2\-D and 8\-D trajectory from the current robot pose such that it reaches a requested goal pose, saves it to poses, and publishes the trajectory. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em pose\-Goal\-New} & The 8\-D goal pose to which the robot should plan. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+False if no trajectory could be found and true otherwise. 
+\end{DoxyReturn}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a4be47ed5faec330e83da9edd0c5ac1ec}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!find\-Trajectory\-Retracted\-Arm@{find\-Trajectory\-Retracted\-Arm}}
+\index{find\-Trajectory\-Retracted\-Arm@{find\-Trajectory\-Retracted\-Arm}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{find\-Trajectory\-Retracted\-Arm}]{\setlength{\rightskip}{0pt plus 5cm}bool Squirrel\-Motion\-Planner\-::\-Planner\-::find\-Trajectory\-Retracted\-Arm (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_a4be47ed5faec330e83da9edd0c5ac1ec}
+
+
+Finds a 2\-D path from the cell of the current robot position (pose\-Current) to the cell of pose\-Goal, then shortens the path by distance\-Birrt\-Star\-Planning, smoothens the path and saves it as 8\-D poses using pose\-Init for the arm joints. 
+
+\begin{DoxyReturn}{Returns}
+True of a free path could be found, false otherwise. 
+\end{DoxyReturn}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a93073378ce0a34770bc52a032758d065}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!get\-Cell\-From\-Point@{get\-Cell\-From\-Point}}
+\index{get\-Cell\-From\-Point@{get\-Cell\-From\-Point}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{get\-Cell\-From\-Point}]{\setlength{\rightskip}{0pt plus 5cm}Cell2\-D Squirrel\-Motion\-Planner\-::\-Planner\-::get\-Cell\-From\-Point (
+\begin{DoxyParamCaption}
+\item[{const Tuple2\-D \&}]{point}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_a93073378ce0a34770bc52a032758d065}
+
+
+Converts a metric point to an integer cell according to min\-X, min\-Y and the resolution of occupancy\-Map (or octree, which is the same) 
+
+
+\begin{DoxyParams}{Parameters}
+{\em point} & The point which is to converted into an integer cell. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+Retuns a Cell2\-D which contains the integer coordinates of the point. 
+\end{DoxyReturn}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_ae890ed4157ce8a06f27d39e4af57c18e}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!get\-Point\-From\-Cell@{get\-Point\-From\-Cell}}
+\index{get\-Point\-From\-Cell@{get\-Point\-From\-Cell}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{get\-Point\-From\-Cell}]{\setlength{\rightskip}{0pt plus 5cm}Tuple2\-D Squirrel\-Motion\-Planner\-::\-Planner\-::get\-Point\-From\-Cell (
+\begin{DoxyParamCaption}
+\item[{const Cell2\-D \&}]{cell}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_ae890ed4157ce8a06f27d39e4af57c18e}
+
+
+Converts a cell to metric coordinates according to min\-X, min\-Y and the resolution of occupancy\-Map (or octree, which is the same) 
+
+
+\begin{DoxyParams}{Parameters}
+{\em cell} & The cell which is to converted into a metric point. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+Retuns a Tuple2\-D which contains the metric coordinates of the cell. 
+\end{DoxyReturn}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_ab56495a3b985e0f3782eee5a485c7d85}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!interactive\-Marker\-Handler@{interactive\-Marker\-Handler}}
+\index{interactive\-Marker\-Handler@{interactive\-Marker\-Handler}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{interactive\-Marker\-Handler}]{\setlength{\rightskip}{0pt plus 5cm}void Squirrel\-Motion\-Planner\-::\-Planner\-::interactive\-Marker\-Handler (
+\begin{DoxyParamCaption}
+\item[{const visualization\-\_\-msgs\-::\-Interactive\-Marker\-Feedback\-Const\-Ptr \&}]{msg}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_ab56495a3b985e0f3782eee5a485c7d85}
+
+
+Handles the feedback message of the interactive marker. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em msg} & Contains the 6\-D pose of the marker given in 7\-D with the 3\-D pose and 4\-D quaternion. \\
+\hline
+\end{DoxyParams}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a871d5a2cb60ea87eba1b6f1b61a4b5eb}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!is\-Cell\-Occupied@{is\-Cell\-Occupied}}
+\index{is\-Cell\-Occupied@{is\-Cell\-Occupied}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{is\-Cell\-Occupied}]{\setlength{\rightskip}{0pt plus 5cm}bool Squirrel\-Motion\-Planner\-::\-Planner\-::is\-Cell\-Occupied (
+\begin{DoxyParamCaption}
+\item[{const Cell2\-D \&}]{cell}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_a871d5a2cb60ea87eba1b6f1b61a4b5eb}
+
+
+Checks if a cell is occpuied according to occupancy\-Map. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em cell} & The cell to be checked for occupancy. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+True if the corresponding cell in occupancy\-Map is true, false otherwise. 
+\end{DoxyReturn}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a06bc0ce6344e84f31dca4c06d9986732}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!is\-Connection\-Line\-Free@{is\-Connection\-Line\-Free}}
+\index{is\-Connection\-Line\-Free@{is\-Connection\-Line\-Free}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{is\-Connection\-Line\-Free}]{\setlength{\rightskip}{0pt plus 5cm}bool Squirrel\-Motion\-Planner\-::\-Planner\-::is\-Connection\-Line\-Free (
+\begin{DoxyParamCaption}
+\item[{const Tuple2\-D \&}]{point\-Start, }
+\item[{const Tuple2\-D \&}]{point\-End}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_a06bc0ce6344e84f31dca4c06d9986732}
+
+
+Moves directly between two points and checks if all cells on the connecting line are free according to occupancy\-Map. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em point\-Start} & The starting point in metric coordinates of the line segment. \\
+\hline
+{\em point\-End} & The end point in metric coordinates of the line segment. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+False if any occpuied call is found, true otherwise. 
+\end{DoxyReturn}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a39d2cf7e35e9b17f64ec8ff8d5376d61}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!is\-Octree\-Node\-Occupied@{is\-Octree\-Node\-Occupied}}
+\index{is\-Octree\-Node\-Occupied@{is\-Octree\-Node\-Occupied}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{is\-Octree\-Node\-Occupied}]{\setlength{\rightskip}{0pt plus 5cm}bool Squirrel\-Motion\-Planner\-::\-Planner\-::is\-Octree\-Node\-Occupied (
+\begin{DoxyParamCaption}
+\item[{const octomap\-::\-Oc\-Tree\-Key \&}]{key}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_a39d2cf7e35e9b17f64ec8ff8d5376d61}
+
+
+Checks if an octree node is occupied in the currently loaded octree. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em key} & The octomap\-::\-Oc\-Tree\-Key to the octree node to be checked. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+Returns true if the node saved in key is occupied, false if the node is occupied or N\-U\-L\-L. 
+\end{DoxyReturn}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a963470ef70623c6115b8cb004e500263}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!load\-Parameter@{load\-Parameter}}
+\index{load\-Parameter@{load\-Parameter}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{load\-Parameter}]{\setlength{\rightskip}{0pt plus 5cm}void Squirrel\-Motion\-Planner\-::\-Planner\-::load\-Parameter (
+\begin{DoxyParamCaption}
+\item[{const string \&}]{name, }
+\item[{Real \&}]{member, }
+\item[{const Real \&}]{default\-Value}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_a963470ef70623c6115b8cb004e500263}
+
+
+Loads a parameter from the R\-O\-S parameter server and saves it to a member varible . If the parameter could not be found or has an invalid name the default value is used instead. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em name} & The name of the paramter to be loaded by the global node handle nh. \\
+\hline
+{\em member} & The member variable to which the parameter should be saved. \\
+\hline
+{\em default\-Value} & The value which is used saved to member in case the parameter could not be loaded. \\
+\hline
+\end{DoxyParams}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_aa0195b884350f348200790e01fe7d028}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!open\-List\-Insert\-Node@{open\-List\-Insert\-Node}}
+\index{open\-List\-Insert\-Node@{open\-List\-Insert\-Node}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{open\-List\-Insert\-Node}]{\setlength{\rightskip}{0pt plus 5cm}void Squirrel\-Motion\-Planner\-::\-Planner\-::open\-List\-Insert\-Node (
+\begin{DoxyParamCaption}
+\item[{A\-Star\-Node \&}]{node}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_aa0195b884350f348200790e01fe7d028}
+
+
+Inserts a node to open\-List and sorts it using an integer based binary tree according to its F cost value. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em node} & A\-Star\-Node to be inserted into the open list. \\
+\hline
+\end{DoxyParams}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_af8e3f71f2905c6bbe2d8bd4272cdb950}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!open\-List\-Update\-Node@{open\-List\-Update\-Node}}
+\index{open\-List\-Update\-Node@{open\-List\-Update\-Node}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{open\-List\-Update\-Node}]{\setlength{\rightskip}{0pt plus 5cm}void Squirrel\-Motion\-Planner\-::\-Planner\-::open\-List\-Update\-Node (
+\begin{DoxyParamCaption}
+\item[{A\-Star\-Node \&}]{node}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_af8e3f71f2905c6bbe2d8bd4272cdb950}
+
+
+Updates a node in open\-List and sorts it using an integer based binary tree according to its F cost value. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em node} & A\-Star\-Node to be updated within the open list. \\
+\hline
+\end{DoxyParams}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a1cc55ecbf721cb8e03bd2d1d119986b7}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!subscriber\-Arm\-Handler@{subscriber\-Arm\-Handler}}
+\index{subscriber\-Arm\-Handler@{subscriber\-Arm\-Handler}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{subscriber\-Arm\-Handler}]{\setlength{\rightskip}{0pt plus 5cm}void Squirrel\-Motion\-Planner\-::\-Planner\-::subscriber\-Arm\-Handler (
+\begin{DoxyParamCaption}
+\item[{const sensor\-\_\-msgs\-::\-Joint\-State \&}]{msg}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_a1cc55ecbf721cb8e03bd2d1d119986b7}
+
+
+Handler for the arm joints of the robot. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em msg} & R\-O\-S message that contains the joint angles of the arm information. \\
+\hline
+\end{DoxyParams}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a8af321d1e0532e1b61d64c2b8be9d48b}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!subscriber\-Base\-Handler@{subscriber\-Base\-Handler}}
+\index{subscriber\-Base\-Handler@{subscriber\-Base\-Handler}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{subscriber\-Base\-Handler}]{\setlength{\rightskip}{0pt plus 5cm}void Squirrel\-Motion\-Planner\-::\-Planner\-::subscriber\-Base\-Handler (
+\begin{DoxyParamCaption}
+\item[{const sensor\-\_\-msgs\-::\-Joint\-State \&}]{msg}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_a8af321d1e0532e1b61d64c2b8be9d48b}
+
+
+Handler for the base position of the robot. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em msg} & R\-O\-S message that contains the base pose information. \\
+\hline
+\end{DoxyParams}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a1ae3894762068a1f33732ffe0eb1a823}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!subscriber\-Goal\-End\-Effector\-Handler@{subscriber\-Goal\-End\-Effector\-Handler}}
+\index{subscriber\-Goal\-End\-Effector\-Handler@{subscriber\-Goal\-End\-Effector\-Handler}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{subscriber\-Goal\-End\-Effector\-Handler}]{\setlength{\rightskip}{0pt plus 5cm}void Squirrel\-Motion\-Planner\-::\-Planner\-::subscriber\-Goal\-End\-Effector\-Handler (
+\begin{DoxyParamCaption}
+\item[{const std\-\_\-msgs\-::\-Float64\-Multi\-Array \&}]{msg}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_a1ae3894762068a1f33732ffe0eb1a823}
+
+
+Handler for starting the planner to the requested end effector position. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em msg} & R\-O\-S message that contains the 6\-D pose of the requested end effector goal position given in \mbox{[}x,y,z,R,P,Y\mbox{]}. \\
+\hline
+\end{DoxyParams}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_ad547ede001e005bb1ceb8aa5e277f3b7}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!subscriber\-Goal\-Marker\-Execute\-Handler@{subscriber\-Goal\-Marker\-Execute\-Handler}}
+\index{subscriber\-Goal\-Marker\-Execute\-Handler@{subscriber\-Goal\-Marker\-Execute\-Handler}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{subscriber\-Goal\-Marker\-Execute\-Handler}]{\setlength{\rightskip}{0pt plus 5cm}void Squirrel\-Motion\-Planner\-::\-Planner\-::subscriber\-Goal\-Marker\-Execute\-Handler (
+\begin{DoxyParamCaption}
+\item[{const std\-\_\-msgs\-::\-Empty \&}]{msg}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_ad547ede001e005bb1ceb8aa5e277f3b7}
+
+
+Used to signal a request for finding a trajectory to the current interactive marker pose for the endeffector. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em msg} & Emtpy message used only as a signal. \\
+\hline
+\end{DoxyParams}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_a8f43c92360856238d16e452c3dd68544}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!subscriber\-Goal\-Pose\-Handler@{subscriber\-Goal\-Pose\-Handler}}
+\index{subscriber\-Goal\-Pose\-Handler@{subscriber\-Goal\-Pose\-Handler}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{subscriber\-Goal\-Pose\-Handler}]{\setlength{\rightskip}{0pt plus 5cm}void Squirrel\-Motion\-Planner\-::\-Planner\-::subscriber\-Goal\-Pose\-Handler (
+\begin{DoxyParamCaption}
+\item[{const std\-\_\-msgs\-::\-Float64\-Multi\-Array \&}]{msg}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_a8f43c92360856238d16e452c3dd68544}
+
+
+Handler for starting the planner to the requested goal pose. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em msg} & R\-O\-S message that contains the full 8\-D pose of the robot given as \mbox{[}base\-\_\-x, base\-\_\-y, base\-\_\-theta, arm\-\_\-joint1, arm\-\_\-joint2, arm\-\_\-joint3, arm\-\_\-joint4, arm\-\_\-joint5\mbox{]}. \\
+\hline
+\end{DoxyParams}
+\hypertarget{classSquirrelMotionPlanner_1_1Planner_aa88fa9332acb8f16edfb52c8fb57bb6f}{\index{Squirrel\-Motion\-Planner\-::\-Planner@{Squirrel\-Motion\-Planner\-::\-Planner}!update\-F\-Cost@{update\-F\-Cost}}
+\index{update\-F\-Cost@{update\-F\-Cost}!SquirrelMotionPlanner::Planner@{Squirrel\-Motion\-Planner\-::\-Planner}}
+\subsubsection[{update\-F\-Cost}]{\setlength{\rightskip}{0pt plus 5cm}void Squirrel\-Motion\-Planner\-::\-Planner\-::update\-F\-Cost (
+\begin{DoxyParamCaption}
+\item[{A\-Star\-Node \&}]{node}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [private]}}}\label{classSquirrelMotionPlanner_1_1Planner_aa88fa9332acb8f16edfb52c8fb57bb6f}
+
+
+Updates the F cost value of an A\-Star\-Node accoring to its G cost and an optimal admissable heuristics for grid maps. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em node} & A\-Star\-Node for which the F cost value is to be updated. \\
+\hline
+\end{DoxyParams}
+
+
+The documentation for this class was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+/home/philkark/workspaces/squirrel/src/squirrel\-\_\-motion\-\_\-planner/squirrel\-\_\-8dof\-\_\-planner/include/squirrel\-\_\-8dof\-\_\-planner/squirrel\-\_\-8dof\-\_\-planner.\-h\end{DoxyCompactItemize}

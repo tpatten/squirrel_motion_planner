@@ -135,7 +135,7 @@ void LineSegment2D::clipEnd(const Real &distance)
 
 void LineSegment2D::clipBoth(const Real &distance)
 {
-  if(distance *2 >= length)
+  if (distance * 2 >= length)
   {
     start = end = start + direction * 0.5 * length;
     length = 0.0;
@@ -144,7 +144,7 @@ void LineSegment2D::clipBoth(const Real &distance)
   {
     start = start + direction * distance;
     end = end - direction * distance;
-    length -= 2*distance;
+    length -= 2 * distance;
   }
 }
 
@@ -166,6 +166,7 @@ Tuple2D LineSegment2D::getPointMiddle() const
 ParametricFunctionCubic2D::ParametricFunctionCubic2D()
 {
   xA = xB = xC = xD = yA = yB = yC = yD = length = 0;
+  lengthRecip = std::numeric_limits::infinity();
 }
 
 ParametricFunctionCubic2D::ParametricFunctionCubic2D(const Tuple2D &pointStart, const Tuple2D &pointEnd, const Tuple2D &pointRef, const Real &smoothingFactor,
@@ -192,7 +193,10 @@ ParametricFunctionCubic2D::ParametricFunctionCubic2D(const Tuple2D &pointStart, 
     length += sqrt(dx * dx + dy * dy);
   }
 
-  lengthRecip = 1 / length;
+  if (length > 0)
+    lengthRecip = 1 / length;
+  else
+    lengthRecip = std::numeric_limits::infinity();
 }
 
 Tuple2D ParametricFunctionCubic2D::getPointParametric(const Real &t) const
