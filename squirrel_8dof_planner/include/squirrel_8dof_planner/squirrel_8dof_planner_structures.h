@@ -12,11 +12,11 @@
 namespace SquirrelMotionPlanner
 {
 
-#define TINY_FLT 0.000001
+#define TINY_FLT 0.000001     ///< Definition of a small floating point number.
 
-typedef int32_t Int;
-typedef uint32_t UInt;
-typedef double Real;
+typedef int32_t Int;     ///< 32-bit signed integer definition.
+typedef uint32_t UInt;     ///< 32-bit unsigned integer definition.
+typedef double Real;     ///< 64-bit floating point definition.
 
 /**
  * @brief A 2D cell structure with an x and y coordinate.
