@@ -262,21 +262,31 @@ struct ParametricFunctionCubic2D
   Real getAngleAbsolute(const Real &distance) const;
 };
 
+/**
+ * @brief A* node structure, used during a grid based A* search.
+ */
 struct AStarNode
 {
-  Real g, f;
-  Cell2D cell, cellParent;
-  bool open, closed, occupied;
-  UInt indexOpenList;
+  Real g;     ///< Cost that is necessary to reach the goal from the starting node.
+  Real f;     ///< Sum of cost to reach the node and an admissable heuristic.
+  Cell2D cell;     ///< 2D coordinates to the corresponding grid cell.
+  Cell2D cellParent;     ///< 2D coordinate of the corresponding parent cell.
+  bool open;     ///< Indicates if the node is currently in the open list.
+  bool closed;     ///< Indicates if the node has already been expanded and is closed.
+  bool occupied;     ///< Indicates if the node is occupied by an obstacle.
+  UInt indexOpenList;     ///< The current index the node has in the priority queue.
 
-  std::vector<std::pair<AStarNode*, Real> > neighbors;
+  std::vector<std::pair<AStarNode*, Real> > neighbors;     ///< Vector of pointers to neighboring nodes along with the cost to reach the corresponding nodes.
 };
 
+/**
+ * @brief A* path structure that contains a list of cells from start to goal in addition to corresponding metric 2D points.
+ */
 struct AStarPath2D
 {
-  std::vector<Cell2D> cells;
-  std::vector<Tuple2D> points;
-  bool valid;
+  std::vector<Cell2D> cells;     ///< Sorted vector of grid cell corrdinates of the path from the start to goal cell.
+  std::vector<Tuple2D> points;     ///< Sorted vector of metric points that correspond to cells.
+  bool valid;     ///< Indicates if the current path is valid or has been invalidated due to an impossible path or a map update.
 };
 
 } //namespace SquirrelMotionPlanner
