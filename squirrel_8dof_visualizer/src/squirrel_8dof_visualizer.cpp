@@ -3,13 +3,13 @@
 namespace SquirrelMotionPlanning
 {
 
-Visualizer::Visualizer() :
+Visualizer::Visualizer(const std::string &robotDescriptionTopic) :
     nhPrivate("~"), rate(30), robotMarkerPublisher("robot_trajectory_visualization"), jointStatesArm(new sensor_msgs::JointState)
 {
   subscriberTrajectory = nh.subscribe("squirrel_8dof_planner_node/robot_trajectory", 1, &Visualizer::subscriberTrajectoryHandler, this);
   subscriberVisibility = nhPrivate.subscribe("set_visibility", 1, &Visualizer::subscriberVisibilityHandler, this);
   subscriberRate = nhPrivate.subscribe("set_rate", 1, &Visualizer::subscriberRateHandler, this);
-  robotID = robotMarkerPublisher.addRobotFromDescription("robot_description_vis");
+  robotID = robotMarkerPublisher.addRobotFromDescription(robotDescriptionTopic);
   std_msgs::ColorRGBA color;
   color.a = 0.2;
   color.b = 1.0;
@@ -33,6 +33,8 @@ Visualizer::Visualizer() :
   poseCurrent = 0;
   finalPoseState = false;
   visible = true;
+
+  run();
 }
 
 void Visualizer::run()

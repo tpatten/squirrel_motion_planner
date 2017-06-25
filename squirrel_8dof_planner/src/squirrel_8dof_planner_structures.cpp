@@ -166,7 +166,7 @@ Tuple2D LineSegment2D::getPointMiddle() const
 ParametricFunctionCubic2D::ParametricFunctionCubic2D()
 {
   xA = xB = xC = xD = yA = yB = yC = yD = length = 0;
-  lengthRecip = std::numeric_limits::infinity();
+  lengthRecip = std::numeric_limits<Real>::infinity();
 }
 
 ParametricFunctionCubic2D::ParametricFunctionCubic2D(const Tuple2D &pointStart, const Tuple2D &pointEnd, const Tuple2D &pointRef, const Real &smoothingFactor,
@@ -196,7 +196,7 @@ ParametricFunctionCubic2D::ParametricFunctionCubic2D(const Tuple2D &pointStart, 
   if (length > 0)
     lengthRecip = 1 / length;
   else
-    lengthRecip = std::numeric_limits::infinity();
+    lengthRecip = std::numeric_limits<Real>::infinity();
 }
 
 Tuple2D ParametricFunctionCubic2D::getPointParametric(const Real &t) const
