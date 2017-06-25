@@ -55,7 +55,6 @@ private:
 
   ros::Rate rate;     ///< Current publishing rate, set in subscriberRateHandler.
   bool visible;     ///< Set in subscriberVisibilityHandler, indicates if the visualization is currently visible.
-  UInt poseCurrent;     ///< Index of the current pose to be visualized.
   bool finalPoseState;     ///< True if the final pose is currently being shown.
   ros::WallTime finalPoseTime;     ///< Time at which the last final pose has been reached.
 
