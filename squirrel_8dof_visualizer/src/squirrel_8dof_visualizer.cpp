@@ -47,20 +47,23 @@ void Visualizer::run()
     if (!visible || poses.size() <= 1)
       continue;
 
-    transformBaseTranslation[0] = poses[poseCurrent][0];
-    transformBaseTranslation[1] = poses[poseCurrent][1];
-    transformBaseRotation.setRPY(0.0, 0.0, poses[poseCurrent][2]);
+    if (!finalPoseState)
+    {
+      transformBaseTranslation[0] = poses[poseCurrent][0];
+      transformBaseTranslation[1] = poses[poseCurrent][1];
+      transformBaseRotation.setRPY(0.0, 0.0, poses[poseCurrent][2]);
 
-    transformBase.setOrigin(transformBaseTranslation);
-    transformBase.setBasis(transformBaseRotation);
+      transformBase.setOrigin(transformBaseTranslation);
+      transformBase.setBasis(transformBaseRotation);
 
-    jointStatesArm->position[0] = poses[poseCurrent][3];
-    jointStatesArm->position[1] = poses[poseCurrent][4];
-    jointStatesArm->position[2] = poses[poseCurrent][5];
-    jointStatesArm->position[3] = poses[poseCurrent][6];
-    jointStatesArm->position[4] = poses[poseCurrent][7];
+      jointStatesArm->position[0] = poses[poseCurrent][3];
+      jointStatesArm->position[1] = poses[poseCurrent][4];
+      jointStatesArm->position[2] = poses[poseCurrent][5];
+      jointStatesArm->position[3] = poses[poseCurrent][6];
+      jointStatesArm->position[4] = poses[poseCurrent][7];
 
-    robotMarkerPublisher.setRobotPose(robotID, transformBase, jointStatesArm);
+      robotMarkerPublisher.setRobotPose(robotID, transformBase, jointStatesArm);
+    }
 
     if (poseCurrent == poses.size() - 1)
     {
