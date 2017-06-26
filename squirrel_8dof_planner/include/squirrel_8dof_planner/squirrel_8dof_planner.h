@@ -25,6 +25,7 @@
 
 #include <octomap/octomap.h>
 #include <octomap_msgs/conversions.h>
+#include <octomap_server/OctomapServer.h>
 
 namespace SquirrelMotionPlanner
 {
@@ -49,6 +50,7 @@ class Planner
   ros::Subscriber subscriberGoalEndEffector;     ///< ROS subscriber. Subscribes to goal_end_effector.
   ros::Subscriber subscriberGoalPose;     ///< ROS subscriber. Subscribes to goal_pose.
   ros::Subscriber subscriberGoalMarkerExecute;     ///< ROS subscriber. Subscribes to goal_marker_execute.
+  ros::ServiceClient serviceClientOctomap;     ///< ROS service client. Receives a binary octomap from octomap_server_node.
   interactive_markers::InteractiveMarkerServer interactiveMarkerServer;     ///< Server that commuincates with Rviz to receive 6D end effector poses.
   visualization_msgs::InteractiveMarker interactiveMarker;     ///< Interactive marker used by interactiveMarkerServer.
   std::vector<Real> poseGoalMarker;     ///< Current pose of the interactive marker in RViz.
@@ -179,6 +181,11 @@ private:
   void subscriberGoalPoseHandler(const std_msgs::Float64MultiArray &msg);
 
   /**
+   * @brief Calls for and updates internal octomap from octomap_server_node.
+   */
+  void serviceCallGetOctomap();
+
+  /**
    * @brief Handles the feedback message of the interactive marker.
    * @param msg Contains the 6D pose of the marker given in 7D with the 3D pose and 4D quaternion.
    */
@@ -296,7 +303,7 @@ private:
    * If the parameter could not be found or has an invalid name the default value is used instead.
    * @param name The name of the paramter to be loaded by the global node handle nh.
    * @param member The member variable to which the parameter should be saved.
-   * @param defaultValue The value which is used saved to member in case the parameter could not be loaded.
+   * @param defaultValue The value member is set to in case the parameter could not be loaded.
    */
   void loadParameter(const string &name, Real &member, const Real &defaultValue);
 

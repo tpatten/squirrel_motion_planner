@@ -15,14 +15,17 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_ros_planning
   moveit_msgs
   interactive_markers
+  
+  octomap_msgs
+  octomap_server
 )
 
 find_package(octomap REQUIRED)
-find_package(octomap_msgs REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include 
-  CATKIN_DEPENDS roscpp rospy std_msgs nav_msgs geometry_msgs tf sensor_msgs birrt_star_algorithm moveit_ros_planning moveit_msgs interactive_markers
+  CATKIN_DEPENDS roscpp rospy std_msgs nav_msgs geometry_msgs tf sensor_msgs birrt_star_algorithm moveit_ros_planning moveit_msgs interactive_markers octomap_msgs octomap_server
+  DEPENDS octomap
 )
  
 include_directories(
@@ -32,5 +35,4 @@ include_directories(
 )
 
 add_executable(${PROJECT_NAME}_node src/${PROJECT_NAME}_node.cpp src/${PROJECT_NAME}.cpp src/${PROJECT_NAME}_structures.cpp)
-
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${OCTOMAP_LIBRARIES})

@@ -68,6 +68,7 @@ void Planner::initializeMessageHandling()
   subscriberGoalEndEffector = nhPrivate.subscribe("goal_end_effector", 1, &Planner::subscriberGoalEndEffectorHandler, this);
   subscriberGoalMarkerExecute = nhPrivate.subscribe("goal_marker_execute", 1, &Planner::subscriberGoalMarkerExecuteHandler, this);
   subscriberGoalPose = nhPrivate.subscribe("goal_pose", 1, &Planner::subscriberGoalPoseHandler, this);
+  serviceClientOctomap = nh.serviceClient<octomap_msgs::Octomap>("/octomap_binary");
 }
 
 void Planner::initializeAStarPlanning()
@@ -262,6 +263,11 @@ void Planner::subscriberGoalPoseHandler(const std_msgs::Float64MultiArray &msg)
   else
     ROS_WARN("Could not start planning, because the message has a wrong dimension. Provided dimension: %u, expected dimension: 8",
              static_cast<UInt>(msg.data.size()));
+}
+
+void Planner::serviceCallGetOctomap()
+{
+  octomap_msgs::Octomap octomapNew = serviceClientOctomap;
 }
 
 void Planner::interactiveMarkerHandler(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &msg)
