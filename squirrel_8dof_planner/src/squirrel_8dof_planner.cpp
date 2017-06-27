@@ -68,7 +68,7 @@ void Planner::initializeMessageHandling()
   subscriberGoalEndEffector = nhPrivate.subscribe("goal_end_effector", 1, &Planner::subscriberGoalEndEffectorHandler, this);
   subscriberGoalMarkerExecute = nhPrivate.subscribe("goal_marker_execute", 1, &Planner::subscriberGoalMarkerExecuteHandler, this);
   subscriberGoalPose = nhPrivate.subscribe("goal_pose", 1, &Planner::subscriberGoalPoseHandler, this);
-  serviceClientOctomap = nh.serviceClient<octomap_msgs::Octomap>("/octomap_binary");
+  serviceClientOctomap = nh.serviceClient<octomap_msgs::GetOctomap>("/octomap_full");
 }
 
 void Planner::initializeAStarPlanning()
@@ -265,9 +265,46 @@ void Planner::subscriberGoalPoseHandler(const std_msgs::Float64MultiArray &msg)
              static_cast<UInt>(msg.data.size()));
 }
 
-void Planner::serviceCallGetOctomap()
+bool Planner::serviceCallGetOctomap()
 {
-  octomap_msgs::Octomap octomapNew = serviceClientOctomap;
+  octomap_msgs::GetOctomapRequest req;
+  octomap_msgs::GetOctomapResponse res;
+  if(!serviceClientOctomap.call(req, res))
+  {
+    ROS_ERROR("Could not receive a new octomap from 'octomap_server_node', planning will not be executed.");
+    return false;
+  }
+
+  octomap::OcTree* octreeNew = dynamic_cast<octomap::OcTree*>(octomap_msgs::fullMsgToMap(res.map));
+  if(octreeNew == NULL)
+  {
+    ROS_ERROR("Received octomap is empty, planning will not be executed.");
+    return false;
+  }
+
+  create2DMap(octreeNew);
+  inflate2DMap();
+
+  moveit_msgs::PlanningScene msgScene;
+  msgScene.name = "octomap_scene";
+  msgScene.is_diff = true;
+  msgScene.world.octomap.header.frame_id = "origin";
+  msgScene.world.octomap.header.stamp = ros::Time::now();
+  msgScene.world.octomap.header.seq = 0;
+  msgScene.world.octomap.octomap.header = msgScene.world.octomap.header;
+  msgScene.world.octomap.origin.orientation.w = 1.0;
+  msgScene.world.octomap.origin.orientation.x = 0.0;
+  msgScene.world.octomap.origin.orientation.y = 0.0;
+  msgScene.world.octomap.origin.orientation.z = 0.0;
+  msgScene.world.octomap.origin.position.x = 0.0;
+  msgScene.world.octomap.origin.position.y = 0.0;
+  msgScene.world.octomap.origin.position.z = 0.0;
+  msgScene.world.octomap.octomap = res.map;
+
+  publisherPlanningScene.publish(msgScene);
+
+  delete octreeNew;
+  return true;
 }
 
 void Planner::interactiveMarkerHandler(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &msg)
@@ -298,6 +335,65 @@ void Planner::create2DMap()
   octreeKeyMaxY = keyMaxPlane[1];
   octreeKeyMinZ = octree.coordToKey(0.0, 0.0, resolution * 0.5)[2];
   octreeKeyMaxZ = octree.coordToKey(0.0, 0.0, 2.0 - resolution * 0.5)[2];
+
+  occupancyMap.resize(octreeKeyMaxX - octreeKeyMinX + 1, std::vector<bool>(octreeKeyMaxY - octreeKeyMinY + 1, false));
+  AStarNodes.resize(octreeKeyMaxX - octreeKeyMinX + 1, std::vector<AStarNode>(octreeKeyMaxY - octreeKeyMinY + 1));
+
+  octomap::OcTreeKey key;
+  for (UInt x = 0; x < occupancyMap.size(); ++x)
+  {
+    for (UInt y = 0; y < occupancyMap[0].size(); ++y)
+    {
+      AStarNodes[x][y].cell = Cell2D(x, y);
+
+      if (x + 1 < AStarNodes.size() && y + 1 < AStarNodes[0].size())
+        AStarNodes[x][y].neighbors.push_back(std::make_pair(&AStarNodes[x + 1][y + 1], M_SQRT2));
+      if (x + 1 < AStarNodes.size())
+        AStarNodes[x][y].neighbors.push_back(std::make_pair(&AStarNodes[x + 1][y], 1.0));
+      if (x + 1 < AStarNodes.size() && y - 1 < AStarNodes[0].size())
+        AStarNodes[x][y].neighbors.push_back(std::make_pair(&AStarNodes[x + 1][y - 1], M_SQRT2));
+      if (y + 1 < AStarNodes[0].size())
+        AStarNodes[x][y].neighbors.push_back(std::make_pair(&AStarNodes[x][y + 1], 1.0));
+      if (y - 1 < AStarNodes[0].size())
+        AStarNodes[x][y].neighbors.push_back(std::make_pair(&AStarNodes[x][y - 1], 1.0));
+      if (x - 1 < AStarNodes.size() && y + 1 < AStarNodes[0].size())
+        AStarNodes[x][y].neighbors.push_back(std::make_pair(&AStarNodes[x - 1][y + 1], M_SQRT2));
+      if (x - 1 < AStarNodes.size())
+        AStarNodes[x][y].neighbors.push_back(std::make_pair(&AStarNodes[x - 1][y], 1.0));
+      if (x - 1 < AStarNodes.size() && y - 1 < AStarNodes[0].size())
+        AStarNodes[x][y].neighbors.push_back(std::make_pair(&AStarNodes[x - 1][y - 1], M_SQRT2));
+
+      for (UInt z = 0; z < octreeKeyMaxZ - octreeKeyMinZ; ++z)
+      {
+        key[0] = x + octreeKeyMinX;
+        key[1] = y + octreeKeyMinY;
+        key[2] = z + octreeKeyMinZ;
+        if (isOctreeNodeOccupied(key))
+        {
+          AStarNodes[x][y].occupied = AStarNodes[x][y].closed = true;
+          occupancyMap[x][y] = true;
+          z = octreeKeyMaxZ - octreeKeyMinZ;
+        }
+      }
+    }
+  }
+}
+
+void Planner::create2DMap(const octomap::OcTree* octree)
+{
+  octree->getMetricMin(octreeMinX, octreeMinY, octreeMinZ);
+  octree->getMetricMax(octreeMaxX, octreeMaxY, octreeMaxZ);
+  Real resolution = octree->getResolution();
+
+  octomap::OcTreeKey keyMinPlane = octree->coordToKey(octreeMinX + resolution * 0.5, octreeMinY + resolution * 0.5, octreeMinZ + resolution * 0.5);
+  octomap::OcTreeKey keyMaxPlane = octree->coordToKey(octreeMaxX - resolution * 0.5, octreeMaxY - resolution * 0.5, octreeMaxZ - resolution * 0.5);
+
+  octreeKeyMinX = keyMinPlane[0];
+  octreeKeyMinY = keyMinPlane[1];
+  octreeKeyMaxX = keyMaxPlane[0];
+  octreeKeyMaxY = keyMaxPlane[1];
+  octreeKeyMinZ = octree->coordToKey(0.0, 0.0, resolution * 0.5)[2];
+  octreeKeyMaxZ = octree->coordToKey(0.0, 0.0, 2.0 - resolution * 0.5)[2];
 
   occupancyMap.resize(octreeKeyMaxX - octreeKeyMinX + 1, std::vector<bool>(octreeKeyMaxY - octreeKeyMinY + 1, false));
   AStarNodes.resize(octreeKeyMaxX - octreeKeyMinX + 1, std::vector<AStarNode>(octreeKeyMaxY - octreeKeyMinY + 1));
@@ -461,6 +557,9 @@ void Planner::inflate2DMap()
 
 bool Planner::findTrajectoryEndEffector(const std::vector<Real> &poseEndEffector)
 {
+  if(!serviceCallGetOctomap)
+    return false;
+
   if(!findGoalPose(poseEndEffector))
     return false;
 
@@ -469,6 +568,9 @@ bool Planner::findTrajectoryEndEffector(const std::vector<Real> &poseEndEffector
 
 bool Planner::findTrajectoryPose(const std::vector<Real> &poseGoalNew)
 {
+  if(!serviceCallGetOctomap)
+    return false;
+
   poseGoal = poseGoalNew;
 
   return findTrajectory();

@@ -182,8 +182,9 @@ private:
 
   /**
    * @brief Calls for and updates internal octomap from octomap_server_node.
+   * @return Returns false if no octomap could be received from octomap_server_node.
    */
-  void serviceCallGetOctomap();
+  bool serviceCallGetOctomap();
 
   /**
    * @brief Handles the feedback message of the interactive marker.
@@ -196,6 +197,14 @@ private:
    * Also adds all neighbours to the AStarNodes map.
    */
   void create2DMap();
+
+  /**
+   * @brief Loops through the loaded octree and creates an occupancy map if any node is occupied between minZ and maxZ.
+   * Also adds all neighbours to the AStarNodes map.
+   * @param octree Pointer to the octree from which the 2D grid-map should be created.
+   */
+  void create2DMap(const octomap::OcTree* octree);
+
 
   /**
    * @brief Loops through the occupancy map and inflates it by a radius given by obstacleInflationRadius.
