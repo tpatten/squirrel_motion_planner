@@ -47,8 +47,8 @@ class Planner
   ros::Publisher publisherTrajectory;     ///< ROS publisher. Publishes the full 8D trajectory.
   ros::Subscriber subscriberBase;     ///< ROS subscriber. Subscribes to /base/joint_angles.
   ros::Subscriber subscriberArm;     ///< ROS subscriber. Subscribes to /arm_controller/joint_states.
-  ros::Subscriber subscriberGoalEndEffector;     ///< ROS subscriber. Subscribes to goal_end_effector.
-  ros::Subscriber subscriberGoalPose;     ///< ROS subscriber. Subscribes to goal_pose.
+  ros::Subscriber subscriberFoldArm;     ///< ROS subscriber. Subscribes to
+  ros::Subscriber subscriberGoal;     ///< ROS subscriber. Subscribes to goal.
   ros::Subscriber subscriberGoalMarkerExecute;     ///< ROS subscriber. Subscribes to goal_marker_execute.
   ros::ServiceClient serviceClientOctomap;     ///< ROS service client. Receives a binary octomap from octomap_server_node.
   interactive_markers::InteractiveMarkerServer interactiveMarkerServer;     ///< Server that commuincates with Rviz to receive 6D end effector poses.
@@ -58,8 +58,10 @@ class Planner
   /*
    * General search settings
    */
-  std::vector<Real> poseInit;     ///< Vector with the 5 joint angles of the retracted arm during 2D planning.
-  Real distanceBirrtStarPlanning;     ///< Distance to the goal pose from where the 8D planning is performed.
+  std::vector<Real> poseFolded;     ///< Vector with the 5 joint angles of the retracted arm during 2D planning.
+  //std::vector<Real> poseStretched;     ///< Vector with the 5 joint angles of the stretched arm needed before folding.
+  std::vector<std::vector<Real> > posesFolding;     ///< Fixed set of 5D arm poses that allows the robot to fold safely into the case.
+  Real distance8DofPlanning;     ///< Distance to the goal pose from where the 8D planning is performed.
   Real obstacleInflationRadius;     ///< Inflation radius around occupied cells in occupancyMap.
 
   /*
@@ -67,25 +69,13 @@ class Planner
    */
   std::vector<Real> poseCurrent;     ///< 8D vector with the current robot pose, given as [x, y, theta, arm1, arm2, arm3, arm4, arm5].
   std::vector<Real> poseGoal;      ///< 8D vector with the goal pose for the robot, given as [x, y, theta, arm1, arm2, arm3, arm4, arm5].
-  std::vector<std::vector<Real> > poses;   ///< Vector of 8D poses that contains the last succesfully computed trajectory from poseCurrent to poseGoal.
+  std::vector<std::vector<Real> > posesTrajectory;     ///< Vector of 8D poses that contains the last succesfully computed trajectory from poseCurrent to poseGoal.
+  UInt indexLastFolding;
 
   /*
    * Octomap
    */
-  octomap::OcTree octree;     ///< Current octree, used for computing occupancyMap and during 8dof planning.
-  std::vector<std::vector<bool> > occupancyMap;     ///< Current occupancy map, computed from octree and inflated by obstalceInflationRadius.
-  Real octreeMinX;     ///< Minimum metric x-value of octree that is used for the 2D planning.
-  Real octreeMinY;     ///< Minimum metric y-value of octree that is used for the 2D planning.
-  Real octreeMinZ;     ///< Minimum metric z-value of octree that is used for the 2D planning.
-  Real octreeMaxX;     ///< Maximum metric x-value of octree that is used for the 2D planning.
-  Real octreeMaxY;     ///< Maximum metric y-value of octree that is used for the 2D planning.
-  Real octreeMaxZ;     ///< Maximum metric z-value of octree that is used for the 2D planning.
-  Int octreeKeyMinX;     ///< Minimum octree key x-value that is used for creating occupancyMap.
-  Int octreeKeyMinY;     ///< Minimum octree key y-value that is used for creating occupancyMap.
-  Int octreeKeyMinZ;     ///< Minimum octree key z-value that is used for creating occupancyMap.
-  Int octreeKeyMaxX;     ///< Maximum octree key x-value that is used for creating occupancyMap.
-  Int octreeKeyMaxY;     ///< Maximum octree key y-value that is used for creating occupancyMap.
-  Int octreeKeyMaxZ;     ///< Maximum octree key z-value that is used for creating occupancyMap.
+  octomap::OcTree* octree;
 
   /*
    * AStar
@@ -93,6 +83,15 @@ class Planner
   AStarPath2D AStarPath;     ///< Full A* grid path that is found during the 2D planning part.
   Cell2D AStarCellStart;     ///< Start cell for the current 2D path search.
   Cell2D AStarCellGoal;     ///< Goal cell for the current 2D path search.
+  std::vector<std::vector<bool> > occupancyMap;     ///< Current occupancy map, computed from octree and inflated by obstalceInflationRadius.
+  Real mapResolution;     ///< Resolution of the octomap that occupancyMap is based on.
+  Real mapResolutionRecip;     ///< Reciprocal of mapResolution, used for cell to point conversion.
+  Real mapMinX;     ///< Minimum metric x-value of the 2D map. Provided by latest octomap.
+  Real mapMaxX;     ///< Maximum metric x-value of the 2D map. Provided by latest octomap.
+  Real mapMinY;     ///< Minimum metric y-value of the 2D map. Provided by latest octomap.
+  Real mapMaxY;     ///< Maximum metric Y-value of the 2D map. Provided by latest octomap.
+  Real mapMinZ;     ///< Minimum metric z-value of octomap that is used to create occupancyMap.
+  Real mapMaxZ;     ///< Maximum metric z-value of octomap that is used to create occupancyMap.
   std::vector<std::vector<AStarNode> > AStarNodes;     ///< Structured map of A* nodes that is used during the path search.
   std::vector<Cell2D> openListNodes;     ///< Priority queue of grid cells on AStarNodes for the A* path search.
   Real AStarPathSmoothingFactor;     ///< Factor that indicates the smoothing behavior of the A* path; good value lies between 1.5 and 2.5.
@@ -162,23 +161,23 @@ private:
   void subscriberArmHandler(const sensor_msgs::JointState &msg);
 
   /**
-   * @brief Handler for starting the planner to the requested end effector position.
-   * @param msg ROS message that contains the 6D pose of the requested end effector goal position given in [x,y,z,R,P,Y].
+   * @brief Used to sginal a request for finding a trajectory to fold the arm into the case.
+   * @param msg Emtpy message used only as a signal.
    */
-  void subscriberGoalEndEffectorHandler(const std_msgs::Float64MultiArray &msg);
+  void subscriberFoldArmHandler(const std_msgs::Empty &msg);
+
+  /**
+   * @brief Handler for starting the planner to the requested end effector position or goal pose.
+   * @param msg ROS message that contains the 6D pose of the requested end effector goal position given in [x,y,z,R,P,Y]
+   * or the full 8D pose of the robot given as [base_x, base_y, base_theta, arm_joint1, arm_joint2, arm_joint3, arm_joint4, arm_joint5].
+   */
+  void subscriberGoalHandler(const std_msgs::Float64MultiArray &msg);
 
   /**
    * @brief Used to signal a request for finding a trajectory to the current interactive marker pose for the endeffector.
    * @param msg Emtpy message used only as a signal.
    */
   void subscriberGoalMarkerExecuteHandler(const std_msgs::Empty &msg);
-
-  /**
-   * @brief Handler for starting the planner to the requested goal pose.
-   * @param msg ROS message that contains the full 8D pose of the robot given as
-   * [base_x, base_y, base_theta, arm_joint1, arm_joint2, arm_joint3, arm_joint4, arm_joint5].
-   */
-  void subscriberGoalPoseHandler(const std_msgs::Float64MultiArray &msg);
 
   /**
    * @brief Calls for and updates internal octomap from octomap_server_node.
@@ -196,36 +195,17 @@ private:
    * @brief Loops through the loaded octree and creates an occupancy map if any node is occupied between minZ and maxZ.
    * Also adds all neighbours to the AStarNodes map.
    */
-  void create2DMap();
-
-  /**
-   * @brief Loops through the loaded octree and creates an occupancy map if any node is occupied between minZ and maxZ.
-   * Also adds all neighbours to the AStarNodes map.
-   * @param octree Pointer to the octree from which the 2D grid-map should be created.
-   */
-  void create2DMap(const octomap::OcTree* octree);
-
+  void createOccupancyMapFromOctomap();
 
   /**
    * @brief Loops through the occupancy map and inflates it by a radius given by obstacleInflationRadius.
    */
-  void inflate2DMap();
+  void inflateOccupancyMap();
 
   /**
-   * @brief Finds a combined 2D and 8D trajectory from the current robot pose
-   * such that it reaches a requested end effector pose, saves it as an 8D trajectory to poses, and publishes the trajectory.
-   * @param poseEndEffector The 6D pose of the end effector to which the robot should plan, given in [x, y, z, R, P, Y].
-   * @return False if no trajectory could be found or if no free pose could be found to the end effector, returns true otherwise.
+   * @brief Loops through the inflated occupancy map and checks for valid collision-free neighbours in the AStarNodes map.
    */
-  bool findTrajectoryEndEffector(const std::vector<Real> &poseEndEffector);
-
-  /**
-   * @brief Finds a combined 2D and 8D trajectory from the current robot pose
-   * such that it reaches a requested goal pose, saves it to poses, and publishes the trajectory.
-   * @param poseGoalNew The 8D goal pose to which the robot should plan.
-   * @return False if no trajectory could be found and true otherwise.
-   */
-  bool findTrajectoryPose(const std::vector<Real> &poseGoalNew);
+  void createAStarNodesMap();
 
   /**
    * @brief Uses inverse kinematic to find a possible 8D pose for a requested 6D end effector pose.
@@ -235,24 +215,30 @@ private:
   bool findGoalPose(const std::vector<Real> &poseEndEffector);
 
   /**
-   * @brief Finds a 2D and 8D trajectory to the goal pose saved in poseGoal,
-   * it is called by both findTrajectoryPose and findTrajectoryEndEffector which both save a new goal pose to poseGoal.
+   * @brief Finds a 2D and 8D trajectory to the goal pose saved in poseGoal.
+   * The trajectory is composed of folding the arm, driving close to poseGoal, and then move the arm to the final position.
    * @return True if a free trajectory could be found, returns false if either the 2D or the 8D search fails.
    */
-  bool findTrajectory();
+  void findTrajectoryFull();
+
+  /**
+   * @brief Finds an 8D path using birrt star from the current arm pose to a folded position.
+   * @return True if a path could be found, false if the planner could not be initialized or no plan could be found.
+   */
+  bool findTrajectoryFoldArm();
 
   /**
    * @brief Finds a 2D path from the cell of the current robot position (poseCurrent) to the cell of poseGoal,
    * then shortens the path by distanceBirrtStarPlanning, smoothens the path and saves it as 8D poses using poseInit for the arm joints.
-   * @return True of a free path could be found, false otherwise.
+   * @return True if a free path could be found, false otherwise.
    */
-  bool findTrajectoryRetractedArm();
+  bool findTrajectory2D();
 
   /**
-   * @brief Finds an 8D path using birrt star from the last item in poses to poseGoal and also adds the remaining path to poses.
+   * @brief Finds an 8D path using birrt star from poseStart to poseGoal and adds the trajectory to poses.
    * @return True if a path could be found, false if the planner could not be initialized or no plan could be found.
    */
-  bool findTrajectoryBirrtStar();
+  bool findTrajectory8D(const std::vector<Real> &poseStart, const std::vector<Real> &poseGoal);
 
   /**
    * @brief Finds an A* actual path between two points and saves it to AStarPath.
@@ -315,6 +301,15 @@ private:
    * @param defaultValue The value member is set to in case the parameter could not be loaded.
    */
   void loadParameter(const string &name, Real &member, const Real &defaultValue);
+
+  /**
+   * @brief Loads a parameter from the ROS parameter server and saves it to a member varible .
+   * If the parameter could not be found or has an invalid name the default value is used instead.
+   * @param name The name of the paramter to be loaded by the global node handle nh.
+   * @param member The member variable to which the parameter should be saved.
+   * @param defaultValue The value member is set to in case the parameter could not be loaded.
+   */
+  void loadParameter(const string &name, std::vector<Real> &member, const std::vector<Real> &defaultValue);
 
   /**
    * @brief Checks if an octree node is occupied in the currently loaded octree.
