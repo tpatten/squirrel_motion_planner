@@ -24,8 +24,8 @@ distance_birrt_star_planning: 1.2
 
 #pose (in rad) of folded arm during execution of 2d path
 #those poses are added to base poses for the part of the plan that is computed with astar
-pose_folded_arm: [0.627, -1.790, 0.052, -1.654, -0.492]
+pose_folded_arm: [-0.7, 1.9, 0.0, 1.7, 0.0]
 
 #arm trajectory for folding the arm starting at a stretched arm pose given as sets of 5 arm joints
-trajectory_folding_arm: [0.0, 0.0, 0.0, 0.0, 0.0, 0.627, -1.790, 0.052, -1.654, -0.492]
+trajectory_folding_arm: [0.0, 0.0, 0.0, 0.0, 0.0, -0.7, 1.9, 0.0, 1.7, 0.0]
 

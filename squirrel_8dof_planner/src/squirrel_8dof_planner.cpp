@@ -7,10 +7,11 @@ namespace SquirrelMotionPlanner
 
 Planner::Planner() :
     nhPrivate("~"), birrtStarPlanner("robotino_robot"), interactiveMarkerServer("endeffector_goal")
-//,octree( "/home/philkark/workspaces/squirrel/src/squirrel_motion_planner/squirrel_8dof_planner/config/room1.bt")
 {
+  ros::Duration(5).sleep();
+
   initializeParameters();
-  if(posesFolding.size() == 0)
+  if (posesFolding.size() == 0)
   {
     ros::shutdown();
     return;
@@ -27,7 +28,6 @@ Planner::Planner() :
     if (publisherCounter > 20)
       break;
   }
-  //loadOctomapToMoveit();
 }
 
 // ******************** PRIVATE MEMBERS ********************
@@ -57,14 +57,6 @@ void Planner::initializeParameters()
     ROS_ERROR("Parameter list 'trajectory_folding_arm' is not divisible by 5. Folding arm trajectory has not been loaded.");
   }
 
-  std::vector<Real> poseArmTmp(5, 0.0);
-  poseArmTmp[0] = 0.627;
-  poseArmTmp[1] = -1.790;
-  poseArmTmp[2] = 0.052;
-  poseArmTmp[3] = -1.654;
-  poseArmTmp[4] = -0.492;
-  loadParameter("pose_folded_arm", poseFolded, poseArmTmp);
-
   loadParameter("occupancy_height_min", mapMinZ, 0.0);
   loadParameter("occupancy_height_max", mapMaxZ, 2.0);
   loadParameter("astar_safety_distance", obstacleInflationRadius, 0.3);
@@ -77,6 +69,7 @@ void Planner::initializeParameters()
 void Planner::initializeMessageHandling()
 {
   publisherPlanningScene = nh.advertise<moveit_msgs::PlanningScene>("planning_scene", 1);
+  publisherOccupancyMap = nhPrivate.advertise<nav_msgs::OccupancyGrid>("occupancy_map", 1);
   publisher2DPath = nhPrivate.advertise<nav_msgs::Path>("path_2d", 10);
   publisherTrajectory = nhPrivate.advertise<std_msgs::Float64MultiArray>("robot_trajectory", 10);
   subscriberBase = nh.subscribe("/base/joint_states", 1, &Planner::subscriberBaseHandler, this);
@@ -159,26 +152,36 @@ void Planner::initializeInteractiveMarker()
   interactiveMarkerServer.applyChanges();
 }
 
-void Planner::loadOctomapToMoveit()
+void Planner::publishOccupancyMap() const
 {
-  moveit_msgs::PlanningScene msgScene;
-  msgScene.name = "octomap_scene";
-  msgScene.is_diff = true;
-  msgScene.world.octomap.header.frame_id = "origin";
-  msgScene.world.octomap.header.stamp = ros::Time::now();
-  msgScene.world.octomap.header.seq = 0;
-  msgScene.world.octomap.octomap.header = msgScene.world.octomap.header;
-  msgScene.world.octomap.origin.orientation.w = 1.0;
-  msgScene.world.octomap.origin.orientation.x = 0.0;
-  msgScene.world.octomap.origin.orientation.y = 0.0;
-  msgScene.world.octomap.origin.orientation.z = 0.0;
-  msgScene.world.octomap.origin.position.x = 0.0;
-  msgScene.world.octomap.origin.position.y = 0.0;
-  msgScene.world.octomap.origin.position.z = 0.0;
+  if (publisherOccupancyMap.getNumSubscribers() == 0)
+    return;
 
-  //octomap_msgs::fullMapToMsg(octree, msgScene.world.octomap.octomap);
+  nav_msgs::OccupancyGrid msg;
 
-  publisherPlanningScene.publish(msgScene);
+  msg.info.width = occupancyMap.size();
+  msg.info.height = occupancyMap[0].size();
+  msg.info.resolution = mapResolution;
+  msg.info.origin.position.x = mapMinX;
+  msg.info.origin.position.y = mapMinY;
+  msg.info.origin.position.z = 0.0;
+  msg.info.map_load_time = ros::Time::now();
+  msg.header.seq = 0;
+  msg.header.frame_id = "origin";
+  msg.header.stamp = ros::Time::now();
+
+  msg.data.resize(msg.info.width * msg.info.height);
+  UInt counter = 0;
+  for (UInt j = 0; j < occupancyMap[0].size(); ++j)
+  {
+    for (UInt i = 0; i < occupancyMap.size(); ++i)
+    {
+      msg.data[counter] = occupancyMap[i][j] == true ? 100 : 0;
+      ++counter;
+    }
+  }
+
+  publisherOccupancyMap.publish(msg);
 }
 
 void Planner::publish2DPath() const
@@ -188,7 +191,7 @@ void Planner::publish2DPath() const
 
   nav_msgs::Path msg;
 
-  msg.header.frame_id = "map";
+  msg.header.frame_id = "base_body_link";
   msg.header.seq = 0;
 
   geometry_msgs::PoseStamped poseStamped;
@@ -236,9 +239,9 @@ void Planner::publishTrajectory() const
 
 void Planner::subscriberBaseHandler(const sensor_msgs::JointState &msg)
 {
-  poseCurrent[0] = msg.position[0];
-  poseCurrent[1] = msg.position[1];
-  poseCurrent[2] = msg.position[2];
+//  poseCurrent[0] = msg.position[0];
+//  poseCurrent[1] = msg.position[1];
+//  poseCurrent[2] = msg.position[2];
 }
 
 void Planner::subscriberArmHandler(const sensor_msgs::JointState &msg)
@@ -339,6 +342,7 @@ bool Planner::serviceCallGetOctomap()
   msgScene.world.octomap.octomap = res.map;
 
   publisherPlanningScene.publish(msgScene);
+  publishOccupancyMap();
 
   delete octree;
   return true;
@@ -378,6 +382,7 @@ void Planner::createOccupancyMapFromOctomap()
   octreeKeyMinZ = octree->coordToKey(0.0, 0.0, mapMinZ + mapResolution * 0.5)[2];
   octreeKeyMaxZ = octree->coordToKey(0.0, 0.0, mapMaxZ - mapResolution * 0.5)[2];
 
+  occupancyMap.clear();
   occupancyMap.resize(octreeKeyMaxX - octreeKeyMinX + 1, std::vector<bool>(octreeKeyMaxY - octreeKeyMinY + 1, false));
 
   octomap::OcTreeKey key;
@@ -392,7 +397,6 @@ void Planner::createOccupancyMapFromOctomap()
         key[2] = z + octreeKeyMinZ;
         if (isOctreeNodeOccupied(key))
         {
-          AStarNodes[x][y].occupied = AStarNodes[x][y].closed = true;
           occupancyMap[x][y] = true;
           z = octreeKeyMaxZ - octreeKeyMinZ;
         }
@@ -512,14 +516,12 @@ void Planner::inflateOccupancyMap()
   for (UInt x = 0; x < inflationMap.size(); ++x)
     for (UInt y = 0; y < inflationMap[0].size(); ++y)
       if (inflationMap[x][y] > 0.0)
-      {
-        AStarNodes[x][y].occupied = AStarNodes[x][y].closed = true;
         occupancyMap[x][y] = true;
-      }
 }
 
 void Planner::createAStarNodesMap()
 {
+  AStarNodes.clear();
   AStarNodes.resize(occupancyMap.size(), std::vector<AStarNode>(occupancyMap[0].size()));
 
   for (UInt x = 0; x < AStarNodes.size(); ++x)
@@ -527,6 +529,11 @@ void Planner::createAStarNodesMap()
     for (UInt y = 0; y < AStarNodes[0].size(); ++y)
     {
       AStarNodes[x][y].cell = Cell2D(x, y);
+      if (occupancyMap[x][y])
+      {
+        AStarNodes[x][y].occupied = AStarNodes[x][y].closed = true;
+        continue;
+      }
 
       if (x + 1 < AStarNodes.size() && y + 1 < AStarNodes[0].size() && !occupancyMap[x + 1][y + 1])
         AStarNodes[x][y].neighbors.push_back(std::make_pair(&AStarNodes[x + 1][y + 1], M_SQRT2));
@@ -557,7 +564,14 @@ bool Planner::findGoalPose(const std::vector<Real> &poseEndEffector)
   endEffectorDeviations[3] = std::make_pair<Real, Real>(-0.025, 0.025);
   endEffectorDeviations[4] = std::make_pair<Real, Real>(-0.025, 0.025);
   endEffectorDeviations[5] = std::make_pair<Real, Real>(-0.025, 0.025);
-  poseGoal = birrtStarPlanner.getFullPoseFromEEPose(poseEndEffector, endEffectorDeviations, poseFolded);
+
+  std::vector<Real> poseInitializer(8);
+  copyArmToRobotPose(posesFolding.back(), poseInitializer);
+  poseInitializer[0] = poseCurrent[0];
+  poseInitializer[1] = poseCurrent[1];
+  poseInitializer[2] = poseCurrent[2];
+
+  poseGoal = birrtStarPlanner.getFullPoseFromEEPose(poseEndEffector, endEffectorDeviations, poseInitializer);
   if (poseGoal.size() != 8)
   {
     ROS_WARN("No free goal configuration could be found for the requested end effector pose.");
@@ -587,11 +601,11 @@ void Planner::findTrajectoryFull()
   }
   else
   {
-    if (!findTrajectoryFoldArm())
-    {
-      ROS_WARN("No 8D path could be found to the stretched position.");
-      return;
-    }
+//    if (!findTrajectoryFoldArm())
+//    {
+//      ROS_WARN("No 8D path could be found to the stretched position.");
+//      return;
+//    }
 
     if (!findTrajectory2D())
     {
@@ -613,22 +627,15 @@ void Planner::findTrajectoryFull()
 bool Planner::findTrajectoryFoldArm()
 {
   std::vector<Real> poseTmp(poseCurrent);
-  poseTmp[3] = posesFolding[0][0];
-  poseTmp[4] = posesFolding[0][1];
-  poseTmp[5] = posesFolding[0][2];
-  poseTmp[6] = posesFolding[0][3];
-  poseTmp[7] = posesFolding[0][4];
+  copyArmToRobotPose(posesFolding[0], poseTmp);
+
   if (!findTrajectory8D(poseCurrent, poseTmp))
     return false;
 
   for (UInt i = 0; i < posesFolding.size(); ++i)
   {
     posesTrajectory.push_back(poseCurrent);
-    posesTrajectory.back()[3] = posesFolding[i][0];
-    posesTrajectory.back()[4] = posesFolding[i][1];
-    posesTrajectory.back()[5] = posesFolding[i][2];
-    posesTrajectory.back()[6] = posesFolding[i][3];
-    posesTrajectory.back()[7] = posesFolding[i][4];
+    copyArmToRobotPose(posesFolding[i], posesTrajectory.back());
   }
 
   indexLastFolding = posesTrajectory.size() - 1;
@@ -670,7 +677,7 @@ bool Planner::findTrajectory8D(const std::vector<Real> &poseStart, const std::ve
   if (!birrtStarPlanner.init_planner(poseStart, poseGoal, 1))
     return false;
 
-  if (!birrtStarPlanner.run_planner(1, false, 200, false, 0.0, birrtStarPlanningNumber))
+  if (!birrtStarPlanner.run_planner(1, false, 400, false, 0.0, birrtStarPlanningNumber))
     return false;
 
   std::vector<std::vector<Real> > &trajectoryBirrtStar = birrtStarPlanner.getJointTrajectoryRef();
@@ -718,8 +725,7 @@ void Planner::findAStarPath(const Tuple2D startPoint, const Tuple2D goalPoint)
 
   while (openListNodes.size() > 1)
   {
-    AStarNode &nodeCurrent = AStarNodes[openListNodes[1].x][openListNodes[1].y];
-    if (nodeCurrent.cell == AStarCellGoal)
+    if (AStarNodes[openListNodes[1].x][openListNodes[1].y].cell == AStarCellGoal)
     {
       constructAStarPath();
       AStarPath.valid = true;
@@ -727,8 +733,8 @@ void Planner::findAStarPath(const Tuple2D startPoint, const Tuple2D goalPoint)
     }
 
     openListRemoveFrontNode();
-    nodeCurrent.closed = true;
-    expandAStarNode(nodeCurrent);
+    AStarNodes[openListNodes[1].x][openListNodes[1].y].closed = true;
+    expandAStarNode(AStarNodes[openListNodes[1].x][openListNodes[1].y]);
   }
 
   ROS_WARN("No path found after expanding all nodes.");
@@ -914,7 +920,8 @@ void Planner::getSmoothTrajFromAStarPath()
 
   const Real pointDistance = pathLengthFull / round(pathLengthFull / AStarPathSmoothedPointDistance);
 
-  vector<Real> poseTmp = poseFolded;
+  std::vector<Real> poseTmp(8);
+  copyArmToRobotPose(posesFolding.back(), poseTmp);
 
   //generate points on full smoothed path
   Real distanceOnCurrent = 0.0, distanceTotal = 0.0;
@@ -1059,6 +1066,15 @@ inline void Planner::updateFCost(AStarNode &node) const
   Real dx = abs((Real)node.cell.x - (Real)AStarCellGoal.x);
   Real dy = abs((Real)node.cell.y - (Real)AStarCellGoal.y);
   node.f = node.g + std::min(dx, dy) * M_SQRT2 + abs(dx - dy);
+}
+
+inline void Planner::copyArmToRobotPose(const std::vector<Real> &poseArm, std::vector<Real> &poseRobot)
+{
+  poseRobot[3] = poseArm[0];
+  poseRobot[4] = poseArm[1];
+  poseRobot[5] = poseArm[2];
+  poseRobot[6] = poseArm[3];
+  poseRobot[7] = poseArm[4];
 }
 
 } //namespace SquirrelMotionPlanner

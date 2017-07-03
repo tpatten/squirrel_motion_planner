@@ -15,7 +15,7 @@ Visualizer::Visualizer(const std::string &robotDescriptionTopic) :
   color.b = 1.0;
   robotMarkerPublisher.setRobotColor(robotID, color, rviz_robot_marker::RvizRobotMarkerPublisher::FORCE_COLOR);
 
-  transformBase.frame_id_ = "origin";
+  transformBase.frame_id_ = "base_body_link";
   transformBase.child_frame_id_ = "base_link";
   transformBase.setIdentity();
 

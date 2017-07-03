@@ -43,6 +43,7 @@ class Planner
   ros::NodeHandle nh;     ///< ROS node handle with global namespace.
   ros::NodeHandle nhPrivate;     ///< ROS node handle with namespace relative to current node.
   ros::Publisher publisherPlanningScene;     ///< ROS publisher. Publishes the octree as a planning scene for moveit.
+  ros::Publisher publisherOccupancyMap;     ///< ROS publisher. Publishes the occupancy map that was created using the most recent octree.
   ros::Publisher publisher2DPath;     ///< ROS publisher. Publishes the 2D projection of the 8D trajectory.
   ros::Publisher publisherTrajectory;     ///< ROS publisher. Publishes the full 8D trajectory.
   ros::Subscriber subscriberBase;     ///< ROS subscriber. Subscribes to /base/joint_angles.
@@ -50,7 +51,7 @@ class Planner
   ros::Subscriber subscriberFoldArm;     ///< ROS subscriber. Subscribes to
   ros::Subscriber subscriberGoal;     ///< ROS subscriber. Subscribes to goal.
   ros::Subscriber subscriberGoalMarkerExecute;     ///< ROS subscriber. Subscribes to goal_marker_execute.
-  ros::ServiceClient serviceClientOctomap;     ///< ROS service client. Receives a binary octomap from octomap_server_node.
+  ros::ServiceClient serviceClientOctomap;     ///< ROS service client. Receives a full octomap from octomap_server_node.
   interactive_markers::InteractiveMarkerServer interactiveMarkerServer;     ///< Server that commuincates with Rviz to receive 6D end effector poses.
   visualization_msgs::InteractiveMarker interactiveMarker;     ///< Interactive marker used by interactiveMarkerServer.
   std::vector<Real> poseGoalMarker;     ///< Current pose of the interactive marker in RViz.
@@ -58,8 +59,6 @@ class Planner
   /*
    * General search settings
    */
-  std::vector<Real> poseFolded;     ///< Vector with the 5 joint angles of the retracted arm during 2D planning.
-  //std::vector<Real> poseStretched;     ///< Vector with the 5 joint angles of the stretched arm needed before folding.
   std::vector<std::vector<Real> > posesFolding;     ///< Fixed set of 5D arm poses that allows the robot to fold safely into the case.
   Real distance8DofPlanning;     ///< Distance to the goal pose from where the 8D planning is performed.
   Real obstacleInflationRadius;     ///< Inflation radius around occupied cells in occupancyMap.
@@ -134,9 +133,9 @@ private:
   void initializeInteractiveMarker();
 
   /**
-   * @brief Publishes the loaded octomap to the planning_scene topic for collision checks of moveit used in birrtstar.
+   * @brief Publishes a 2D map according to occupancyMap.
    */
-  void loadOctomapToMoveit();
+  void publishOccupancyMap() const;
 
   /**
    * @brief Publishes a 2D path that follows the base of the full trajectory after planning.
@@ -353,6 +352,13 @@ private:
    * @param node AStarNode for which the F cost value is to be updated.
    */
   void updateFCost(AStarNode &node) const;
+
+  /**
+   * @brief Copies 5D vector to last five elements of an 8D vector. Used for copying a vector with only arm joint angles to a full 8D pose.
+   * @param poseArm 5D vector that contains joint angles of the arm.
+   * @param poseRobot 8D vector to which the arm joint angles should be copied.
+   */
+  void copyArmToRobotPose(const std::vector<Real> &poseArm, std::vector<Real> &poseRobot);
 };
 
 } //namespace SquirrelMotionPlanner
