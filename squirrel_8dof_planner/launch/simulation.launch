@@ -29,7 +29,7 @@
     <arg name="paused" value="$(arg paused)" /> 
     <arg name="robot" value="$(arg robot)" />
   </include>
-  <node name="static_transform_publisher_robot" pkg="tf2_ros" type="static_transform_publisher" args="0.0 0.0 0.0 0.0 0.0 0.0 origin base_link"/>
+  <!--node name="static_transform_publisher_robot" pkg="tf2_ros" type="static_transform_publisher" args="0.0 0.0 0.0 0.0 0.0 0.0 origin base_link"/-->
 
 
   <!-- Load a planner parameter configuration -->

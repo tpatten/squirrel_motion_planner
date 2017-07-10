@@ -191,7 +191,7 @@ void Planner::publish2DPath() const
 
   nav_msgs::Path msg;
 
-  msg.header.frame_id = "base_body_link";
+  msg.header.frame_id = "origin";
   msg.header.seq = 0;
 
   geometry_msgs::PoseStamped poseStamped;
