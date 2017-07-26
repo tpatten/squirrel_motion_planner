@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(squirrel_8dof_planner)
 
-set(CMAKE_BUILD_TYPE Debug)
-
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
@@ -15,7 +13,6 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_ros_planning
   moveit_msgs
   interactive_markers
-  
   octomap_msgs
   octomap_server
 )
@@ -36,3 +33,7 @@ include_directories(
 
 add_executable(${PROJECT_NAME}_node src/${PROJECT_NAME}_node.cpp src/${PROJECT_NAME}.cpp src/${PROJECT_NAME}_structures.cpp)
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${OCTOMAP_LIBRARIES})
+add_dependencies(${PROJECT_NAME}_node ${catkin_EXPORTED_TARGETS})
+install(TARGETS ${PROJECT_NAME}_node RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+install(DIRECTORY include/${PROJECT_NAME}/ DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
+install(DIRECTORY launch config DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})

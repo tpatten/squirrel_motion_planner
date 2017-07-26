@@ -12,9 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 catkin_package(
    INCLUDE_DIRS include
-#  LIBRARIES squirrel_8dof_visualizer
    CATKIN_DEPENDS roscpp rospy rviz_robot_marker std_msgs tf sensor_msgs
-#  DEPENDS system_lib
 )
 
 include_directories(
@@ -24,3 +22,6 @@ include_directories(
 
 add_executable(${PROJECT_NAME}_node src/squirrel_8dof_visualizer_node.cpp src/squirrel_8dof_visualizer.cpp)
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES})
+add_dependencies(${PROJECT_NAME}_node ${catkin_EXPORTED_TARGETS})
+install(TARGETS ${PROJECT_NAME}_node RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+install(DIRECTORY include/${PROJECT_NAME}/ DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})

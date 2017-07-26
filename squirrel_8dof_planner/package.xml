@@ -37,7 +37,4 @@
   <run_depend>birrt_star_algorithm</run_depend>
   <run_depend>moveit_msgs</run_depend>
   <run_depend>interactive_markers</run_depend>
-
-  <export>
-  </export>
 </package>
