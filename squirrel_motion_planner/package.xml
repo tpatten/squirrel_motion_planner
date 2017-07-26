@@ -11,7 +11,8 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <run_depend>birrt_star</run_depend>
+  <run_depend>robot_motion_planning</run_depend>
+  <run_depend>robot_motion_control</run_depend>
   <run_depend>rviz_robot_marker</run_depend>
   <run_depend>squirrel_8dof_planner</run_depend>
   <run_depend>squirrel_8dof_visualizer</run_depend>
