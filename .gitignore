@@ -1,0 +1,8 @@
+build/
+*~
+*.pyc
+*.user
+*.swp
+*.orig
+MT.log
+*.autosave
