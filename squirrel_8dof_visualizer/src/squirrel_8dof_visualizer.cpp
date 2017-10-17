@@ -6,16 +6,19 @@ namespace SquirrelMotionPlanning
 Visualizer::Visualizer(const std::string &robotDescriptionTopic) :
     nhPrivate("~"), rate(30), robotMarkerPublisher("robot_trajectory_visualization"), jointStatesArm(new sensor_msgs::JointState)
 {
-  subscriberTrajectory = nh.subscribe("squirrel_8dof_planner_node/robot_trajectory", 1, &Visualizer::subscriberTrajectoryHandler, this);
+  subscriberTrajectory = nh.subscribe("squirrel_8dof_planner_node/robot_trajectory_multi_array", 1, &Visualizer::subscriberTrajectoryHandler, this);
+  subscriberPose = nh.subscribe("squirrel_8dof_planner_node/robot_goal_pose", 1, &Visualizer::subscriberSinglePoseHandler, this);
   subscriberVisibility = nhPrivate.subscribe("set_visibility", 1, &Visualizer::subscriberVisibilityHandler, this);
   subscriberRate = nhPrivate.subscribe("set_rate", 1, &Visualizer::subscriberRateHandler, this);
   robotID = robotMarkerPublisher.addRobotFromDescription(robotDescriptionTopic);
+  robotIDSingle = robotMarkerPublisher.addRobotFromDescription(robotDescriptionTopic);
   std_msgs::ColorRGBA color;
   color.a = 0.2;
   color.b = 1.0;
   robotMarkerPublisher.setRobotColor(robotID, color, rviz_robot_marker::RvizRobotMarkerPublisher::FORCE_COLOR);
+  robotMarkerPublisher.setRobotColor(robotIDSingle, color, rviz_robot_marker::RvizRobotMarkerPublisher::FORCE_COLOR);
 
-  transformBase.frame_id_ = "origin";
+  transformBase.frame_id_ = "map";
   transformBase.child_frame_id_ = "base_link";
   transformBase.setIdentity();
 
@@ -110,6 +113,35 @@ void Visualizer::subscriberTrajectoryHandler(const std_msgs::Float64MultiArray &
   finalPoseState = false;
 }
 
+void Visualizer::subscriberSinglePoseHandler(const std_msgs::Float64MultiArray &msg)
+{
+  if (msg.layout.dim[0].size != 8)
+  {
+    ROS_WARN("Wrong robot pose dimension. Expected '8', but received '%d'.", msg.layout.dim[1].size);
+    return;
+  }
+  else if (msg.layout.dim[0].size != msg.data.size())
+  {
+    ROS_WARN("Specified layout does not match dimension of data.");
+    return;
+  }
+
+  transformBaseTranslation[0] = msg.data[0];
+  transformBaseTranslation[1] = msg.data[1];
+  transformBaseRotation.setRPY(0.0, 0.0, msg.data[2]);
+
+  transformBase.setOrigin(transformBaseTranslation);
+  transformBase.setBasis(transformBaseRotation);
+
+  jointStatesArm->position[0] = msg.data[3];
+  jointStatesArm->position[1] = msg.data[4];
+  jointStatesArm->position[2] = msg.data[5];
+  jointStatesArm->position[3] = msg.data[6];
+  jointStatesArm->position[4] = msg.data[7];
+
+  robotMarkerPublisher.setRobotPose(robotIDSingle, transformBase, jointStatesArm);
+}
+
 void Visualizer::subscriberRateHandler(const std_msgs::Float64 &msg)
 {
   rate = ros::Rate(msg.data);
@@ -119,9 +151,15 @@ void Visualizer::subscriberVisibilityHandler(const std_msgs::Bool &msg)
 {
   visible = msg.data;
   if (visible)
+  {
     robotMarkerPublisher.showRobot(robotID);
+    robotMarkerPublisher.showRobot(robotIDSingle);
+  }
   else
+  {
     robotMarkerPublisher.hideRobot(robotID);
+    robotMarkerPublisher.hideRobot(robotIDSingle);
+  }
 }
 
 } //namespace SquirrelMotionPlanning

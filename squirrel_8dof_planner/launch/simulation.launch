@@ -2,8 +2,8 @@
 <launch>
 
   <!-- define arguments -->
-  <arg name="world_name" default="room2"/>
-  <arg name="robot" default="uibk-robotino2"/>
+  <arg name="world_name" default="room3"/>
+  <arg name="robot" default="tuw-robotino2"/>
   <arg name="joypad" default="false"/>
   <arg name="debug" default="false"/>
   <arg name="headless" default="false"/>
@@ -46,13 +46,12 @@
     <group if="$(arg planner)">
 
       <node name="squirrel_8dof_planner_node" pkg="squirrel_8dof_planner" type="squirrel_8dof_planner_node" output="screen"/>
-      <node name="squirrel_8dof_visualizer_node" pkg="squirrel_8dof_visualizer" type="squirrel_8dof_visualizer_node"/>
     </group>
-    <!--node pkg="tf2_ros" type="static_transform_publisher" name="world_frame_publisher" args="0 0 0 0 0 0 base_body_link base_link_origin"/-->
+    <node name="squirrel_8dof_visualizer_node" pkg="squirrel_8dof_visualizer" type="squirrel_8dof_visualizer_node"/>
   </group>
 
   <node name="octomap_server_node" pkg="octomap_server" type="octomap_server_node" args="$(find squirrel_8dof_planner)/config/$(arg world_name).ot"/>
-  <node name="static_transform_publisher_octomap" pkg="tf2_ros" type="static_transform_publisher" args="0.0 0.0 0.0 0.0 0.0 0.0 origin map"/>
+  <node name="static_transform_publisher_octomap" pkg="tf" type="static_transform_publisher" args="0.0 0.0 0.0 0.0 0.0 0.0 map odom 100"/>
 
   <!-- start joypad controller -->
   <group if="$(arg joypad)">

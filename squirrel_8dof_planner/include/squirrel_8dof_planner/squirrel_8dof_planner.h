@@ -16,9 +16,14 @@
 #include <nav_msgs/OccupancyGrid.h>
 #include <nav_msgs/Path.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <tf/transform_datatypes.h>
+#include <tf/transform_listener.h>
+#include <tf/tf.h>
 #include <sensor_msgs/JointState.h>
+#include <trajectory_msgs/JointTrajectory.h>
 #include <std_msgs/Float64MultiArray.h>
+#include <std_srvs/Empty.h>
 #include <moveit_msgs/PlanningScene.h>
 #include <interactive_markers/interactive_marker_server.h>
 #include <birrt_star_algorithm/birrt_star.h>
@@ -45,13 +50,19 @@ class Planner
   ros::Publisher publisherPlanningScene;     ///< ROS publisher. Publishes the octree as a planning scene for moveit.
   ros::Publisher publisherOccupancyMap;     ///< ROS publisher. Publishes the occupancy map that was created using the most recent octree.
   ros::Publisher publisher2DPath;     ///< ROS publisher. Publishes the 2D projection of the 8D trajectory.
-  ros::Publisher publisherTrajectory;     ///< ROS publisher. Publishes the full 8D trajectory.
+  ros::Publisher publisherTrajectoryVisualizer;     ///< ROS publisher. Publishes the full 8D trajectory as a multi float array.
+  ros::Publisher publisherTrajectoryController;     ///< ROS publisher. Publishes the full 8D trajectory as a joint trajectory.
+  ros::Publisher publisherGoalPose;     ///< ROS publisher. Publishes the found goal pose as a single 8dof pose.
   ros::Subscriber subscriberBase;     ///< ROS subscriber. Subscribes to /base/joint_angles.
   ros::Subscriber subscriberArm;     ///< ROS subscriber. Subscribes to /arm_controller/joint_states.
   ros::Subscriber subscriberFoldArm;     ///< ROS subscriber. Subscribes to
   ros::Subscriber subscriberGoal;     ///< ROS subscriber. Subscribes to goal.
   ros::Subscriber subscriberGoalMarkerExecute;     ///< ROS subscriber. Subscribes to goal_marker_execute.
+  ros::Subscriber subscriberPublishControlCommand;     ///< ROS subscriber. Subscribes to publish_control_command.
   ros::ServiceClient serviceClientOctomap;     ///< ROS service client. Receives a full octomap from octomap_server_node.
+  ros::ServiceServer serviceServerFoldArm;     ///< ROS service server. When called, sends a trajectory to the controller to fold the arm into the case.
+  ros::ServiceServer serviceServerUnfoldArm;     ///< ROS service server. When called, sends a trajectory to the controller to unfold the arm.
+  tf::TransformListener transformListener;
   interactive_markers::InteractiveMarkerServer interactiveMarkerServer;     ///< Server that commuincates with Rviz to receive 6D end effector poses.
   visualization_msgs::InteractiveMarker interactiveMarker;     ///< Interactive marker used by interactiveMarkerServer.
   std::vector<Real> poseGoalMarker;     ///< Current pose of the interactive marker in RViz.
@@ -59,7 +70,7 @@ class Planner
   /*
    * General search settings
    */
-  std::vector<std::vector<Real> > posesFolding;     ///< Fixed set of 5D arm poses that allows the robot to fold safely into the case.
+  std::vector<std::vector<Real> > posesFolding;     ///< 5D arm poses that allows the robot to fold into the case. First pose is folded, last unfolded.
   Real distance8DofPlanning;     ///< Distance to the goal pose from where the 8D planning is performed.
   Real obstacleInflationRadius;     ///< Inflation radius around occupied cells in occupancyMap.
 
@@ -145,13 +156,23 @@ private:
   /**
    * @brief Publishes a vector of subsequent poses from the current robot position to the requested goal after planning.
    */
-  void publishTrajectory() const;
+  void publishTrajectoryVisualizer() const;
+
+  /**
+   * @brief Publishes a vector of joint angles for the found 8dof pose of the robot to a 6D EE pose.
+   */
+  void publishGoalPose() const;
+
+  /**
+   * @brief Publishes a vector of subsequent poses from the current robot position to the requested goal after planning.
+   */
+  void publishTrajectoryController();
 
   /**
    * @brief Handler for the base position of the robot.
    * @param msg ROS message that contains the base pose information.
    */
-  void subscriberBaseHandler(const sensor_msgs::JointState &msg);
+  void subscriberBaseHandler(const geometry_msgs::PoseWithCovarianceStamped &msg);
 
   /**
    * @brief Handler for the arm joints of the robot.
@@ -177,6 +198,28 @@ private:
    * @param msg Emtpy message used only as a signal.
    */
   void subscriberGoalMarkerExecuteHandler(const std_msgs::Empty &msg);
+
+  /**
+   * @brief Used to signal a request for publishing the currently found trajectory to the controller.
+   * @param msg Emtpy message used only as a signal.
+   */
+  void subscriberPublishControlCommandHandler(const std_msgs::Empty &msg);
+
+  /**
+   * @brief Service call that responds by sending a full 8dof trajectory to the controller that folds the arm.
+   * First a trajectory is found to the initial stretched position of the arm and then the common folding trajectory is added.
+   * @param req Empty service request, contains no data.
+   * @param res Empty service response, contains no data.
+   */
+  bool serviceCallbackFoldArm(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res);
+
+  /**
+   * @brief Service call that responds by sending a full 8dof trajectory to the controller that unfolds the arm.
+   * The fixed trajectory to unfold the arm is sent to the 8dof controller. First a check is performed if the arm is actually in a folding position.
+   * @param req Empty service request, contains no data.
+   * @param res Empty service response, contains no data.
+   */
+  bool serviceCallbackUnfoldArm(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res);
 
   /**
    * @brief Calls for and updates internal octomap from octomap_server_node.
@@ -225,6 +268,11 @@ private:
    * @return True if a path could be found, false if the planner could not be initialized or no plan could be found.
    */
   bool findTrajectoryFoldArm();
+
+  /**
+   * @brief Copies the arm extension into the full trajectory.
+   */
+  void findTrajectoryExtendArm();
 
   /**
    * @brief Finds a 2D path from the cell of the current robot position (poseCurrent) to the cell of poseGoal,
@@ -354,11 +402,22 @@ private:
   void updateFCost(AStarNode &node) const;
 
   /**
+   * @brief Checks if the arm is currently in the folded position.
+   * Compares elements 3-7 in poseCurrent with posesFolding.begin() and returns true if no joint deviates by more than 3 deg.
+   */
+  bool isArmFolded() const;
+
+  /**
    * @brief Copies 5D vector to last five elements of an 8D vector. Used for copying a vector with only arm joint angles to a full 8D pose.
    * @param poseArm 5D vector that contains joint angles of the arm.
    * @param poseRobot 8D vector to which the arm joint angles should be copied.
    */
   void copyArmToRobotPose(const std::vector<Real> &poseArm, std::vector<Real> &poseRobot);
+
+  /**
+   *
+   */
+  void convertPose(const std::vector<Real> &posePrev, std::vector<Real> &poseTarget, const string &frameTarget, const string &frameOrigin) const;
 };
 
 } //namespace SquirrelMotionPlanner

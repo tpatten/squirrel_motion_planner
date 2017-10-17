@@ -40,10 +40,12 @@ private:
   ros::NodeHandle nh;     ///< ROS node handle with global namespace.
   ros::NodeHandle nhPrivate;     ///< ROS node handle with namespace relative to current node.
   ros::Subscriber subscriberTrajectory;     ///< ROS subscriber. Subscribes to a Float64MultiArray that contains a vector of 8D poses.
+  ros::Subscriber subscriberPose;     ///< ROS subscriber. Subscribes to a Float64MultiArray that contains a vector of 8D poses.
   ros::Subscriber subscriberRate;     ///< ROS subscriber. Subscribes to a Float64 and sets the publishing speed of the trajectory.
   ros::Subscriber subscriberVisibility;     ///< ROS subscriber. Subscribes to a Bool and sets the visiblity of the trajectory visualization.
   rviz_robot_marker::RvizRobotMarkerPublisher robotMarkerPublisher;     ///< Publisher class, takes care of direct visualization to Rviz.
   UInt robotID;     ///< Robot ID needed to communicate with robotMarkerPublisher.
+  UInt robotIDSingle;     ///< Robot ID needed to communicate with robotMarkerPublisher.
 
   std::vector<std::vector<Real> > poses;     ///< Vector to which all 8D poses are saved, once a new trajectory is received.
   UInt poseCurrent;     ///< Index of the current pose to be visualized.
@@ -68,6 +70,12 @@ private:
    * @param msg Contains the full robot trajectory represented as vector of 8D poses.
    */
   void subscriberTrajectoryHandler(const std_msgs::Float64MultiArray &msg);
+
+  /**
+   * @brief Handler for a single robot pose. Checks the dimension of the multi array and saves it to poseSingle.
+   * @param msg Contains the a robot pose represented as an 8D pose.
+   */
+  void subscriberSinglePoseHandler(const std_msgs::Float64MultiArray &msg);
 
   /**
     * @brief Handler for the visualization rate. Sets rate and changes the sleep time between visualization of poses in the main loop.

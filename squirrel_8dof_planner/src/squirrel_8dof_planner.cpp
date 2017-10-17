@@ -17,17 +17,14 @@ Planner::Planner() :
     return;
   }
 
+  for (UInt i = 0; i < 10; ++i)
+  {
+    ros::spinOnce();
+    ros::Duration(0.1).sleep();
+  }
+
   initializeMessageHandling();
   initializeInteractiveMarker();
-
-  UInt publisherCounter = 0;
-  while (publisherPlanningScene.getNumSubscribers() == 0)
-  {
-    ros::WallDuration(1.0).sleep();
-    ++publisherCounter;
-    if (publisherCounter > 20)
-      break;
-  }
 }
 
 // ******************** PRIVATE MEMBERS ********************
@@ -71,12 +68,16 @@ void Planner::initializeMessageHandling()
   publisherPlanningScene = nh.advertise<moveit_msgs::PlanningScene>("planning_scene", 1);
   publisherOccupancyMap = nhPrivate.advertise<nav_msgs::OccupancyGrid>("occupancy_map", 1);
   publisher2DPath = nhPrivate.advertise<nav_msgs::Path>("path_2d", 10);
-  publisherTrajectory = nhPrivate.advertise<std_msgs::Float64MultiArray>("robot_trajectory", 10);
-  subscriberBase = nh.subscribe("/base/joint_states", 1, &Planner::subscriberBaseHandler, this);
-  subscriberArm = nh.subscribe("/arm_controller/joint_states", 1, &Planner::subscriberArmHandler, this);
+  publisherTrajectoryVisualizer = nhPrivate.advertise<std_msgs::Float64MultiArray>("robot_trajectory_multi_array", 10);
+  publisherGoalPose = nhPrivate.advertise<std_msgs::Float64MultiArray>("robot_goal_pose", 10);
+  publisherTrajectoryController = nh.advertise<trajectory_msgs::JointTrajectory>("/joint_trajectory_controller/command", 10);
+  subscriberBase = nh.subscribe("/squirrel_2d_localizer/pose", 1, &Planner::subscriberBaseHandler, this);
+  subscriberArm = nh.subscribe("/joint_states", 1, &Planner::subscriberArmHandler, this);
   subscriberGoalMarkerExecute = nhPrivate.subscribe("goal_marker_execute", 1, &Planner::subscriberGoalMarkerExecuteHandler, this);
   subscriberGoal = nhPrivate.subscribe("goal", 1, &Planner::subscriberGoalHandler, this);
+  subscriberPublishControlCommand = nhPrivate.subscribe("publish_control_command", 1, &Planner::subscriberPublishControlCommandHandler, this);
   serviceClientOctomap = nh.serviceClient<octomap_msgs::GetOctomap>("/octomap_full");
+  serviceServerFoldArm = nh.advertiseService("fold_arm", &Planner::serviceCallbackFoldArm, this);
 }
 
 void Planner::initializeAStarPlanning()
@@ -167,7 +168,7 @@ void Planner::publishOccupancyMap() const
   msg.info.origin.position.z = 0.0;
   msg.info.map_load_time = ros::Time::now();
   msg.header.seq = 0;
-  msg.header.frame_id = "origin";
+  msg.header.frame_id = "map";
   msg.header.stamp = ros::Time::now();
 
   msg.data.resize(msg.info.width * msg.info.height);
@@ -191,7 +192,7 @@ void Planner::publish2DPath() const
 
   nav_msgs::Path msg;
 
-  msg.header.frame_id = "origin";
+  msg.header.frame_id = "map";
   msg.header.seq = 0;
 
   geometry_msgs::PoseStamped poseStamped;
@@ -206,9 +207,9 @@ void Planner::publish2DPath() const
   publisher2DPath.publish(msg);
 }
 
-void Planner::publishTrajectory() const
+void Planner::publishTrajectoryVisualizer() const
 {
-  if (publisherTrajectory.getNumSubscribers() == 0 || posesTrajectory.size() <= 1)
+  if (publisherTrajectoryVisualizer.getNumSubscribers() == 0 || posesTrajectory.size() <= 1)
     return;
 
   std_msgs::Float64MultiArray msg;
@@ -234,18 +235,74 @@ void Planner::publishTrajectory() const
     }
   }
 
-  publisherTrajectory.publish(msg);
+  publisherTrajectoryVisualizer.publish(msg);
 }
 
-void Planner::subscriberBaseHandler(const sensor_msgs::JointState &msg)
+void Planner::publishGoalPose() const
 {
-//  poseCurrent[0] = msg.position[0];
-//  poseCurrent[1] = msg.position[1];
-//  poseCurrent[2] = msg.position[2];
+  if (publisherGoalPose.getNumSubscribers() == 0 || poseGoal.size() != 8)
+    return;
+
+  std_msgs::Float64MultiArray msg;
+
+  msg.layout.data_offset = 0;
+  msg.layout.dim.resize(1);
+  msg.layout.dim[0].label = "joint";
+  msg.layout.dim[0].size = 8;
+  msg.layout.dim[0].stride = 8;
+
+  msg.data.resize(8);
+
+  for (UInt i = 0; i < 8; ++i)
+    msg.data[i] = poseGoal[i];
+
+  publisherGoalPose.publish(msg);
+}
+
+void Planner::publishTrajectoryController()
+{
+  if (publisherTrajectoryController.getNumSubscribers() == 0 || posesTrajectory.size() <= 1)
+    return;
+
+  trajectory_msgs::JointTrajectory msg;
+  tf::TransformListener transformListener;
+
+  msg.joint_names.resize(8);
+
+  msg.joint_names[0] = "base_jointx";
+  msg.joint_names[1] = "base_jointy";
+  msg.joint_names[2] = "base_jointz";
+  msg.joint_names[3] = "arm_joint1";
+  msg.joint_names[4] = "arm_joint2";
+  msg.joint_names[5] = "arm_joint3";
+  msg.joint_names[6] = "arm_joint4";
+  msg.joint_names[7] = "arm_joint5";
+  msg.points.resize(posesTrajectory.size());
+
+  ros::Duration time(0.0);
+  for (UInt i = 0; i < posesTrajectory.size(); ++i)
+  {
+    time += ros::Duration(0.25);
+    msg.points[i].positions.resize(8);
+    convertPose(posesTrajectory[i], msg.points[i].positions, "origin", "map");
+    msg.points[i].time_from_start = time;
+  }
+
+  publisherTrajectoryController.publish(msg);
+}
+
+void Planner::subscriberBaseHandler(const geometry_msgs::PoseWithCovarianceStamped &msg)
+{
+  poseCurrent[0] = msg.pose.pose.position.x;
+  poseCurrent[1] = msg.pose.pose.position.y;
+  poseCurrent[2] = tf::getYaw(msg.pose.pose.orientation);
 }
 
 void Planner::subscriberArmHandler(const sensor_msgs::JointState &msg)
 {
+  if (msg.name[0] != "arm_joint1")
+    return;
+
   poseCurrent[3] = msg.position[0];
   poseCurrent[4] = msg.position[1];
   poseCurrent[5] = msg.position[2];
@@ -262,14 +319,15 @@ void Planner::subscriberFoldArmHandler(const std_msgs::Empty &msg)
     return;
   }
 
-  publishTrajectory();
+  publishTrajectoryVisualizer();
 }
 
 void Planner::subscriberGoalHandler(const std_msgs::Float64MultiArray &msg)
 {
   if (msg.data.size() == 8)
   {
-    ROS_INFO("Start planning to pose: %f, %f, %f, %f, %f, %f, %f, %f", msg.data[0], msg.data[1], msg.data[2], msg.data[3], msg.data[4], msg.data[5], msg.data[6], msg.data[7]);
+    ROS_INFO("Start planning to pose: %f, %f, %f, %f, %f, %f, %f, %f", msg.data[0], msg.data[1], msg.data[2], msg.data[3], msg.data[4], msg.data[5],
+             msg.data[6], msg.data[7]);
     if (!serviceCallGetOctomap())
       return;
 
@@ -289,8 +347,9 @@ void Planner::subscriberGoalHandler(const std_msgs::Float64MultiArray &msg)
     findTrajectoryFull();
   }
   else
-    ROS_WARN("Could not start planning, because the message has a wrong dimension. Provided dimension: %u, expected dimension: 8 (plan to pose) or 6 (plan to end effector).",
-             static_cast<UInt>(msg.data.size()));
+    ROS_WARN(
+        "Could not start planning, because the message has a wrong dimension. Provided dimension: %u, expected dimension: 8 (plan to pose) or 6 (plan to end effector).",
+        static_cast<UInt>(msg.data.size()));
 }
 
 void Planner::subscriberGoalMarkerExecuteHandler(const std_msgs::Empty &msg)
@@ -302,6 +361,64 @@ void Planner::subscriberGoalMarkerExecuteHandler(const std_msgs::Empty &msg)
     return;
 
   findTrajectoryFull();
+}
+
+void Planner::subscriberPublishControlCommandHandler(const std_msgs::Empty &msg)
+{
+  publishTrajectoryController();
+}
+
+bool Planner::serviceCallbackFoldArm(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res)
+{
+  if (isArmFolded())
+  {
+    ROS_INFO("The arm is already in the folding position.");
+    return true;
+  }
+
+  posesTrajectory.clear();
+
+  std::vector<Real> poseTmp(8);
+  poseTmp[0] = poseCurrent[0];
+  poseTmp[1] = poseCurrent[1];
+  poseTmp[2] = poseCurrent[2];
+  copyArmToRobotPose(posesFolding.back(), poseTmp);
+  if (!findTrajectory8D(poseCurrent, poseGoal))
+  {
+    ROS_WARN("No 8D trajectory to the stretched arm position could be found.");
+    return false;
+  }
+
+  for (std::vector<std::vector<Real> >::reverse_iterator &it = posesFolding.rbegin(); it != posesFolding.rend(); ++it)
+  {
+    copyArmToRobotPose(*it, poseTmp);
+    posesTrajectory.push_back(poseTmp);
+  }
+
+  publishTrajectoryController();
+  return true;
+}
+
+bool Planner::serviceCallbackUnfoldArm(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res)
+{
+  if (!isArmFolded())
+  {
+    ROS_WARN("The arm is not in the folding position.");
+    return false;
+  }
+
+  posesTrajectory.clear();
+
+  std::vector<Real> poseTmp = poseCurrent;
+
+  for (std::vector<std::vector<Real> >::iterator &it = posesFolding.begin(); it != posesFolding.end(); ++it)
+  {
+    copyArmToRobotPose(*it, poseTmp);
+    posesTrajectory.push_back(poseTmp);
+  }
+
+  publishTrajectoryController();
+  return true;
 }
 
 bool Planner::serviceCallGetOctomap()
@@ -328,7 +445,7 @@ bool Planner::serviceCallGetOctomap()
   moveit_msgs::PlanningScene msgScene;
   msgScene.name = "octomap_scene";
   msgScene.is_diff = true;
-  msgScene.world.octomap.header.frame_id = "origin";
+  msgScene.world.octomap.header.frame_id = "map";
   msgScene.world.octomap.header.stamp = ros::Time::now();
   msgScene.world.octomap.header.seq = 0;
   msgScene.world.octomap.octomap.header = msgScene.world.octomap.header;
@@ -566,17 +683,29 @@ bool Planner::findGoalPose(const std::vector<Real> &poseEndEffector)
   endEffectorDeviations[5] = std::make_pair<Real, Real>(-0.025, 0.025);
 
   std::vector<Real> poseInitializer(8);
-  copyArmToRobotPose(posesFolding.back(), poseInitializer);
-  poseInitializer[0] = poseCurrent[0];
-  poseInitializer[1] = poseCurrent[1];
+  //copyArmToRobotPose(posesFolding.back(), poseInitializer);
+  poseInitializer[0] = poseEndEffector[0];
+  poseInitializer[1] = poseEndEffector[1];
   poseInitializer[2] = poseCurrent[2];
+  poseInitializer[3] = -0.6;
+  poseInitializer[4] = 1.0;
+  poseInitializer[5] = 0.0;
+  poseInitializer[6] = -1.4;
+  poseInitializer[7] = 0.0;
 
   poseGoal = birrtStarPlanner.getFullPoseFromEEPose(poseEndEffector, endEffectorDeviations, poseInitializer);
-  if (poseGoal.size() != 8)
+  if (poseGoal.size() == 0)
+  {
+    ROS_WARN("No inverse kinematic solution could be found for the requested end effector pose.");
+    return false;
+  }
+  else if (poseGoal.size() == 1)
   {
     ROS_WARN("No free goal configuration could be found for the requested end effector pose.");
     return false;
   }
+
+  publishGoalPose();
   return true;
 }
 
@@ -601,17 +730,19 @@ void Planner::findTrajectoryFull()
   }
   else
   {
-//    if (!findTrajectoryFoldArm())
-//    {
-//      ROS_WARN("No 8D path could be found to the stretched position.");
-//      return;
-//    }
+    if (!findTrajectoryFoldArm())
+    {
+      ROS_WARN("No 8D path could be found to the stretched position.");
+      return;
+    }
 
     if (!findTrajectory2D())
     {
       ROS_WARN("No 2D path could be found to the requested goal pose.");
       return;
     }
+
+    findTrajectoryExtendArm();
 
     if (!findTrajectory8D(posesTrajectory.back(), poseGoal))
     {
@@ -621,7 +752,7 @@ void Planner::findTrajectoryFull()
   }
 
   publish2DPath();
-  publishTrajectory();
+  publishTrajectoryVisualizer();
 }
 
 bool Planner::findTrajectoryFoldArm()
@@ -641,6 +772,17 @@ bool Planner::findTrajectoryFoldArm()
   indexLastFolding = posesTrajectory.size() - 1;
 
   return true;
+}
+
+void Planner::findTrajectoryExtendArm()
+{
+  std::vector<Real> poseLast(posesTrajectory.back());
+
+  for (UInt i = posesFolding.size() - 1; i >= 0; --i)
+  {
+    posesTrajectory.push_back(poseLast);
+    copyArmToRobotPose(posesFolding[i], posesTrajectory.back());
+  }
 }
 
 bool Planner::findTrajectory2D()
@@ -677,7 +819,7 @@ bool Planner::findTrajectory8D(const std::vector<Real> &poseStart, const std::ve
   if (!birrtStarPlanner.init_planner(poseStart, poseGoal, 1))
     return false;
 
-  if (!birrtStarPlanner.run_planner(1, false, 400, false, 0.0, birrtStarPlanningNumber))
+  if (!birrtStarPlanner.run_planner(1, 1, 3.0, false, 0.0, birrtStarPlanningNumber))
     return false;
 
   std::vector<std::vector<Real> > &trajectoryBirrtStar = birrtStarPlanner.getJointTrajectoryRef();
@@ -828,7 +970,8 @@ void Planner::openListRemoveFrontNode()
     else if (AStarNodes[openListNodes[index].x][openListNodes[index].y].f > AStarNodes[openListNodes[indexDouble].x][openListNodes[indexDouble].y].f
         || AStarNodes[openListNodes[index].x][openListNodes[index].y].f > AStarNodes[openListNodes[indexDoubleOne].x][openListNodes[indexDoubleOne].y].f)
     {
-      if (AStarNodes[openListNodes[indexDouble].x][openListNodes[indexDouble].y].f < AStarNodes[openListNodes[indexDoubleOne].x][openListNodes[indexDoubleOne].y].f)
+      if (AStarNodes[openListNodes[indexDouble].x][openListNodes[indexDouble].y].f
+          < AStarNodes[openListNodes[indexDoubleOne].x][openListNodes[indexDoubleOne].y].f)
       {
         Cell2D nodeBuffer = openListNodes[index];
         openListNodes[index] = openListNodes[indexDouble];
@@ -1068,6 +1211,16 @@ inline void Planner::updateFCost(AStarNode &node) const
   node.f = node.g + std::min(dx, dy) * M_SQRT2 + abs(dx - dy);
 }
 
+inline bool Planner::isArmFolded() const
+{
+  if (fabs(poseCurrent[3] - posesFolding.begin()[0] > 0.05236) || fabs(poseCurrent[4] - posesFolding.begin()[1] > 0.05236)
+      || fabs(poseCurrent[5] - posesFolding.begin()[2] > 0.05236) || fabs(poseCurrent[6] - posesFolding.begin()[3] > 0.05236)
+      || fabs(poseCurrent[7] - posesFolding.begin()[4] > 0.05236))
+    return false;
+
+  return true;
+}
+
 inline void Planner::copyArmToRobotPose(const std::vector<Real> &poseArm, std::vector<Real> &poseRobot)
 {
   poseRobot[3] = poseArm[0];
@@ -1075,6 +1228,23 @@ inline void Planner::copyArmToRobotPose(const std::vector<Real> &poseArm, std::v
   poseRobot[5] = poseArm[2];
   poseRobot[6] = poseArm[3];
   poseRobot[7] = poseArm[4];
+}
+
+inline void Planner::convertPose(const std::vector<Real> &posePrev, std::vector<Real> &poseTarget, const string &frameTarget, const string &frameOrigin) const
+{
+  poseTarget = posePrev;
+  geometry_msgs::PoseStamped poseBasePrev, poseBaseTarget;
+  poseBasePrev.pose.position.x = posePrev[0];
+  poseBasePrev.pose.position.y = posePrev[1];
+  poseBasePrev.pose.position.z = 0.0;
+  poseBasePrev.pose.orientation = tf::createQuaternionMsgFromYaw(posePrev[2]);
+  poseBasePrev.header.frame_id = frameOrigin;
+
+  transformListener.transformPose(frameTarget, poseBasePrev, poseBaseTarget);
+
+  poseTarget[0] = poseBaseTarget.pose.position.x;
+  poseTarget[1] = poseBaseTarget.pose.position.y;
+  poseTarget[2] = tf::getYaw(poseBaseTarget.pose.orientation);
 }
 
 } //namespace SquirrelMotionPlanner

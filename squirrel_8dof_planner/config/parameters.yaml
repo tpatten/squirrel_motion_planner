@@ -20,7 +20,7 @@ astar_smoothing_distance: 0.3
 astar_final_smoothed_point_distance: 0.03
 
 #appox. distance (in m) to final base pose, from where actual 8dof planning starts
-distance_birrt_star_planning: 1.2
+distance_birrt_star_planning: 10.0
 
 #pose (in rad) of folded arm during execution of 2d path
 #those poses are added to base poses for the part of the plan that is computed with astar

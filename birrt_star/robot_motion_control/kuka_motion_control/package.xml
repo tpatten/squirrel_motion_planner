@@ -24,5 +24,7 @@
   <run_depend>kdl_parser</run_depend>
   <run_depend>moveit_core</run_depend>
   <run_depend>moveit_ros_planning</run_depend>
+  <run_depend>srdfdom</run_depend>
+  <run_depend>tf</run_depend>
 
 </package>

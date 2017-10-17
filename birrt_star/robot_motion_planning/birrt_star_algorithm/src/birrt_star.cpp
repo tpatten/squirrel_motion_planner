@@ -1977,6 +1977,7 @@ bool BiRRTstarPlanner::run_planner(int search_space, bool flag_iter_or_time, dou
 
     //Increment iteration counter
     m_executed_planner_iter++;
+    ROS_INFO("Current iteration no: %d", m_executed_planner_iter);
 
     //Get time elapsed since planner started
     gettimeofday(&m_timer, NULL);
@@ -2283,14 +2284,15 @@ void BiRRTstarPlanner::reset_planner_to_initial_state()
 }
 
 //Finds and returns 8D robot pose from a requested end effector poes
-vector<double> BiRRTstarPlanner::getFullPoseFromEEPose(const vector<double> &endEffectorPose, const vector<pair<double, double> > &endEffectorDeviations, const vector<double> &poseInit)
+vector<double> BiRRTstarPlanner::getFullPoseFromEEPose(const vector<double> &endEffectorPose, const vector<pair<double, double> > &endEffectorDeviations,
+                                                       const vector<double> &poseInit)
 {
-  double sx = sin(endEffectorPose[3]/2);
-  double sy = sin(endEffectorPose[4]/2);
-  double sz = sin(endEffectorPose[5]/2);
-  double cx = cos(endEffectorPose[3]/2);
-  double cy = cos(endEffectorPose[4]/2);
-  double cz = cos(endEffectorPose[5]/2);
+  double sx = sin(endEffectorPose[3] / 2);
+  double sy = sin(endEffectorPose[4] / 2);
+  double sz = sin(endEffectorPose[5] / 2);
+  double cx = cos(endEffectorPose[3] / 2);
+  double cy = cos(endEffectorPose[4] / 2);
+  double cz = cos(endEffectorPose[5] / 2);
 
   //Set up goal pose with orientation expressed by quaternion
   vector<double> goalEEPoseQuatOrient(7);
@@ -2307,14 +2309,15 @@ vector<double> BiRRTstarPlanner::getFullPoseFromEEPose(const vector<double> &end
   m_RobotMotionController->setVariableConstraints(vector<int>(6, 1), endEffectorDeviations);
 
   int trial_counter = 0;
-  while (trial_counter < 5)
+  double initPoseDev = 0.02;
+  while (trial_counter < 20)
   {
     //Output joint and endeffector trajectory from controller
     vector<vector<double> > joint_trajectory;
     vector<vector<double> > ee_trajectory;
 
     //Get  random start config
-    vector<double> configurationInit = sampleJointConfig_Vector(poseInit, 0.05);
+    vector<double> configurationInit = sampleJointConfig_Vector(poseInit, initPoseDev);
 
     //Set new random start config
     m_RobotMotionController->setStartConf(configurationInit);
@@ -2327,10 +2330,16 @@ vector<double> BiRRTstarPlanner::getFullPoseFromEEPose(const vector<double> &end
     kuka_motion_controller::Status connector_state = m_RobotMotionController->run_VDLS_Control_Connector(1000, joint_trajectory, ee_trajectory, false, false);
 
     //Perform collision check when pose has been reached
-    if (connector_state == kuka_motion_controller::REACHED && m_FeasibilityChecker->isConfigValid(joint_trajectory.back()))
-      return joint_trajectory.back();
+    if (connector_state == kuka_motion_controller::REACHED)
+    {
+      if (m_FeasibilityChecker->isConfigValid(joint_trajectory.back()))
+        return joint_trajectory.back();
+      else
+        return vector<double>(1);
+    }
 
     ++trial_counter;
+    initPoseDev += 0.02;
   }
 
   return vector<double>();
