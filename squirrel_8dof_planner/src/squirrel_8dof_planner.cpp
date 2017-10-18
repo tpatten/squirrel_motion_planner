@@ -36,23 +36,25 @@ void Planner::initializeParameters()
   poseGoalMarker.resize(6, 0.0);
   birrtStarPlanningNumber = 0;
 
-  std::vector<Real> posesFoldingList;
-  loadParameter("trajectory_folding_arm", posesFoldingList, std::vector<Real>());
+  std::vector<Real> vectorTmp;
+  loadParameter("trajectory_folding_arm", vectorTmp, std::vector<Real>());
   UInt counter = 0;
-  if (posesFoldingList.size() % 5 == 0)
+  if (vectorTmp.size() % 5 == 0)
   {
-    posesFolding.resize(posesFoldingList.size() / 5, std::vector<Real>(5));
+    posesFolding.resize(vectorTmp.size() / 5, std::vector<Real>(5));
     for (UInt i = 0; i < posesFolding.size(); ++i)
       for (UInt j = 0; j < 5; ++j)
       {
-        posesFolding[i][j] = posesFoldingList[counter];
+        posesFolding[i][j] = vectorTmp[counter];
         ++counter;
       }
   }
   else
-  {
     ROS_ERROR("Parameter list 'trajectory_folding_arm' is not divisible by 5. Folding arm trajectory has not been loaded.");
-  }
+
+  loadParameter("normalized_pose_distances", normalizedPoseDistances, std::vector<Real>());
+  if (normalizedPoseDistances.size() != 8)
+    ROS_ERROR("Parameter 'normalized_pose_distances' is not of size 8. Trajectories will not be normalized.");
 
   loadParameter("occupancy_height_min", mapMinZ, 0.0);
   loadParameter("occupancy_height_max", mapMaxZ, 2.0);
@@ -1108,6 +1110,48 @@ bool Planner::isConnectionLineFree(const Tuple2D &pointStart, const Tuple2D &poi
   }
 
   return true;
+}
+
+void Planner::normalizeTrajectory()
+{
+  if (normalizedPoseDistances.size() != 8 || posesTrajectory.size() < 1)
+    return;
+
+  UInt poseNextIndex = 1;
+  posesTrajectoryNormalized.clear();
+  posesTrajectoryNormalized.push_back(posesTrajectory[0]);
+
+  while (true)
+  {
+    const std::vector<Real> &poseNext = posesTrajectory[poseNextIndex];
+    const std::vector<Real> &poseLast = posesTrajectoryNormalized.back();
+
+    Real frac = normalizedPoseDistances[0] / fabs(poseNext[0] - poseLast[0]);
+    for (UInt i = 1; i < 8; ++i)
+    {
+      const Real fracNew = normalizedPoseDistances[i] / fabs(poseNext[i] - poseLast[i]);
+      if (fracNew < frac)
+        frac = fracNew;
+    }
+    if (frac > 1.0)
+    {
+      if (poseNextIndex == posesTrajectory.size() - 1)
+      {
+        posesTrajectoryNormalized.push_back(poseNext);
+        return;
+      }
+      else
+      {
+        ++poseNextIndex;
+        continue;
+      }
+    }
+
+    posesTrajectoryNormalized.push_back(poseLast);
+
+    for (UInt i = 0; i < 8; ++i)
+      posesTrajectoryNormalized.back()[i] = frac * (poseNext[i] - poseLast[i]);
+  }
 }
 
 // ******************** INLINES ********************

@@ -69,6 +69,7 @@ class Planner
    * General search settings
    */
   std::vector<std::vector<Real> > posesFolding;     ///< 5D arm poses that allows the robot to fold into the case. First pose is folded, last unfolded.
+  std::vector<Real> normalizedPoseDistances;     ///< 8D vector of pose values to which the final trajectory is normalized.
   Real distance8DofPlanning;     ///< Distance to the goal pose from where the 8D planning is performed.
   Real obstacleInflationRadius;     ///< Inflation radius around occupied cells in occupancyMap.
 
@@ -78,6 +79,7 @@ class Planner
   std::vector<Real> poseCurrent;     ///< 8D vector with the current robot pose, given as [x, y, theta, arm1, arm2, arm3, arm4, arm5].
   std::vector<Real> poseGoal;      ///< 8D vector with the goal pose for the robot, given as [x, y, theta, arm1, arm2, arm3, arm4, arm5].
   std::vector<std::vector<Real> > posesTrajectory;     ///< Vector of 8D poses that contains the last succesfully computed trajectory from poseCurrent to poseGoal.
+  std::vector<std::vector<Real> > posesTrajectoryNormalized;     ///< Same trajectory as posesTrajectory, but normalized to a specific maximum pose distance.
   UInt indexLastFolding;
 
   /*
@@ -335,6 +337,8 @@ private:
    * @return False if any occpuied call is found, true otherwise.
    */
   bool isConnectionLineFree(const Tuple2D &pointStart, const Tuple2D &pointEnd);
+
+  void normalizeTrajectory();
 
 
   // ******************** INLINES ********************
