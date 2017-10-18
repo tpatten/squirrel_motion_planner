@@ -216,7 +216,7 @@ void Planner::publish2DPath() const
 
 void Planner::publishTrajectoryVisualizer() const
 {
-  if (publisherTrajectoryVisualizer.getNumSubscribers() == 0 || posesTrajectory.size() <= 1)
+  if (publisherTrajectoryVisualizer.getNumSubscribers() == 0 || posesTrajectoryNormalized.size() <= 1)
     return;
 
   std_msgs::Float64MultiArray msg;
@@ -224,20 +224,20 @@ void Planner::publishTrajectoryVisualizer() const
   msg.layout.data_offset = 0;
   msg.layout.dim.resize(2);
   msg.layout.dim[0].label = "pose";
-  msg.layout.dim[0].size = posesTrajectory.size() - 1;
-  msg.layout.dim[0].stride = (posesTrajectory.size() - 1) * 8;
+  msg.layout.dim[0].size = posesTrajectoryNormalized.size() - 1;
+  msg.layout.dim[0].stride = (posesTrajectoryNormalized.size() - 1) * 8;
   msg.layout.dim[1].label = "joint";
   msg.layout.dim[1].size = 8;
   msg.layout.dim[1].stride = 8;
 
-  msg.data.resize((posesTrajectory.size() - 1) * 8);
+  msg.data.resize((posesTrajectoryNormalized.size() - 1) * 8);
 
   UInt index = 0;
-  for (UInt i = 1; i < posesTrajectory.size(); ++i)
+  for (UInt i = 0; i < posesTrajectoryNormalized.size(); ++i)
   {
     for (UInt j = 0; j < 8; ++j)
     {
-      msg.data[index] = posesTrajectory[i][j];
+      msg.data[index] = posesTrajectoryNormalized[i][j];
       ++index;
     }
   }
@@ -1149,7 +1149,7 @@ void Planner::normalizeTrajectory()
     posesTrajectoryNormalized.push_back(poseLast);
 
     for (UInt i = 0; i < 8; ++i)
-      posesTrajectoryNormalized.back()[i] = frac * (poseNext[i] - poseLast[i]);
+      posesTrajectoryNormalized.back()[i] += frac * (poseNext[i] - poseLast[i]);
   }
 }
 

@@ -339,6 +339,9 @@ private:
    */
   bool isConnectionLineFree(const Tuple2D &pointStart, const Tuple2D &pointEnd);
 
+  /**
+   * @brief Goes through posesTrajectory, normalises them according to normalizedPoseDistances, and saves them to posesTrajectoryNormalized.
+   */
   void normalizeTrajectory();
 
 
