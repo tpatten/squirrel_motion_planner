@@ -70,6 +70,7 @@ class Planner
    */
   std::vector<std::vector<Real> > posesFolding;     ///< 5D arm poses that allows the robot to fold into the case. First pose is folded, last unfolded.
   std::vector<Real> normalizedPoseDistances;     ///< 8D vector of pose values to which the final trajectory is normalized.
+  Real timeBetweenPoses;
   Real distance8DofPlanning;     ///< Distance to the goal pose from where the 8D planning is performed.
   Real obstacleInflationRadius;     ///< Inflation radius around occupied cells in occupancyMap.
 

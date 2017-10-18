@@ -56,6 +56,7 @@ void Planner::initializeParameters()
   if (normalizedPoseDistances.size() != 8)
     ROS_ERROR("Parameter 'normalized_pose_distances' is not of size 8. Trajectories will not be normalized.");
 
+  loadParameter("time_between_poses", timeBetweenPoses, 1.0);
   loadParameter("occupancy_height_min", mapMinZ, 0.0);
   loadParameter("occupancy_height_max", mapMaxZ, 2.0);
   loadParameter("astar_safety_distance", obstacleInflationRadius, 0.3);
@@ -267,14 +268,11 @@ void Planner::publishGoalPose() const
 
 void Planner::publishTrajectoryController()
 {
-  if (publisherTrajectoryController.getNumSubscribers() == 0 || posesTrajectory.size() <= 1)
+  if (publisherTrajectoryController.getNumSubscribers() == 0 || posesTrajectoryNormalized.size() < 1)
     return;
 
   trajectory_msgs::JointTrajectory msg;
-  tf::TransformListener transformListener;
-
   msg.joint_names.resize(8);
-
   msg.joint_names[0] = "base_jointx";
   msg.joint_names[1] = "base_jointy";
   msg.joint_names[2] = "base_jointz";
@@ -286,11 +284,10 @@ void Planner::publishTrajectoryController()
   msg.points.resize(posesTrajectory.size());
 
   ros::Duration time(0.0);
-  for (UInt i = 0; i < posesTrajectory.size(); ++i)
+  for (UInt i = 0; i < posesTrajectoryNormalized.size(); ++i)
   {
-    time += ros::Duration(0.25);
-    msg.points[i].positions.resize(8);
-    convertPose(posesTrajectory[i], msg.points[i].positions, "origin", "map");
+    time += ros::Duration(timeBetweenPoses);
+    msg.points[i].positions = posesTrajectoryNormalized[i];
     msg.points[i].time_from_start = time;
   }
 
@@ -730,13 +727,15 @@ bool Planner::findTrajectoryFull()
 
   posesTrajectory.clear();
 
-  if (Tuple2D(poseGoal[0], poseGoal[1]).distance(Tuple2D(poseCurrent[0], poseCurrent[1])) < distance8DofPlanning)
+  if (true)//Tuple2D(poseGoal[0], poseGoal[1]).distance(Tuple2D(poseCurrent[0], poseCurrent[1])) < distance8DofPlanning)
   {
     if (!findTrajectory8D(poseCurrent, poseGoal))
     {
       ROS_WARN("No 8D path could be found to the requested goal pose.");
       return false;
     }
+
+    normalizeTrajectory();
   }
   else
   {
