@@ -43,7 +43,7 @@
     </visual>
   </link>
   <joint name="base_theta_joint" type="continuous">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <origin rpy="0 0 0" xyz="0.00001 0.00001 0.00001"/>
     <parent link="base_y_link"/>
     <child link="base_theta_link"/>
     <axis xyz="0 0 1"/>

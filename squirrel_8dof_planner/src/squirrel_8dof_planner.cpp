@@ -25,6 +25,47 @@ Planner::Planner() :
 
   initializeMessageHandling();
   initializeInteractiveMarker();
+
+  posesTrajectory.clear();
+  posesTrajectory.push_back(std::vector<Real>(8, 0.0));
+
+  posesTrajectory.back()[3] = 0.2;
+  posesTrajectory.back()[4] = 2.6;
+  posesTrajectory.back()[5] = -0.06;
+  posesTrajectory.back()[6] = 2.4;
+  posesTrajectory.back()[7] = -1.18;
+
+  posesTrajectory.push_back(std::vector<Real>(8, 0.0));
+
+  posesTrajectory.back()[3] = -0.1;
+  posesTrajectory.back()[4] = 2.6;
+  posesTrajectory.back()[5] = -0.06;
+  posesTrajectory.back()[6] = 2.4;
+  posesTrajectory.back()[7] = -1.18;
+
+  posesTrajectory.push_back(std::vector<Real>(8, 0.0));
+
+  posesTrajectory.back()[3] = -0.5;
+  posesTrajectory.back()[4] = 1.9;
+  posesTrajectory.back()[5] = -0.06;
+  posesTrajectory.back()[6] = 2.4;
+  posesTrajectory.back()[7] = -1.18;
+
+  posesTrajectory.push_back(std::vector<Real>(8, 0.0));
+
+  posesTrajectory.back()[3] = -0.8;
+  posesTrajectory.back()[4] = 0.0;
+  posesTrajectory.back()[5] = -0.06;
+  posesTrajectory.back()[6] = 0.0;
+  posesTrajectory.back()[7] = -1.18;
+
+  normalizeTrajectory();
+
+//  for (UInt i = 0; i < posesTrajectoryNormalized.size(); ++i)
+//  {
+//    std::cout << posesTrajectoryNormalized[i][3] << ", " << posesTrajectoryNormalized[i][4] << ", " << posesTrajectoryNormalized[i][5] << ", "
+//        << posesTrajectoryNormalized[i][6] << ", " << posesTrajectoryNormalized[i][7] << ", " << std::endl;
+//  }
 }
 
 // ******************** PRIVATE MEMBERS ********************
@@ -75,10 +116,9 @@ void Planner::initializeMessageHandling()
   publisher2DPath = nhPrivate.advertise<nav_msgs::Path>("path_2d", 10);
   publisherTrajectoryVisualizer = nhPrivate.advertise<std_msgs::Float64MultiArray>("robot_trajectory_multi_array", 10);
   publisherGoalPose = nhPrivate.advertise<std_msgs::Float64MultiArray>("robot_goal_pose", 10);
-  publisherTrajectoryController = nh.advertise<trajectory_msgs::JointTrajectory>("/joint_trajectory_controller/command", 10);
+  publisherTrajectoryController = nh.advertise<trajectory_msgs::JointTrajectory>("/arm_controller/joint_trajectory_controller/command", 10);
 
-  subscriberBase = nh.subscribe("/squirrel_2d_localizer/pose", 1, &Planner::subscriberBaseHandler, this);
-  subscriberArm = nh.subscribe("/joint_states", 1, &Planner::subscriberArmHandler, this);
+  subscriberPose = nh.subscribe("/arm_controller/joint_states", 1, &Planner::subscriberPoseHandler, this);
   subscriberGoal = nhPrivate.subscribe("goal", 1, &Planner::subscriberGoalHandler, this);
 
   serviceServerGoalMarker = nh.advertiseService("find_interactive_marker_plan", &Planner::serviceCallbackGoalMarker, this);
@@ -283,7 +323,7 @@ void Planner::publishTrajectoryController()
   msg.joint_names[5] = "arm_joint3";
   msg.joint_names[6] = "arm_joint4";
   msg.joint_names[7] = "arm_joint5";
-  msg.points.resize(posesTrajectory.size());
+  msg.points.resize(posesTrajectoryNormalized.size());
 
   ros::Duration time(0.0);
   for (UInt i = 0; i < posesTrajectoryNormalized.size(); ++i)
@@ -296,23 +336,27 @@ void Planner::publishTrajectoryController()
   publisherTrajectoryController.publish(msg);
 }
 
-void Planner::subscriberBaseHandler(const geometry_msgs::PoseWithCovarianceStamped &msg)
+void Planner::subscriberPoseHandler(const sensor_msgs::JointState &msg)
 {
-  poseCurrent[0] = msg.pose.pose.position.x;
-  poseCurrent[1] = msg.pose.pose.position.y;
-  poseCurrent[2] = tf::getYaw(msg.pose.pose.orientation);
-}
-
-void Planner::subscriberArmHandler(const sensor_msgs::JointState &msg)
-{
-  if (msg.name[0] != "arm_joint1")
-    return;
-
-  poseCurrent[3] = msg.position[0];
-  poseCurrent[4] = msg.position[1];
-  poseCurrent[5] = msg.position[2];
-  poseCurrent[6] = msg.position[3];
-  poseCurrent[7] = msg.position[4];
+  for (UInt i = 0; i < msg.position.size(); ++i)
+  {
+    if (msg.name[i] == "arm_joint1")
+      poseCurrent[3] = msg.position[i];
+    else if (msg.name[i] == "arm_joint2")
+      poseCurrent[4] = msg.position[i];
+    else if (msg.name[i] == "arm_joint3")
+      poseCurrent[5] = msg.position[i];
+    else if (msg.name[i] == "arm_joint4")
+      poseCurrent[6] = msg.position[i];
+    else if (msg.name[i] == "arm_joint5")
+      poseCurrent[7] = msg.position[i];
+    else if (msg.name[i] == "base_jointx")
+      poseCurrent[0] = msg.position[i];
+    else if (msg.name[i] == "base_jointy")
+      poseCurrent[1] = msg.position[i];
+    else if (msg.name[i] == "base_jointz")
+      poseCurrent[2] = msg.position[i];
+  }
 }
 
 void Planner::subscriberGoalHandler(const std_msgs::Float64MultiArray &msg)
@@ -385,23 +429,43 @@ bool Planner::serviceCallbackFoldArm(std_srvs::EmptyRequest &req, std_srvs::Empt
     return true;
   }
 
-  posesTrajectory.clear();
+  posesTrajectoryNormalized.clear();
 
-  std::vector<Real> poseTmp(8);
-  poseTmp[0] = poseCurrent[0];
-  poseTmp[1] = poseCurrent[1];
-  poseTmp[2] = poseCurrent[2];
-  copyArmToRobotPose(posesFolding.back(), poseTmp);
-  if (!findTrajectory8D(poseCurrent, poseTmp))
+  if (!isArmStretched())
   {
-    ROS_WARN("No 8D trajectory to the stretched arm position could be found.");
-    return false;
+    if (!serviceCallGetOctomap())
+      return false;
+
+    std::vector<Real> poseTmp(8);
+    poseTmp[0] = poseCurrent[0];
+    poseTmp[1] = poseCurrent[1];
+    poseTmp[2] = poseCurrent[2];
+    copyArmToRobotPose(posesFolding.back(), poseTmp);
+    posesTrajectory.clear();
+    if (!findTrajectory8D(poseCurrent, poseTmp))
+    {
+      ROS_WARN("No 8D trajectory to the stretched arm position could be found.");
+      return false;
+    }
+    normalizeTrajectory();
+
+    for (std::vector<std::vector<Real> >::reverse_iterator it = posesFolding.rbegin() + 1; it != posesFolding.rend(); ++it)
+    {
+      copyArmToRobotPose(*it, poseTmp);
+      posesTrajectoryNormalized.push_back(poseTmp);
+    }
   }
-
-  for (std::vector<std::vector<Real> >::reverse_iterator it = posesFolding.rbegin() + 1; it != posesFolding.rend(); ++it)
+  else
   {
-    copyArmToRobotPose(*it, poseTmp);
-    posesTrajectory.push_back(poseTmp);
+    std::vector<Real> poseTmp(8);
+    poseTmp[0] = poseCurrent[0];
+    poseTmp[1] = poseCurrent[1];
+    poseTmp[2] = poseCurrent[2];
+    for (std::vector<std::vector<Real> >::reverse_iterator it = posesFolding.rbegin(); it != posesFolding.rend(); ++it)
+    {
+      copyArmToRobotPose(*it, poseTmp);
+      posesTrajectoryNormalized.push_back(poseTmp);
+    }
   }
 
   publishTrajectoryController();
@@ -416,14 +480,14 @@ bool Planner::serviceCallbackUnfoldArm(std_srvs::EmptyRequest &req, std_srvs::Em
     return false;
   }
 
-  posesTrajectory.clear();
+  posesTrajectoryNormalized.clear();
 
   std::vector<Real> poseTmp = poseCurrent;
 
   for (std::vector<std::vector<Real> >::iterator it = posesFolding.begin(); it != posesFolding.end(); ++it)
   {
     copyArmToRobotPose(*it, poseTmp);
-    posesTrajectory.push_back(poseTmp);
+    posesTrajectoryNormalized.push_back(poseTmp);
   }
 
   publishTrajectoryController();
@@ -447,7 +511,7 @@ bool Planner::serviceCallGetOctomap()
     return false;
   }
 
-  octomap::OcTreeKey keyTmp = octree->coordToKey(poseCurrent[0], poseCurrent[1], -octree->getResolution()*0.5);
+  octomap::OcTreeKey keyTmp = octree->coordToKey(poseCurrent[0], poseCurrent[1], -octree->getResolution() * 0.5);
 
   UInt xLimitMin = -(Int)(floorCollisionDistance / octree->getResolution()) + (Int)keyTmp[0];
   UInt xLimitMax = (Int)(floorCollisionDistance / octree->getResolution()) + (Int)keyTmp[0];
@@ -1139,43 +1203,50 @@ bool Planner::isConnectionLineFree(const Tuple2D &pointStart, const Tuple2D &poi
 
 void Planner::normalizeTrajectory()
 {
-  if (normalizedPoseDistances.size() != 8 || posesTrajectory.size() < 1)
+  if (normalizedPoseDistances.size() != 8 || posesTrajectory.size() <= 1)
     return;
 
   UInt poseNextIndex = 1;
   posesTrajectoryNormalized.clear();
-  posesTrajectoryNormalized.push_back(posesTrajectory[0]);
+  posesTrajectoryNormalized.push_back(posesTrajectory.front());
 
   while (true)
   {
     const std::vector<Real> &poseNext = posesTrajectory[poseNextIndex];
     const std::vector<Real> &poseLast = posesTrajectoryNormalized.back();
 
-    Real frac = normalizedPoseDistances[0] / fabs(poseNext[0] - poseLast[0]);
+    Real frac = fabs(poseNext[0] - poseLast[0]) / normalizedPoseDistances[0];
     for (UInt i = 1; i < 8; ++i)
     {
-      const Real fracNew = normalizedPoseDistances[i] / fabs(poseNext[i] - poseLast[i]);
-      if (fracNew < frac)
+      const Real fracNew = fabs(poseNext[i] - poseLast[i]) / normalizedPoseDistances[i];
+      if (fracNew > frac)
         frac = fracNew;
     }
-    if (frac > 1.0)
+    if (frac < 1.0)
     {
-      if (poseNextIndex == posesTrajectory.size() - 1)
+      ++poseNextIndex;
+      if (poseNextIndex == posesTrajectory.size())
       {
-        posesTrajectoryNormalized.push_back(poseNext);
+        posesTrajectoryNormalized.push_back(posesTrajectory.back());
         return;
       }
       else
-      {
-        ++poseNextIndex;
         continue;
-      }
     }
 
-    posesTrajectoryNormalized.push_back(poseLast);
+    UInt counterMax = (UInt)frac + 1;
+    frac = std::ceil(frac);
+    const std::vector<Real> poseLastCopy = posesTrajectoryNormalized.back();
+    for (UInt i = 1; i <= counterMax; ++i)
+    {
+      posesTrajectoryNormalized.push_back(poseLastCopy);
+      for (UInt j = 0; j < 8; ++j)
+        posesTrajectoryNormalized.back()[j] += i * (poseNext[j] - posesTrajectoryNormalized.back()[j]) / frac;
+    }
 
-    for (UInt i = 0; i < 8; ++i)
-      posesTrajectoryNormalized.back()[i] += frac * (poseNext[i] - poseLast[i]);
+    ++poseNextIndex;
+    if (poseNextIndex == posesTrajectory.size())
+      return;
   }
 }
 
@@ -1254,9 +1325,19 @@ inline void Planner::updateFCost(AStarNode &node) const
 
 inline bool Planner::isArmFolded() const
 {
-  if (fabs(poseCurrent[3] - posesFolding.front()[0] > 0.05236) || fabs(poseCurrent[4] - posesFolding.front()[1] > 0.05236)
-      || fabs(poseCurrent[5] - posesFolding.front()[2] > 0.05236) || fabs(poseCurrent[6] - posesFolding.front()[3] > 0.05236)
-      || fabs(poseCurrent[7] - posesFolding.front()[4] > 0.05236))
+  if (fabs(poseCurrent[3] - posesFolding.front()[0]) > 0.05236 || fabs(poseCurrent[4] - posesFolding.front()[1]) > 0.05236
+      || fabs(poseCurrent[5] - posesFolding.front()[2]) > 0.05236 || fabs(poseCurrent[6] - posesFolding.front()[3]) > 0.05236
+      || fabs(poseCurrent[7] - posesFolding.front()[4]) > 0.05236)
+    return false;
+
+  return true;
+}
+
+inline bool Planner::isArmStretched() const
+{
+  if (fabs(poseCurrent[3] - posesFolding.back()[0]) > 0.05236 || fabs(poseCurrent[4] - posesFolding.back()[1]) > 0.05236
+      || fabs(poseCurrent[5] - posesFolding.back()[2]) > 0.05236 || fabs(poseCurrent[6] - posesFolding.back()[3]) > 0.05236
+      || fabs(poseCurrent[7] - posesFolding.back()[4]) > 0.05236)
     return false;
 
   return true;

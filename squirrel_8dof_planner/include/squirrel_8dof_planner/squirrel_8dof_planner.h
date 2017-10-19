@@ -53,8 +53,7 @@ class Planner
   ros::Publisher publisherTrajectoryVisualizer;     ///< ROS publisher. Publishes the full 8D trajectory as a multi float array.
   ros::Publisher publisherTrajectoryController;     ///< ROS publisher. Publishes the full 8D trajectory as a joint trajectory.
   ros::Publisher publisherGoalPose;     ///< ROS publisher. Publishes the found goal pose as a single 8dof pose.
-  ros::Subscriber subscriberBase;     ///< ROS subscriber. Subscribes to /base/joint_angles.
-  ros::Subscriber subscriberArm;     ///< ROS subscriber. Subscribes to /arm_controller/joint_states.
+  ros::Subscriber subscriberPose;     ///< ROS subscriber. Subscribes to /arm_controller/joint_states.
   ros::Subscriber subscriberGoal;     ///< ROS subscriber. Subscribes to goal.
   ros::ServiceServer serviceServerFoldArm;     ///< ROS service server. When called, sends a trajectory to the controller to fold the arm into the case.
   ros::ServiceServer serviceServerSendControlCommand;     //<< ROS service server. When called, sends the latest trajectory to the controller.
@@ -172,16 +171,10 @@ private:
   void publishTrajectoryController();
 
   /**
-   * @brief Handler for the base position of the robot.
-   * @param msg ROS message that contains the base pose information.
-   */
-  void subscriberBaseHandler(const geometry_msgs::PoseWithCovarianceStamped &msg);
-
-  /**
    * @brief Handler for the arm joints of the robot.
    * @param msg ROS message that contains the joint angles of  the arm information.
    */
-  void subscriberArmHandler(const sensor_msgs::JointState &msg);
+  void subscriberPoseHandler(const sensor_msgs::JointState &msg);
 
   /**
    * @brief Used to sginal a request for finding a trajectory to fold the arm into the case.
@@ -416,6 +409,12 @@ private:
    * Compares elements 3-7 in poseCurrent with posesFolding.front() and returns true if no joint deviates by more than 3 deg.
    */
   bool isArmFolded() const;
+
+  /**
+   * @brief Checks if the arm is currently in the stretched position.
+   * Compares elements 3-7 in poseCurrent with posesFolding.back() and returns true if no joint deviates by more than 3 deg.
+   */
+  bool isArmStretched() const;
 
   /**
    * @brief Checks if the robot is still at the position of the initial trajectory pose.

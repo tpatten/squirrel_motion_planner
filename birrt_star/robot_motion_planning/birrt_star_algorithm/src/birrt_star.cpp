@@ -560,7 +560,7 @@ bool BiRRTstarPlanner::init_planner(vector<double> start_conf, vector<double> go
   KDL::JntArray goal_configuration = m_RobotMotionController->Vector_to_JntArray(goal_conf);
 
   //Check start and goal config for validity
-  bool start_conf_valid = m_FeasibilityChecker->isConfigValid(start_configuration);
+  bool start_conf_valid = m_FeasibilityChecker->isConfigValid(start_configuration, true);
   bool goal_conf_valid = m_FeasibilityChecker->isConfigValid(goal_configuration);
   if (start_conf_valid == false)
   {
