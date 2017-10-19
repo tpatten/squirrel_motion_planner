@@ -13,6 +13,8 @@ Panels:
         - /Path1
         - /MarkerArray1
         - /InteractiveMarkers1
+        - /OccupancyGrid1
+        - /OccupancyGrid1/Status1
       Splitter Ratio: 0.5
     Tree Height: 733
   - Class: rviz/Selection
@@ -332,6 +334,15 @@ Visualization Manager:
       Show Visual Aids: false
       Update Topic: /squirrel_8dof_planning/endeffector_goal/update
       Value: true
+    - Class: octomap_rviz_plugin/OccupancyGrid
+      Enabled: true
+      Max. Octree Depth: 16
+      Name: OccupancyGrid
+      Octomap Topic: /squirrel_8dof_planning/octomap_planning
+      Queue Size: 5
+      Value: true
+      Voxel Coloring: Z-Axis
+      Voxel Rendering: Occupied Voxels
   Enabled: true
   Global Options:
     Background Color: 220; 220; 220
@@ -356,22 +367,22 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 6.05539
+      Distance: 10.6717
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -2.43987
-        Y: 0.181004
-        Z: -0.698868
+        X: -1.95043
+        Y: 1.7413
+        Z: -0.852901
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.2048
+      Pitch: 0.4148
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.154045
+      Yaw: 5.96723
     Saved: ~
 Window Geometry:
   Displays:

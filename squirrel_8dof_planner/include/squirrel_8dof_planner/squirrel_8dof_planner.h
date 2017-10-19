@@ -47,6 +47,7 @@ class Planner
   ros::NodeHandle nh;     ///< ROS node handle with global namespace.
   ros::NodeHandle nhPrivate;     ///< ROS node handle with namespace relative to current node.
   ros::Publisher publisherPlanningScene;     ///< ROS publisher. Publishes the octree as a planning scene for moveit.
+  ros::Publisher publisherOctomap;
   ros::Publisher publisherOccupancyMap;     ///< ROS publisher. Publishes the occupancy map that was created using the most recent octree.
   ros::Publisher publisher2DPath;     ///< ROS publisher. Publishes the 2D projection of the 8D trajectory.
   ros::Publisher publisherTrajectoryVisualizer;     ///< ROS publisher. Publishes the full 8D trajectory as a multi float array.
@@ -86,6 +87,7 @@ class Planner
   /*
    * Octomap
    */
+  Real floorCollisionDistance;
   octomap::OcTree* octree;
 
   /*

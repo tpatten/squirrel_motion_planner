@@ -59,6 +59,7 @@ void Planner::initializeParameters()
   loadParameter("time_between_poses", timeBetweenPoses, 1.0);
   loadParameter("occupancy_height_min", mapMinZ, 0.0);
   loadParameter("occupancy_height_max", mapMaxZ, 2.0);
+  loadParameter("floor_collision_distance", floorCollisionDistance, 3.0);
   loadParameter("astar_safety_distance", obstacleInflationRadius, 0.3);
   loadParameter("astar_smoothing_factor", AStarPathSmoothingFactor, 2.0);
   loadParameter("astar_smoothing_distance", AStarPathSmoothingDistance, 0.2);
@@ -69,6 +70,7 @@ void Planner::initializeParameters()
 void Planner::initializeMessageHandling()
 {
   publisherPlanningScene = nh.advertise<moveit_msgs::PlanningScene>("planning_scene", 1);
+  publisherOctomap = nh.advertise<octomap_msgs::Octomap>("octomap_planning", 1);
   publisherOccupancyMap = nhPrivate.advertise<nav_msgs::OccupancyGrid>("occupancy_map", 1);
   publisher2DPath = nhPrivate.advertise<nav_msgs::Path>("path_2d", 10);
   publisherTrajectoryVisualizer = nhPrivate.advertise<std_msgs::Float64MultiArray>("robot_trajectory_multi_array", 10);
@@ -445,9 +447,22 @@ bool Planner::serviceCallGetOctomap()
     return false;
   }
 
-  createOccupancyMapFromOctomap();
-  inflateOccupancyMap();
-  createAStarNodesMap();
+  octomap::OcTreeKey keyTmp = octree->coordToKey(poseCurrent[0], poseCurrent[1], -octree->getResolution()*0.5);
+
+  UInt xLimitMin = -(Int)(floorCollisionDistance / octree->getResolution()) + (Int)keyTmp[0];
+  UInt xLimitMax = (Int)(floorCollisionDistance / octree->getResolution()) + (Int)keyTmp[0];
+  UInt yLimitMin = -(Int)(floorCollisionDistance / octree->getResolution()) + (Int)keyTmp[1];
+  UInt yLimitMax = (Int)(floorCollisionDistance / octree->getResolution()) + (Int)keyTmp[1];
+
+  for (UInt x = xLimitMin; x <= xLimitMax; ++x)
+    for (UInt y = yLimitMin; y <= yLimitMax; ++y)
+    {
+      keyTmp[0] = x;
+      keyTmp[1] = y;
+      octree->updateNode(keyTmp, true, true);
+    }
+
+  octree->prune();
 
   moveit_msgs::PlanningScene msgScene;
   msgScene.name = "octomap_scene";
@@ -466,7 +481,15 @@ bool Planner::serviceCallGetOctomap()
   msgScene.world.octomap.octomap = res.map;
 
   publisherPlanningScene.publish(msgScene);
-  publishOccupancyMap();
+
+  if (publisherOctomap.getNumSubscribers() > 0)
+  {
+    octomap_msgs::Octomap msgOctomap;
+    octomap_msgs::fullMapToMsg(*octree, msgOctomap);
+    msgOctomap.header.frame_id = "map";
+    msgOctomap.header.stamp = ros::Time::now();
+    publisherOctomap.publish(msgOctomap);
+  }
 
   delete octree;
   return true;
@@ -727,7 +750,7 @@ bool Planner::findTrajectoryFull()
 
   posesTrajectory.clear();
 
-  if (true)//Tuple2D(poseGoal[0], poseGoal[1]).distance(Tuple2D(poseCurrent[0], poseCurrent[1])) < distance8DofPlanning)
+  if (true) //Tuple2D(poseGoal[0], poseGoal[1]).distance(Tuple2D(poseCurrent[0], poseCurrent[1])) < distance8DofPlanning)
   {
     if (!findTrajectory8D(poseCurrent, poseGoal))
     {
@@ -739,6 +762,9 @@ bool Planner::findTrajectoryFull()
   }
   else
   {
+    createOccupancyMapFromOctomap();
+    inflateOccupancyMap();
+    createAStarNodesMap();
 
     if (!findTrajectory2D())
     {
