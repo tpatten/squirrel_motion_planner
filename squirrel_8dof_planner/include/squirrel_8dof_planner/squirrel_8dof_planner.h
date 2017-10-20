@@ -66,13 +66,13 @@ class Planner
   tf::TransformListener transformListener;
   interactive_markers::InteractiveMarkerServer interactiveMarkerServer;     ///< Server that commuincates with Rviz to receive 6D end effector poses.
   visualization_msgs::InteractiveMarker interactiveMarker;     ///< Interactive marker used by interactiveMarkerServer.
-  std::vector<Real> poseGoalMarker;     ///< Current pose of the interactive marker in RViz.
+  Pose poseGoalMarker;     ///< Current pose of the interactive marker in RViz.
 
   /*
    * General search settings
    */
-  std::vector<std::vector<Real> > posesFolding;     ///< 5D arm poses that allows the robot to fold into the case. First pose is folded, last unfolded.
-  std::vector<Real> normalizedPoseDistances;     ///< 8D vector of pose values to which the final trajectory is normalized.
+  Trajectory posesFolding;     ///< 5D arm poses that allows the robot to fold into the case. First pose is folded, last unfolded.
+  Pose normalizedPoseDistances;     ///< 8D vector of pose values to which the final trajectory is normalized.
   Real timeBetweenPoses;
   Real distance8DofPlanning;     ///< Distance to the goal pose from where the 8D planning is performed.
   Real obstacleInflationRadius;     ///< Inflation radius around occupied cells in occupancyMap.
@@ -80,10 +80,10 @@ class Planner
   /*
    *  Current robot and planning poses
    */
-  std::vector<Real> poseCurrent;     ///< 8D vector with the current robot pose, given as [x, y, theta, arm1, arm2, arm3, arm4, arm5].
-  std::vector<Real> poseGoal;      ///< 8D vector with the goal pose for the robot, given as [x, y, theta, arm1, arm2, arm3, arm4, arm5].
-  std::vector<std::vector<Real> > posesTrajectory;  ///< Vector of 8D poses that contains the last succesfully computed trajectory from poseCurrent to poseGoal.
-  std::vector<std::vector<Real> > posesTrajectoryNormalized;     ///< Same trajectory as posesTrajectory, but normalized to a specific maximum pose distance.
+  Pose poseCurrent;     ///< 8D vector with the current robot pose, given as [x, y, theta, arm1, arm2, arm3, arm4, arm5].
+  Pose poseGoal;      ///< 8D vector with the goal pose for the robot, given as [x, y, theta, arm1, arm2, arm3, arm4, arm5].
+  Trajectory posesTrajectory;  ///< Vector of 8D poses that contains the last succesfully computed trajectory from poseCurrent to poseGoal.
+  Trajectory posesTrajectoryNormalized;     ///< Same trajectory as posesTrajectory, but normalized to a specific maximum pose distance.
   UInt indexLastFolding;
 
   /*
@@ -256,7 +256,7 @@ private:
    * @param poseEndEffector The 6D pose, given in [x, y, z, R, P, Y], for which a free pose should be found.
    * @return Returns true if a free pose could be found and false otherwise.
    */
-  bool findGoalPose(const std::vector<Real> &poseEndEffector);
+  bool findGoalPose(const Pose &poseEndEffector);
 
   /**
    * @brief Finds a 2D and 8D trajectory to the goal pose saved in poseGoal.
@@ -287,7 +287,7 @@ private:
    * @brief Finds an 8D path using birrt star from poseStart to poseGoal and adds the trajectory to poses.
    * @return True if a path could be found, false if the planner could not be initialized or no plan could be found.
    */
-  bool findTrajectory8D(const std::vector<Real> &poseStart, const std::vector<Real> &poseGoal);
+  bool findTrajectory8D(const Pose &poseStart, const Pose &poseGoal);
 
   /**
    * @brief Finds an A* actual path between two points and saves it to AStarPath.
@@ -430,9 +430,9 @@ private:
    * @param poseArm 5D vector that contains joint angles of the arm.
    * @param poseRobot 8D vector to which the arm joint angles should be copied.
    */
-  void copyArmToRobotPose(const std::vector<Real> &poseArm, std::vector<Real> &poseRobot);
+  void copyArmToRobotPose(const Pose &poseArm, Pose &poseRobot);
 
-  void convertPose(const std::vector<Real> &posePrev, std::vector<Real> &poseTarget, const string &frameTarget, const string &frameOrigin) const;
+  void convertPose(const Pose &posePrev, Pose &poseTarget, const string &frameTarget, const string &frameOrigin) const;
 };
 
 } //namespace SquirrelMotionPlanner

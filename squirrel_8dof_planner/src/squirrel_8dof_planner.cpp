@@ -19,7 +19,7 @@ Planner::Planner() :
   initializeInteractiveMarker();
 
   posesTrajectory.clear();
-  posesTrajectory.push_back(std::vector<Real>(8, 0.0));
+  posesTrajectory.push_back(Pose(8, 0.0));
 
   posesTrajectory.back()[3] = 0.2;
   posesTrajectory.back()[4] = 2.6;
@@ -27,7 +27,7 @@ Planner::Planner() :
   posesTrajectory.back()[6] = 2.4;
   posesTrajectory.back()[7] = -1.18;
 
-  posesTrajectory.push_back(std::vector<Real>(8, 0.0));
+  posesTrajectory.push_back(Pose(8, 0.0));
 
   posesTrajectory.back()[3] = -0.1;
   posesTrajectory.back()[4] = 2.6;
@@ -35,7 +35,7 @@ Planner::Planner() :
   posesTrajectory.back()[6] = 2.4;
   posesTrajectory.back()[7] = -1.18;
 
-  posesTrajectory.push_back(std::vector<Real>(8, 0.0));
+  posesTrajectory.push_back(Pose(8, 0.0));
 
   posesTrajectory.back()[3] = -0.5;
   posesTrajectory.back()[4] = 1.9;
@@ -43,7 +43,7 @@ Planner::Planner() :
   posesTrajectory.back()[6] = 2.4;
   posesTrajectory.back()[7] = -1.18;
 
-  posesTrajectory.push_back(std::vector<Real>(8, 0.0));
+  posesTrajectory.push_back(Pose(8, 0.0));
 
   posesTrajectory.back()[3] = -0.8;
   posesTrajectory.back()[4] = 0.0;
@@ -69,12 +69,12 @@ void Planner::initializeParameters()
   poseGoalMarker.resize(6, 0.0);
   birrtStarPlanningNumber = 0;
 
-  std::vector<Real> vectorTmp;
-  loadParameter("trajectory_folding_arm", vectorTmp, std::vector<Real>());
+  Pose vectorTmp;
+  loadParameter("trajectory_folding_arm", vectorTmp, Pose());
   UInt counter = 0;
   if (vectorTmp.size() % 5 == 0)
   {
-    posesFolding.resize(vectorTmp.size() / 5, std::vector<Real>(5));
+    posesFolding.resize(vectorTmp.size() / 5, Pose(5));
     for (UInt i = 0; i < posesFolding.size(); ++i)
       for (UInt j = 0; j < 5; ++j)
       {
@@ -85,7 +85,7 @@ void Planner::initializeParameters()
   else
     ROS_ERROR("Parameter list 'trajectory_folding_arm' is not divisible by 5. Folding arm trajectory has not been loaded.");
 
-  loadParameter("normalized_pose_distances", normalizedPoseDistances, std::vector<Real>());
+  loadParameter("normalized_pose_distances", normalizedPoseDistances, Pose());
   if (normalizedPoseDistances.size() != 8)
     ROS_ERROR("Parameter 'normalized_pose_distances' is not of size 8. Trajectories will not be normalized.");
 
@@ -444,7 +444,7 @@ bool Planner::serviceCallbackFoldArm(std_srvs::EmptyRequest &req, std_srvs::Empt
     if (!serviceCallGetOctomap())
       return false;
 
-    std::vector<Real> poseTmp(8);
+    Pose poseTmp(8);
     poseTmp[0] = poseCurrent[0];
     poseTmp[1] = poseCurrent[1];
     poseTmp[2] = poseCurrent[2];
@@ -457,7 +457,7 @@ bool Planner::serviceCallbackFoldArm(std_srvs::EmptyRequest &req, std_srvs::Empt
     }
     normalizeTrajectory(posesTrajectory, posesTrajectoryNormalized, normalizedPoseDistances);
 
-    for (std::vector<std::vector<Real> >::reverse_iterator it = posesFolding.rbegin() + 1; it != posesFolding.rend(); ++it)
+    for (Trajectory::reverse_iterator it = posesFolding.rbegin() + 1; it != posesFolding.rend(); ++it)
     {
       copyArmToRobotPose(*it, poseTmp);
       posesTrajectoryNormalized.push_back(poseTmp);
@@ -465,11 +465,11 @@ bool Planner::serviceCallbackFoldArm(std_srvs::EmptyRequest &req, std_srvs::Empt
   }
   else
   {
-    std::vector<Real> poseTmp(8);
+    Pose poseTmp(8);
     poseTmp[0] = poseCurrent[0];
     poseTmp[1] = poseCurrent[1];
     poseTmp[2] = poseCurrent[2];
-    for (std::vector<std::vector<Real> >::reverse_iterator it = posesFolding.rbegin(); it != posesFolding.rend(); ++it)
+    for (Trajectory::reverse_iterator it = posesFolding.rbegin(); it != posesFolding.rend(); ++it)
     {
       copyArmToRobotPose(*it, poseTmp);
       posesTrajectoryNormalized.push_back(poseTmp);
@@ -490,9 +490,9 @@ bool Planner::serviceCallbackUnfoldArm(std_srvs::EmptyRequest &req, std_srvs::Em
 
   posesTrajectoryNormalized.clear();
 
-  std::vector<Real> poseTmp = poseCurrent;
+  Pose poseTmp = poseCurrent;
 
-  for (std::vector<std::vector<Real> >::iterator it = posesFolding.begin(); it != posesFolding.end(); ++it)
+  for (Trajectory::iterator it = posesFolding.begin(); it != posesFolding.end(); ++it)
   {
     copyArmToRobotPose(*it, poseTmp);
     posesTrajectoryNormalized.push_back(poseTmp);
@@ -774,7 +774,7 @@ void Planner::createAStarNodesMap()
   }
 }
 
-bool Planner::findGoalPose(const std::vector<Real> &poseEndEffector)
+bool Planner::findGoalPose(const Pose &poseEndEffector)
 {
   std::vector<std::pair<Real, Real> > endEffectorDeviations(6);
   endEffectorDeviations[0] = std::make_pair<Real, Real>(-0.005, 0.005);
@@ -784,7 +784,7 @@ bool Planner::findGoalPose(const std::vector<Real> &poseEndEffector)
   endEffectorDeviations[4] = std::make_pair<Real, Real>(-0.025, 0.025);
   endEffectorDeviations[5] = std::make_pair<Real, Real>(-0.025, 0.025);
 
-  std::vector<Real> poseInitializer(8);
+  Pose poseInitializer(8);
   poseInitializer[0] = poseEndEffector[0];
   poseInitializer[1] = poseEndEffector[1];
   poseInitializer[2] = poseCurrent[2];
@@ -874,7 +874,7 @@ bool Planner::findTrajectory2D()
   return true;
 }
 
-bool Planner::findTrajectory8D(const std::vector<Real> &poseStart, const std::vector<Real> &poseGoal)
+bool Planner::findTrajectory8D(const Pose &poseStart, const Pose &poseGoal)
 {
   if (birrtStarPlanningNumber > 0)
     birrtStarPlanner.reset_planner_and_config();
@@ -893,7 +893,7 @@ bool Planner::findTrajectory8D(const std::vector<Real> &poseStart, const std::ve
   if (!birrtStarPlanner.run_planner(1, 1, 3.0, false, 0.0, birrtStarPlanningNumber))
     return false;
 
-  std::vector<std::vector<Real> > &trajectoryBirrtStar = birrtStarPlanner.getJointTrajectoryRef();
+  Trajectory &trajectoryBirrtStar = birrtStarPlanner.getJointTrajectoryRef();
 
   for (UInt i = 0; i < trajectoryBirrtStar.size(); ++i)
     posesTrajectory.push_back(trajectoryBirrtStar[i]);
@@ -1134,7 +1134,7 @@ void Planner::getSmoothTrajFromAStarPath()
 
   const Real pointDistance = pathLengthFull / round(pathLengthFull / AStarPathSmoothedPointDistance);
 
-  std::vector<Real> poseTmp(8);
+  Pose poseTmp(8);
   copyArmToRobotPose(posesFolding.back(), poseTmp);
 
   //generate points on full smoothed path
@@ -1222,8 +1222,8 @@ void Planner::normalizeTrajectory(const Trajectory &trajectory, Trajectory &traj
 
   while (true)
   {
-    const std::vector<Real> &poseNext = trajectory[poseNextIndex];
-    const std::vector<Real> &poseLast = trajectoryNormalized.back();
+    const Pose &poseNext = trajectory[poseNextIndex];
+    const Pose &poseLast = trajectoryNormalized.back();
 
     Real frac = fabs(poseNext[0] - poseLast[0]) / normalizedPose[0];
     for (UInt i = 1; i < poseDimension; ++i)
@@ -1246,7 +1246,7 @@ void Planner::normalizeTrajectory(const Trajectory &trajectory, Trajectory &traj
 
     UInt counterMax = (UInt)frac + 1;
     frac = std::ceil(frac);
-    const std::vector<Real> poseLastCopy = trajectoryNormalized.back();
+    const Pose poseLastCopy = trajectoryNormalized.back();
     for (UInt i = 1; i <= counterMax; ++i)
     {
       trajectoryNormalized.push_back(poseLastCopy);
@@ -1364,7 +1364,7 @@ inline bool Planner::isRobotAtTrajectoryStart() const
   return true;
 }
 
-inline void Planner::copyArmToRobotPose(const std::vector<Real> &poseArm, std::vector<Real> &poseRobot)
+inline void Planner::copyArmToRobotPose(const Pose &poseArm, Pose &poseRobot)
 {
   poseRobot[3] = poseArm[0];
   poseRobot[4] = poseArm[1];
@@ -1373,7 +1373,7 @@ inline void Planner::copyArmToRobotPose(const std::vector<Real> &poseArm, std::v
   poseRobot[7] = poseArm[4];
 }
 
-inline void Planner::convertPose(const std::vector<Real> &posePrev, std::vector<Real> &poseTarget, const string &frameTarget, const string &frameOrigin) const
+inline void Planner::convertPose(const Pose &posePrev, Pose &poseTarget, const string &frameTarget, const string &frameOrigin) const
 {
   poseTarget = posePrev;
   geometry_msgs::PoseStamped poseBasePrev, poseBaseTarget;
