@@ -17,6 +17,8 @@ namespace SquirrelMotionPlanner
 typedef int32_t Int;     ///< 32-bit signed integer definition.
 typedef uint32_t UInt;     ///< 32-bit unsigned integer definition.
 typedef double Real;     ///< 64-bit floating point definition.
+typedef std::vector<Real> Pose;
+typedef std::vector<Pose> Trajectory;
 
 /**
  * @brief A 2D cell structure with an x and y coordinate.

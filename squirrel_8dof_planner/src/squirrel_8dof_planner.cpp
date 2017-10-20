@@ -8,19 +8,11 @@ namespace SquirrelMotionPlanner
 Planner::Planner() :
     nhPrivate("~"), birrtStarPlanner("robotino_robot"), interactiveMarkerServer("endeffector_goal")
 {
-  ros::Duration(5).sleep();
-
   initializeParameters();
   if (posesFolding.size() == 0)
   {
     ros::shutdown();
     return;
-  }
-
-  for (UInt i = 0; i < 10; ++i)
-  {
-    ros::spinOnce();
-    ros::Duration(0.1).sleep();
   }
 
   initializeMessageHandling();
@@ -59,7 +51,7 @@ Planner::Planner() :
   posesTrajectory.back()[6] = 0.0;
   posesTrajectory.back()[7] = -1.18;
 
-  normalizeTrajectory();
+  normalizeTrajectory(posesTrajectory, posesTrajectoryNormalized, normalizedPoseDistances);
 
 //  for (UInt i = 0; i < posesTrajectoryNormalized.size(); ++i)
 //  {
@@ -463,7 +455,7 @@ bool Planner::serviceCallbackFoldArm(std_srvs::EmptyRequest &req, std_srvs::Empt
       ROS_WARN("No 8D trajectory to the stretched arm position could be found.");
       return false;
     }
-    normalizeTrajectory();
+    normalizeTrajectory(posesTrajectory, posesTrajectoryNormalized, normalizedPoseDistances);
 
     for (std::vector<std::vector<Real> >::reverse_iterator it = posesFolding.rbegin() + 1; it != posesFolding.rend(); ++it)
     {
@@ -838,7 +830,7 @@ bool Planner::findTrajectoryFull()
       return false;
     }
 
-    normalizeTrajectory();
+    normalizeTrajectory(posesTrajectory, posesTrajectoryNormalized, normalizedPoseDistances);
   }
   else
   {
@@ -1217,33 +1209,35 @@ bool Planner::isConnectionLineFree(const Tuple2D &pointStart, const Tuple2D &poi
   return true;
 }
 
-void Planner::normalizeTrajectory()
+void Planner::normalizeTrajectory(const Trajectory &trajectory, Trajectory &trajectoryNormalized, const Pose &normalizedPose)
 {
-  if (normalizedPoseDistances.size() != 8 || posesTrajectory.size() <= 1)
+  UInt poseDimension = normalizedPose.size();
+
+  if (poseDimension < 1 || trajectory.size() <= 1 || trajectory[0].size != poseDimension)
     return;
 
   UInt poseNextIndex = 1;
-  posesTrajectoryNormalized.clear();
-  posesTrajectoryNormalized.push_back(posesTrajectory.front());
+  trajectoryNormalized.clear();
+  trajectoryNormalized.push_back(trajectory.front());
 
   while (true)
   {
-    const std::vector<Real> &poseNext = posesTrajectory[poseNextIndex];
-    const std::vector<Real> &poseLast = posesTrajectoryNormalized.back();
+    const std::vector<Real> &poseNext = trajectory[poseNextIndex];
+    const std::vector<Real> &poseLast = trajectoryNormalized.back();
 
-    Real frac = fabs(poseNext[0] - poseLast[0]) / normalizedPoseDistances[0];
-    for (UInt i = 1; i < 8; ++i)
+    Real frac = fabs(poseNext[0] - poseLast[0]) / normalizedPose[0];
+    for (UInt i = 1; i < poseDimension; ++i)
     {
-      const Real fracNew = fabs(poseNext[i] - poseLast[i]) / normalizedPoseDistances[i];
+      const Real fracNew = fabs(poseNext[i] - poseLast[i]) / normalizedPose[i];
       if (fracNew > frac)
         frac = fracNew;
     }
     if (frac < 1.0)
     {
       ++poseNextIndex;
-      if (poseNextIndex == posesTrajectory.size())
+      if (poseNextIndex == trajectory.size())
       {
-        posesTrajectoryNormalized.push_back(posesTrajectory.back());
+        trajectoryNormalized.push_back(trajectory.back());
         return;
       }
       else
@@ -1252,16 +1246,16 @@ void Planner::normalizeTrajectory()
 
     UInt counterMax = (UInt)frac + 1;
     frac = std::ceil(frac);
-    const std::vector<Real> poseLastCopy = posesTrajectoryNormalized.back();
+    const std::vector<Real> poseLastCopy = trajectoryNormalized.back();
     for (UInt i = 1; i <= counterMax; ++i)
     {
-      posesTrajectoryNormalized.push_back(poseLastCopy);
-      for (UInt j = 0; j < 8; ++j)
-        posesTrajectoryNormalized.back()[j] += i * (poseNext[j] - posesTrajectoryNormalized.back()[j]) / frac;
+      trajectoryNormalized.push_back(poseLastCopy);
+      for (UInt j = 0; j < poseDimension; ++j)
+        trajectoryNormalized.back()[j] += i * (poseNext[j] - trajectoryNormalized.back()[j]) / frac;
     }
 
     ++poseNextIndex;
-    if (poseNextIndex == posesTrajectory.size())
+    if (poseNextIndex == trajectory.size())
       return;
   }
 }

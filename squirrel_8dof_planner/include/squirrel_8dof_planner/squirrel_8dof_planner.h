@@ -82,7 +82,7 @@ class Planner
    */
   std::vector<Real> poseCurrent;     ///< 8D vector with the current robot pose, given as [x, y, theta, arm1, arm2, arm3, arm4, arm5].
   std::vector<Real> poseGoal;      ///< 8D vector with the goal pose for the robot, given as [x, y, theta, arm1, arm2, arm3, arm4, arm5].
-  std::vector<std::vector<Real> > posesTrajectory;     ///< Vector of 8D poses that contains the last succesfully computed trajectory from poseCurrent to poseGoal.
+  std::vector<std::vector<Real> > posesTrajectory;  ///< Vector of 8D poses that contains the last succesfully computed trajectory from poseCurrent to poseGoal.
   std::vector<std::vector<Real> > posesTrajectoryNormalized;     ///< Same trajectory as posesTrajectory, but normalized to a specific maximum pose distance.
   UInt indexLastFolding;
 
@@ -192,7 +192,6 @@ private:
    * @param res Empty service response, contains no data.
    */
   bool serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanEndEffectorRequest &req, squirrel_motion_planner_msgs::PlanEndEffectorResponse &res);
-
 
   /**
    * @brief Service call that responds by planning to the interactive marker position in rviz.
@@ -342,11 +341,9 @@ private:
   /**
    * @brief Goes through posesTrajectory, normalises them according to normalizedPoseDistances, and saves them to posesTrajectoryNormalized.
    */
-  void normalizeTrajectory();
-
+  void normalizeTrajectory(const Trajectory &trajectory, Trajectory &trajectoryNormalized, const Pose &normalizedPose);
 
   // ******************** INLINES ********************
-
 
   /**
    * @brief Loads a parameter from the ROS parameter server and saves it to a member varible .
