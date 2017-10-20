@@ -31,7 +31,6 @@
   </include>
   <!--node name="static_transform_publisher_robot" pkg="tf2_ros" type="static_transform_publisher" args="0.0 0.0 0.0 0.0 0.0 0.0 origin base_link"/-->
 
-
   <!-- Load a planner parameter configuration -->
   <param name="ns_prefix_robot" value="/$(arg planning_ns)/"/>
   <param name="robot_description_robot" value="/$(arg planning_ns)/robot_description"/>
@@ -39,6 +38,7 @@
   
   <group ns="$(arg planning_ns)">
     <rosparam command="load" file="$(find squirrel_8dof_planner)/config/parameters.yaml" />
+    <rosparam command="load" file="$(find squirrel_8dof_planner)/config/folding_poses_$(arg robot).yaml" />
     <param name="robot_description" textfile="$(find squirrel_8dof_planner)/config/robotino_plan.urdf"/>
     <param name="robot_description_semantic" textfile="$(find squirrel_8dof_planner)/config/robotino_plan.srdf"/>
     <include file="$(find squirrel_8dof_planner)/launch/move_group.launch"/>
