@@ -110,6 +110,17 @@ void Planner::initializeParameters()
 
 void Planner::initializeMessageHandling()
 {
+  subscriberPose = nh.subscribe("/arm_controller/joint_states", 1, &Planner::subscriberPoseHandler, this);
+
+  serviceServerGoalMarker = nh.advertiseService("find_interactive_marker_plan", &Planner::serviceCallbackGoalMarker, this);
+  serviceServerSendControlCommand = nh.advertiseService("send_trajectory_controller", &Planner::serviceCallbackSendControlCommand, this);
+  serviceServerFoldArm = nh.advertiseService("fold_arm", &Planner::serviceCallbackFoldArm, this);
+  serviceServerUnfoldArm = nh.advertiseService("unfold_arm", &Planner::serviceCallbackUnfoldArm, this);
+  serviceServerGoalPose = nh.advertiseService("find_plan_pose", &Planner::serviceCallbackFoldArm, this);
+  serviceServerGoalEndEffector = nh.advertiseService("find_plan_end_effector", &Planner::serviceCallbackUnfoldArm, this);
+
+  serviceClientOctomap = nh.serviceClient<octomap_msgs::GetOctomap>("/octomap_full");
+
   publisherPlanningScene = nh.advertise<moveit_msgs::PlanningScene>("planning_scene", 1);
   publisherOctomap = nh.advertise<octomap_msgs::Octomap>("octomap_planning", 1);
   publisherOccupancyMap = nhPrivate.advertise<nav_msgs::OccupancyGrid>("occupancy_map", 1);
@@ -117,16 +128,6 @@ void Planner::initializeMessageHandling()
   publisherTrajectoryVisualizer = nhPrivate.advertise<std_msgs::Float64MultiArray>("robot_trajectory_multi_array", 10);
   publisherGoalPose = nhPrivate.advertise<std_msgs::Float64MultiArray>("robot_goal_pose", 10);
   publisherTrajectoryController = nh.advertise<trajectory_msgs::JointTrajectory>("/arm_controller/joint_trajectory_controller/command", 10);
-
-  subscriberPose = nh.subscribe("/arm_controller/joint_states", 1, &Planner::subscriberPoseHandler, this);
-  subscriberGoal = nhPrivate.subscribe("goal", 1, &Planner::subscriberGoalHandler, this);
-
-  serviceServerGoalMarker = nh.advertiseService("find_interactive_marker_plan", &Planner::serviceCallbackGoalMarker, this);
-  serviceServerSendControlCommand = nh.advertiseService("send_trajectory_controller", &Planner::serviceCallbackSendControlCommand, this);
-  serviceServerFoldArm = nh.advertiseService("fold_arm", &Planner::serviceCallbackFoldArm, this);
-  serviceServerUnfoldArm = nh.advertiseService("unfold_arm", &Planner::serviceCallbackUnfoldArm, this);
-
-  serviceClientOctomap = nh.serviceClient<octomap_msgs::GetOctomap>("/octomap_full");
 }
 
 void Planner::initializeAStarPlanning()
@@ -359,34 +360,49 @@ void Planner::subscriberPoseHandler(const sensor_msgs::JointState &msg)
   }
 }
 
-void Planner::subscriberGoalHandler(const std_msgs::Float64MultiArray &msg)
+bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequest &req, squirrel_motion_planner_msgs::PlanPoseResponse &res)
 {
-  if (msg.data.size() == 8)
+  if (req.joints.size() == 8)
   {
-    ROS_INFO("Start planning to pose: %f, %f, %f, %f, %f, %f, %f, %f", msg.data[0], msg.data[1], msg.data[2], msg.data[3], msg.data[4], msg.data[5],
-             msg.data[6], msg.data[7]);
+    ROS_INFO("Start planning to pose: %f, %f, %f, %f, %f, %f, %f, %f", req.joints[0], req.joints[1], req.joints[2], req.joints[3], req.joints[4], req.joints[5],
+             req.joints[6], req.joints[7]);
     if (!serviceCallGetOctomap())
-      return;
+      return false;
 
-    poseGoal = msg.data;
+    poseGoal = req.joints;
 
-    findTrajectoryFull();
-  }
-  else if (msg.data.size() == 6)
-  {
-    ROS_INFO("Start planning to endeffector pose: %f, %f, %f, %f, %f, %f", msg.data[0], msg.data[1], msg.data[2], msg.data[3], msg.data[4], msg.data[5]);
-    if (!serviceCallGetOctomap())
-      return;
-
-    if (!findGoalPose(msg.data))
-      return;
-
-    findTrajectoryFull();
+    return findTrajectoryFull();
   }
   else
+  {
     ROS_WARN(
-        "Could not start planning, because the message has a wrong dimension. Provided dimension: %u, expected dimension: 8 (plan to pose) or 6 (plan to end effector).",
-        static_cast<UInt>(msg.data.size()));
+        "Could not start planning, because the provided pose has a wrong dimension. Provided dimension: %u, expected dimension: 8",
+        static_cast<UInt>(req.joints.size()));
+    return false;
+  }
+}
+
+bool Planner::serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanEndEffectorRequest &req, squirrel_motion_planner_msgs::PlanEndEffectorResponse &res)
+{
+  if (req.joints.size() == 6)
+  {
+    ROS_INFO("Start planning to pose: %f, %f, %f, %f, %f, %f, %f, %f", req.joints[0], req.joints[1], req.joints[2], req.joints[3], req.joints[4], req.joints[5],
+             req.joints[6], req.joints[7]);
+    if (!serviceCallGetOctomap())
+      return false;
+
+    if (!findGoalPose(req.joints))
+      return false;
+
+    return findTrajectoryFull();
+  }
+  else
+  {
+    ROS_WARN(
+        "Could not start planning, because the provided pose has a wrong dimension. Provided dimension: %u, expected dimension: 6",
+        static_cast<UInt>(req.joints.size()));
+    return false;
+  }
 }
 
 bool Planner::serviceCallbackGoalMarker(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res)

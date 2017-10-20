@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   birrt_star_algorithm
   moveit_ros_planning
   moveit_msgs
+  squirrel_motion_planner_msgs
   interactive_markers
   octomap_msgs
   octomap_server
@@ -22,7 +23,7 @@ find_package(octomap REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include 
-  CATKIN_DEPENDS roscpp rospy std_msgs nav_msgs geometry_msgs tf sensor_msgs trajectory_msgs birrt_star_algorithm moveit_ros_planning moveit_msgs interactive_markers octomap_msgs octomap_server
+  CATKIN_DEPENDS roscpp rospy std_msgs nav_msgs geometry_msgs tf sensor_msgs trajectory_msgs birrt_star_algorithm moveit_ros_planning moveit_msgs interactive_markers octomap_msgs octomap_server  squirrel_motion_planner_msgs
   DEPENDS octomap
 )
  

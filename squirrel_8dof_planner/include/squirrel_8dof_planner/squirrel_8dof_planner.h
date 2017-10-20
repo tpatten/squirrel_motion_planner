@@ -15,6 +15,8 @@
 #include <nav_msgs/Path.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <squirrel_motion_planner_msgs/PlanEndEffector.h>
+#include <squirrel_motion_planner_msgs/PlanPose.h>
 #include <tf/transform_datatypes.h>
 #include <tf/transform_listener.h>
 #include <tf/tf.h>
@@ -54,11 +56,12 @@ class Planner
   ros::Publisher publisherTrajectoryController;     ///< ROS publisher. Publishes the full 8D trajectory as a joint trajectory.
   ros::Publisher publisherGoalPose;     ///< ROS publisher. Publishes the found goal pose as a single 8dof pose.
   ros::Subscriber subscriberPose;     ///< ROS subscriber. Subscribes to /arm_controller/joint_states.
-  ros::Subscriber subscriberGoal;     ///< ROS subscriber. Subscribes to goal.
+  ros::ServiceServer serviceServerGoalEndEffector;     ///< ROS service server. When called, tries to plan a trajectory to the endeffector pose.
+  ros::ServiceServer serviceServerGoalPose;     ///< ROS service server. When called, tries to plan a trajectory to the robot pose.
+  ros::ServiceServer serviceServerGoalMarker;     ///< ROS service server. When called, plans a trajectory to the interactive marker position in rviz.
   ros::ServiceServer serviceServerFoldArm;     ///< ROS service server. When called, sends a trajectory to the controller to fold the arm into the case.
   ros::ServiceServer serviceServerSendControlCommand;     //<< ROS service server. When called, sends the latest trajectory to the controller.
   ros::ServiceServer serviceServerUnfoldArm;     ///< ROS service server. When called, sends a trajectory to the controller to unfold the arm.
-  ros::ServiceServer serviceServerGoalMarker;     ///< ROS service server. When called, plans a trajectory to the interactive marker position in rviz.
   ros::ServiceClient serviceClientOctomap;     ///< ROS service client. Receives a full octomap from octomap_server_node.
   tf::TransformListener transformListener;
   interactive_markers::InteractiveMarkerServer interactiveMarkerServer;     ///< Server that commuincates with Rviz to receive 6D end effector poses.
@@ -177,17 +180,19 @@ private:
   void subscriberPoseHandler(const sensor_msgs::JointState &msg);
 
   /**
-   * @brief Used to sginal a request for finding a trajectory to fold the arm into the case.
-   * @param msg Emtpy message used only as a signal.
+   * @brief Service call that responds by planning to a given 8dof pose of the robot.
+   * @param req Service request that contains the 8dof goal pose of the robot.
+   * @param res Empty service response, contains no data.
    */
-  void subscriberFoldArmHandler(const std_msgs::Empty &msg);
+  bool serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequest &req, squirrel_motion_planner_msgs::PlanPoseResponse &res);
 
   /**
-   * @brief Handler for starting the planner to the requested end effector position or goal pose.
-   * @param msg ROS message that contains the 6D pose of the requested end effector goal position given in [x,y,z,R,P,Y]
-   * or the full 8D pose of the robot given as [base_x, base_y, base_theta, arm_joint1, arm_joint2, arm_joint3, arm_joint4, arm_joint5].
+   * @brief Service call that responds by planning to given 6d pose of the end effector of the robot.
+   * @param req Service request that contains the 6d goal pose for the end effector of the robot.
+   * @param res Empty service response, contains no data.
    */
-  void subscriberGoalHandler(const std_msgs::Float64MultiArray &msg);
+  bool serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanEndEffectorRequest &req, squirrel_motion_planner_msgs::PlanEndEffectorResponse &res);
+
 
   /**
    * @brief Service call that responds by planning to the interactive marker position in rviz.
