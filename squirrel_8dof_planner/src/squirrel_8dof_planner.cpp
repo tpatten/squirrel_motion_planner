@@ -1213,7 +1213,7 @@ void Planner::normalizeTrajectory(const Trajectory &trajectory, Trajectory &traj
 {
   UInt poseDimension = normalizedPose.size();
 
-  if (poseDimension < 1 || trajectory.size() <= 1 || trajectory[0].size != poseDimension)
+  if (poseDimension < 1 || trajectory.size() <= 1 || trajectory[0].size() != poseDimension)
     return;
 
   UInt poseNextIndex = 1;
