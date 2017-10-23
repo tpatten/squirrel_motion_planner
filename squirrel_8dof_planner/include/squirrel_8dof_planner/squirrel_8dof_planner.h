@@ -32,6 +32,7 @@
 #include <octomap_msgs/conversions.h>
 #include <octomap_server/OctomapServer.h>
 #include <squirrel_8dof_planner/squirrel_8dof_planner_structures.hpp>
+#include <squirrel_8dof_planner/base_pose_finder.h>
 
 namespace SquirrelMotionPlanner
 {
@@ -67,6 +68,11 @@ class Planner
   interactive_markers::InteractiveMarkerServer interactiveMarkerServer;     ///< Server that commuincates with Rviz to receive 6D end effector poses.
   visualization_msgs::InteractiveMarker interactiveMarker;     ///< Interactive marker used by interactiveMarkerServer.
   Pose poseGoalMarker;     ///< Current pose of the interactive marker in RViz.
+
+  /*
+   * Base Pose Finder
+   */
+  BasePoseFinder basePoseFinder;
 
   /*
    * General search settings

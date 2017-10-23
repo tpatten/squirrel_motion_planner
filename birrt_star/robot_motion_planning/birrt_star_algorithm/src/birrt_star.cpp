@@ -560,7 +560,7 @@ bool BiRRTstarPlanner::init_planner(vector<double> start_conf, vector<double> go
   KDL::JntArray goal_configuration = m_RobotMotionController->Vector_to_JntArray(goal_conf);
 
   //Check start and goal config for validity
-  bool start_conf_valid = m_FeasibilityChecker->isConfigValid(start_configuration, true);
+  bool start_conf_valid = m_FeasibilityChecker->isConfigValid(start_configuration);
   bool goal_conf_valid = m_FeasibilityChecker->isConfigValid(goal_configuration);
   if (start_conf_valid == false)
   {
@@ -2348,6 +2348,12 @@ vector<double> BiRRTstarPlanner::getFullPoseFromEEPose(const vector<double> &end
 vector<vector<double> > &BiRRTstarPlanner::getJointTrajectoryRef()
 {
   return m_result_joint_trajectory;
+}
+
+bool BiRRTstarPlanner::isConfigValid(const vector<double> config)
+{
+  KDL::JntArray configKDL = m_RobotMotionController->Vector_to_JntArray(config);
+  return m_FeasibilityChecker->isConfigValid(configKDL);
 }
 
 //Set the planning scene

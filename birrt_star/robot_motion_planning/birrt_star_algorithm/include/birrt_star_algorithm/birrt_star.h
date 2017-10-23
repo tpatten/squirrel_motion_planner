@@ -128,6 +128,8 @@ class BiRRTstarPlanner //: public robot_interface_definition::RobotInterface
 
     vector<vector<double> > &getJointTrajectoryRef();
 
+    bool isConfigValid(const vector<double> config);
+
     private:
 
 
