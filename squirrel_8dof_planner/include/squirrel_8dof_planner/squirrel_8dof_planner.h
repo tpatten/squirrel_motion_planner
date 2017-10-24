@@ -438,7 +438,11 @@ private:
    */
   void copyArmToRobotPose(const Pose &poseArm, Pose &poseRobot);
 
+  void getAxes(const string &frameParent, const string &frameChild) const;
+
   void convertPose(const Pose &posePrev, Pose &poseTarget, const string &frameTarget, const string &frameOrigin) const;
+
+  void waitAndSpin(const Real seconds);
 };
 
 } //namespace SquirrelMotionPlanner

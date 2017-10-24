@@ -160,6 +160,55 @@ struct Tuple2D
   }
 };
 
+struct Tuple3D
+{
+  Real x;
+  Real y;
+  Real z;
+
+  Tuple3D()
+  {
+  }
+
+  Tuple3D(const Real x, const Real y, const Real z) :
+      x(x), y(y), z(z)
+  {
+  }
+
+  const Real operator*(const Tuple3D &tuple) const
+  {
+    return x * tuple.x + y * tuple.y + z * tuple.z;
+  }
+
+  const Tuple3D operator^(const Tuple3D &tuple) const
+  {
+    return Tuple3D(y * tuple.z - z * tuple.y, z * tuple.x - x * tuple.z, x * tuple.y - y * tuple.x);
+  }
+
+  void normalize()
+  {
+    const Real sizeRecip = 1.0 / sqrt(x * x + y * y + z * z);
+    x *= sizeRecip;
+    y *= sizeRecip;
+    z *= sizeRecip;
+  }
+
+  const Real norm() const
+  {
+    return sqrt(x * x + y * y + z * z);
+  }
+
+  const Real angle(const Tuple3D &tuple) const
+  {
+    return acos((x * tuple.x + y * tuple.y + z * tuple.z) / (this->norm() * tuple.norm()));
+  }
+
+  const Real angleCos(const Tuple3D &tuple) const
+  {
+    return (x * tuple.x + y * tuple.y + z * tuple.z) / (this->norm() * tuple.norm());
+  }
+};
+
 /**
  * @brief A 2D line segment with a start and end point and a normalized direction.
  */

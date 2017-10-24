@@ -16,6 +16,9 @@ Planner::Planner() :
   }
 
   initializeMessageHandling();
+
+  waitAndSpin(3.0);
+
   initializeInteractiveMarker();
 
   posesTrajectory.clear();
@@ -58,6 +61,7 @@ Planner::Planner() :
 //    std::cout << posesTrajectoryNormalized[i][3] << ", " << posesTrajectoryNormalized[i][4] << ", " << posesTrajectoryNormalized[i][5] << ", "
 //        << posesTrajectoryNormalized[i][6] << ", " << posesTrajectoryNormalized[i][7] << ", " << std::endl;
 //  }
+
 }
 
 // ******************** PRIVATE MEMBERS ********************
@@ -259,13 +263,13 @@ void Planner::publishTrajectoryVisualizer() const
   msg.layout.data_offset = 0;
   msg.layout.dim.resize(2);
   msg.layout.dim[0].label = "pose";
-  msg.layout.dim[0].size = posesTrajectoryNormalized.size() - 1;
-  msg.layout.dim[0].stride = (posesTrajectoryNormalized.size() - 1) * 8;
+  msg.layout.dim[0].size = posesTrajectoryNormalized.size();
+  msg.layout.dim[0].stride = posesTrajectoryNormalized.size() * 8;
   msg.layout.dim[1].label = "joint";
   msg.layout.dim[1].size = 8;
   msg.layout.dim[1].stride = 8;
 
-  msg.data.resize((posesTrajectoryNormalized.size() - 1) * 8);
+  msg.data.resize(posesTrajectoryNormalized.size() * 8);
 
   UInt index = 0;
   for (UInt i = 0; i < posesTrajectoryNormalized.size(); ++i)
@@ -367,14 +371,14 @@ bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequ
   }
   else
   {
-    ROS_WARN(
-        "Could not start planning, because the provided pose has a wrong dimension. Provided dimension: %u, expected dimension: 8",
-        static_cast<UInt>(req.joints.size()));
+    ROS_WARN("Could not start planning, because the provided pose has a wrong dimension. Provided dimension: %u, expected dimension: 8",
+             static_cast<UInt>(req.joints.size()));
     return false;
   }
 }
 
-bool Planner::serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanEndEffectorRequest &req, squirrel_motion_planner_msgs::PlanEndEffectorResponse &res)
+bool Planner::serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanEndEffectorRequest &req,
+                                             squirrel_motion_planner_msgs::PlanEndEffectorResponse &res)
 {
   if (req.joints.size() == 6)
   {
@@ -390,9 +394,8 @@ bool Planner::serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanE
   }
   else
   {
-    ROS_WARN(
-        "Could not start planning, because the provided pose has a wrong dimension. Provided dimension: %u, expected dimension: 6",
-        static_cast<UInt>(req.joints.size()));
+    ROS_WARN("Could not start planning, because the provided pose has a wrong dimension. Provided dimension: %u, expected dimension: 6",
+             static_cast<UInt>(req.joints.size()));
     return false;
   }
 }
@@ -518,6 +521,11 @@ bool Planner::serviceCallGetOctomap()
     ROS_ERROR("Received octomap is empty, planning will not be executed.");
     return false;
   }
+
+
+  Real dummy;
+  octree->getMetricMin(mapMinX, mapMinY, dummy);
+  octree->getMetricMax(mapMaxX, mapMaxY, dummy);
 
   octomap::OcTreeKey keyTmp = octree->coordToKey(poseCurrent[0], poseCurrent[1], -octree->getResolution() * 0.5);
 
@@ -784,41 +792,44 @@ bool Planner::findGoalPose(const Pose &poseEndEffector)
   endEffectorDeviations[4] = std::make_pair<Real, Real>(-0.025, 0.025);
   endEffectorDeviations[5] = std::make_pair<Real, Real>(-0.025, 0.025);
 
+  Real dist = 0.45;
   Pose poseInitializer(8);
-  poseInitializer[0] = poseEndEffector[0];
-  poseInitializer[1] = poseEndEffector[1];
-  poseInitializer[2] = poseCurrent[2];
-  poseInitializer[3] = -0.6;
-  poseInitializer[4] = 1.0;
+  poseInitializer[3] = -0.8;
+  poseInitializer[4] = 0.8;
   poseInitializer[5] = 0.0;
-  poseInitializer[6] = -1.4;
+  poseInitializer[6] = -1.5;
   poseInitializer[7] = 0.0;
 
-  poseGoal = birrtStarPlanner.getFullPoseFromEEPose(poseEndEffector, endEffectorDeviations, poseInitializer);
-
-  if (poseGoal.size() == 0)
+  Real angle = 0.0;
+  bool foundPose;
+  while (!foundPose)
   {
-    ROS_WARN("No inverse kinematic solution could be found for the requested end effector pose.");
-    return false;
-  }
-  else if (poseGoal.size() == 1)
-  {
-    ROS_WARN("No free goal configuration could be found for the requested end effector pose.");
-    return false;
+    poseInitializer[0] = poseEndEffector[0] - dist * cos(angle);
+    poseInitializer[1] = poseEndEffector[1] - dist * sin(angle);
+    poseInitializer[2] = angle + 1.0;
+    foundPose = birrtStarPlanner.getFullPoseFromEEPose(poseEndEffector, endEffectorDeviations, poseInitializer, poseGoal);
+    if (foundPose)
+    {
+      publishGoalPose();
+      return true;
+    }
+    angle += 0.5;
+    if (angle >= 2 * M_PI)
+      break;
   }
 
-  publishGoalPose();
-  return true;
+  poseGoal.clear();
+  return false;
 }
 
 bool Planner::findTrajectoryFull()
 {
-  const Cell2D goalCell = getCellFromPoint(Tuple2D(poseGoal[0], poseGoal[1]));
-  if (occupancyMap[goalCell.x][goalCell.y])
-  {
-    ROS_WARN("The requested goal configuration is occupied. No plan could be found.");
-    return false;
-  }
+//  const Cell2D goalCell = getCellFromPoint(Tuple2D(poseGoal[0], poseGoal[1]));
+//  if (occupancyMap[goalCell.x][goalCell.y])
+//  {
+//    ROS_WARN("The requested goal configuration is occupied. No plan could be found.");
+//    return false;
+//  }
 
   posesTrajectory.clear();
 
@@ -890,7 +901,7 @@ bool Planner::findTrajectory8D(const Pose &poseStart, const Pose &poseGoal)
   if (!birrtStarPlanner.init_planner(poseStart, poseGoal, 1))
     return false;
 
-  if (!birrtStarPlanner.run_planner(1, 1, 3.0, false, 0.0, birrtStarPlanningNumber))
+  if (!birrtStarPlanner.run_planner(1, 1, 10.0, true, 0.0, birrtStarPlanningNumber))
     return false;
 
   Trajectory &trajectoryBirrtStar = birrtStarPlanner.getJointTrajectoryRef();
@@ -1335,9 +1346,9 @@ inline void Planner::updateFCost(AStarNode &node) const
 
 inline bool Planner::isArmFolded() const
 {
-  if (fabs(poseCurrent[3] - posesFolding.front()[0]) > 0.05236 || fabs(poseCurrent[4] - posesFolding.front()[1]) > 0.05236
-      || fabs(poseCurrent[5] - posesFolding.front()[2]) > 0.05236 || fabs(poseCurrent[6] - posesFolding.front()[3]) > 0.05236
-      || fabs(poseCurrent[7] - posesFolding.front()[4]) > 0.05236)
+  if (fabs(poseCurrent[3] - posesFolding.front()[0]) > 0.15236 || fabs(poseCurrent[4] - posesFolding.front()[1]) > 0.15236
+      || fabs(poseCurrent[5] - posesFolding.front()[2]) > 0.15236 || fabs(poseCurrent[6] - posesFolding.front()[3]) > 0.15236
+      || fabs(poseCurrent[7] - posesFolding.front()[4]) > 0.15236)
     return false;
 
   return true;
@@ -1373,6 +1384,23 @@ inline void Planner::copyArmToRobotPose(const Pose &poseArm, Pose &poseRobot)
   poseRobot[7] = poseArm[4];
 }
 
+inline void Planner::getAxes(const string &frameParent, const string &frameChild) const
+{
+  tf::StampedTransform transform;
+  transformListener.lookupTransform(frameChild, frameParent, ros::Time(0.0), transform);
+
+  tf::Vector3 axisX(1.0, 0.0, 0.0), axisY(0.0, 1.0, 0.0), axisZ(0.0, 0.0, 1.0);
+  tf::Matrix3x3 basis = transform.getBasis();
+
+  axisX = basis * axisX;
+  axisY = basis * axisY;
+  axisZ = basis * axisZ;
+
+  std::cout << "x-axis: " << axisX.x() << ", " << axisX.y() << ", " << axisX.z() << std::endl;
+  std::cout << "y-axis: " << axisY.x() << ", " << axisY.y() << ", " << axisY.z() << std::endl;
+  std::cout << "z-axis: " << axisZ.x() << ", " << axisZ.y() << ", " << axisZ.z() << std::endl << std::endl;
+}
+
 inline void Planner::convertPose(const Pose &posePrev, Pose &poseTarget, const string &frameTarget, const string &frameOrigin) const
 {
   poseTarget = posePrev;
@@ -1388,6 +1416,15 @@ inline void Planner::convertPose(const Pose &posePrev, Pose &poseTarget, const s
   poseTarget[0] = poseBaseTarget.pose.position.x;
   poseTarget[1] = poseBaseTarget.pose.position.y;
   poseTarget[2] = tf::getYaw(poseBaseTarget.pose.orientation);
+}
+
+inline void Planner::waitAndSpin(const Real seconds)
+{
+  for(UInt i = 0; i < 10*seconds; ++i)
+  {
+    ros::spinOnce();
+    ros::Duration(0.1).sleep();
+  }
 }
 
 } //namespace SquirrelMotionPlanner

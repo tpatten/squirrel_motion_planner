@@ -5,15 +5,18 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
-        - /Grid1
-        - /Octomap1
         - /RobotModel1/Links1
         - /TF1/Frames1
         - /Robot_Trajectory1
-        - /Path1
-        - /MarkerArray1
         - /InteractiveMarkers1
         - /OccupancyGrid1
+        - /MarkerArray1
+        - /MarkerArray2
+        - /MarkerArray3
+        - /Marker1
+        - /Marker2
+        - /Marker3
+        - /Marker4
       Splitter Ratio: 0.5
     Tree Height: 733
   - Class: rviz/Selection
@@ -64,16 +67,7 @@ Visualization Manager:
         map: true
       Queue Size: 100
       Value: true
-    - Alpha: 0.7
-      Class: rviz/Map
-      Color Scheme: map
-      Draw Behind: false
-      Enabled: false
-      Name: Map
-      Topic: /squirrel_8dof_planning/squirrel_8dof_planner_node/occupancy_map
-      Unreliable: false
-      Value: false
-    - Alpha: 1
+    - Alpha: 0.3
       Class: rviz/RobotModel
       Collision Enabled: false
       Enabled: true
@@ -272,19 +266,166 @@ Visualization Manager:
       Value: true
       Visual Enabled: true
     - Class: rviz/TF
-      Enabled: false
+      Enabled: true
       Frame Timeout: 15
       Frames:
         All Enabled: false
+        arm_base_link:
+          Value: false
+        arm_link1:
+          Value: false
+        arm_link2:
+          Value: false
+        arm_link3:
+          Value: false
+        arm_link4:
+          Value: false
+        arm_link5:
+          Value: false
+        arm_motor2:
+          Value: false
+        base_body_link:
+          Value: false
+        base_link:
+          Value: false
+        base_linkx:
+          Value: false
+        base_linky:
+          Value: false
+        base_linkz:
+          Value: false
+        base_neck_link:
+          Value: false
+        door_link:
+          Value: false
+        hand_base_link:
+          Value: false
+        hand_cableCanal_link:
+          Value: false
+        hand_left_coupler:
+          Value: false
+        hand_left_crank:
+          Value: false
+        hand_left_finger_lower_link:
+          Value: false
+        hand_left_finger_upper_link:
+          Value: false
+        hand_middle_finger_lower_link:
+          Value: false
+        hand_middle_finger_upper_link:
+          Value: false
+        hand_palm_link:
+          Value: false
+        hand_right_coupler:
+          Value: false
+        hand_right_crank:
+          Value: false
+        hand_right_finger_lower_link:
+          Value: false
+        hand_right_finger_upper_link:
+          Value: false
+        hand_wrist_link:
+          Value: true
+        head_link:
+          Value: false
+        hokuyo_link:
+          Value: false
+        kinect_depth_frame:
+          Value: false
+        kinect_depth_optical_frame:
+          Value: false
+        kinect_link:
+          Value: false
+        kinect_rgb_frame:
+          Value: false
+        kinect_rgb_optical_frame:
+          Value: false
+        map:
+          Value: false
+        neck_pan_link:
+          Value: false
+        neck_tilt_link:
+          Value: false
+        odom:
+          Value: false
+        origin:
+          Value: false
+        shell_base_link:
+          Value: false
+        wheel0_link:
+          Value: false
+        wheel1_link:
+          Value: false
+        wheel2_link:
+          Value: false
       Marker Scale: 0.3
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: true
       Tree:
-        {}
+        map:
+          odom:
+            origin:
+              base_link:
+                {}
+              base_linkx:
+                base_linky:
+                  base_linkz:
+                    arm_base_link:
+                      arm_link1:
+                        arm_motor2:
+                          arm_link2:
+                            arm_link3:
+                              arm_link4:
+                                arm_link5:
+                                  hand_wrist_link:
+                                    hand_base_link:
+                                      hand_left_crank:
+                                        hand_left_coupler:
+                                          hand_left_finger_lower_link:
+                                            hand_left_finger_upper_link:
+                                              {}
+                                      hand_middle_finger_lower_link:
+                                        hand_middle_finger_upper_link:
+                                          {}
+                                      hand_right_crank:
+                                        hand_right_coupler:
+                                          hand_right_finger_lower_link:
+                                            hand_right_finger_upper_link:
+                                              {}
+                                    hand_cableCanal_link:
+                                      {}
+                                    hand_palm_link:
+                                      {}
+                    base_body_link:
+                      {}
+                    base_neck_link:
+                      neck_pan_link:
+                        neck_tilt_link:
+                          kinect_link:
+                            kinect_depth_frame:
+                              kinect_depth_optical_frame:
+                                {}
+                            kinect_rgb_frame:
+                              kinect_rgb_optical_frame:
+                                {}
+                    door_link:
+                      {}
+                    head_link:
+                      {}
+                    hokuyo_link:
+                      {}
+                    shell_base_link:
+                      {}
+                    wheel0_link:
+                      {}
+                    wheel1_link:
+                      {}
+                    wheel2_link:
+                      {}
       Update Interval: 0
-      Value: false
+      Value: true
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /squirrel_8dof_planning/robot_trajectory_visualization
@@ -293,55 +434,80 @@ Visualization Manager:
         {}
       Queue Size: 100
       Value: true
-    - Alpha: 1
-      Buffer Length: 1
-      Class: rviz/Path
-      Color: 0; 200; 0
-      Enabled: true
-      Head Diameter: 0.3
-      Head Length: 0.2
-      Length: 0.3
-      Line Style: Lines
-      Line Width: 0.03
-      Name: Path
-      Offset:
-        X: 0
-        Y: 0
-        Z: 0
-      Pose Color: 255; 85; 255
-      Pose Style: None
-      Radius: 0.03
-      Shaft Diameter: 0.1
-      Shaft Length: 0.1
-      Topic: /squirrel_8dof_planning/squirrel_8dof_planner_node/path_2d
-      Unreliable: false
-      Value: true
-    - Class: rviz/MarkerArray
-      Enabled: true
-      Marker Topic: /squirrel_8dof_planning/robot_trajectory_visualization
-      Name: MarkerArray
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: true
     - Class: rviz/InteractiveMarkers
       Enable Transparency: true
-      Enabled: false
+      Enabled: true
       Name: InteractiveMarkers
       Show Axes: false
       Show Descriptions: true
       Show Visual Aids: false
       Update Topic: /squirrel_8dof_planning/endeffector_goal/update
-      Value: false
+      Value: true
     - Class: octomap_rviz_plugin/OccupancyGrid
-      Enabled: true
+      Enabled: false
       Max. Octree Depth: 16
       Name: OccupancyGrid
       Octomap Topic: /squirrel_8dof_planning/octomap_planning
       Queue Size: 5
-      Value: true
+      Value: false
       Voxel Coloring: Z-Axis
       Voxel Rendering: Occupied Voxels
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /squirrel_8dof_planning/tree_edges_marker
+      Name: MarkerArray
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /squirrel_8dof_planning/tree_edges_marker
+      Name: MarkerArray
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /squirrel_8dof_planning/tree_edges_marker2
+      Name: MarkerArray
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /squirrel_8dof_planning/tree_nodes_marker
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /squirrel_8dof_planning/tree_nodes_marker2
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /squirrel_8dof_planning/ee_tree_solution_path
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /squirrel_8dof_planning/base_tree_solution_path
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 220; 220; 220
@@ -366,22 +532,22 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 2.17555
+      Distance: 4.23676
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.0387389
-        Y: -0.0871044
-        Z: 0.21482
+        X: -2.72812
+        Y: -1.24357
+        Z: -1.12803
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.494797
+      Pitch: 0.559797
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.299045
+      Yaw: 0.369049
     Saved: ~
 Window Geometry:
   Displays:

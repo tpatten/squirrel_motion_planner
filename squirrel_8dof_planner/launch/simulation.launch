@@ -45,16 +45,16 @@
     <group if="$(arg planner)">
       <node name="squirrel_8dof_planner_node" pkg="squirrel_8dof_planner" type="squirrel_8dof_planner_node" output="screen"/>
     </group>
-    <node name="squirrel_8dof_visualizer_node" pkg="squirrel_8dof_visualizer" type="squirrel_8dof_visualizer_node"/>
+    <node name="squirrel_8dof_visualizer_node" pkg="squirrel_8dof_visualizer" type="squirrel_8dof_visualizer_node" output="screen"/>
   </group>
 
   <node name="octomap_server_node" pkg="octomap_server" type="octomap_server_node" args="$(find squirrel_8dof_planner)/config/$(arg world_name).ot"/>
-  <node name="static_transform_publisher_octomap" pkg="tf" type="static_transform_publisher" args="0.0 0.0 0.0 0.0 0.0 0.0 map odom 100"/>
+  <node name="static_transform_publisher_octomap" pkg="tf" type="static_transform_publisher" args="0.0 0.0 0.0 0.0 0.0 0.0 map odom 10"/>
 
   <!-- start joypad controller -->
   <group if="$(arg joypad)">
     <node name="joy_node" pkg="joy" type="joy_node"/>
-    <node name="robotino_joypad_node" pkg="robotino_joypad" type="robotino_joypad_node"/>
+    <node name="robotino_joypad_node" pkg="robotino_joypad" type="robotino_joypad_node" output="screen"/>
   </group>
 
   <!-- start rviz and visualization nodes -->

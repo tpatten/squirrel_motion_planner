@@ -41,7 +41,8 @@ BiRRTstarPlanner::BiRRTstarPlanner(string planning_group)
 
   //Get Planning Environment Size
   //m_planning_world = boost::shared_ptr<planning_world::PlanningWorldBuilder>(new planning_world::PlanningWorldBuilder("robot_description", planning_group));
-  m_planning_world = boost::shared_ptr<planning_world::PlanningWorldBuilder>(new planning_world::PlanningWorldBuilder(robot_description_robot, planning_group, m_ns_prefix_robot));
+  m_planning_world = boost::shared_ptr<planning_world::PlanningWorldBuilder>(
+      new planning_world::PlanningWorldBuilder(robot_description_robot, planning_group, m_ns_prefix_robot));
 
   //Set default environment size
   m_env_size_x.resize(2);
@@ -57,7 +58,8 @@ BiRRTstarPlanner::BiRRTstarPlanner(string planning_group)
   //Create Robot model
   //m_KDLRobotModel = boost::shared_ptr<kuka_motion_controller::KDLRobotModel>(new kuka_motion_controller::KDLRobotModel("robot_description", "planning_scene", "endeffector_trajectory", m_planning_group));
   m_KDLRobotModel = boost::shared_ptr<kuka_motion_controller::KDLRobotModel>(
-      new kuka_motion_controller::KDLRobotModel(robot_description_robot, m_ns_prefix_robot + "planning_scene", m_ns_prefix_robot + "endeffector_trajectory", m_planning_group));
+      new kuka_motion_controller::KDLRobotModel(robot_description_robot, m_ns_prefix_robot + "planning_scene", m_ns_prefix_robot + "endeffector_trajectory",
+                                                m_planning_group));
 
   ROS_INFO("KDL Robot Model initialized .....");
 
@@ -752,8 +754,8 @@ bool BiRRTstarPlanner::init_planner(vector<double> start_conf, vector<double> go
 }
 
 //Initialize RRT* Planner (given start config and final endeffector pose)
-bool BiRRTstarPlanner::init_planner(vector<double> start_conf, vector<double> ee_goal_pose, vector<int> constraint_vec_goal_pose, vector<pair<double, double> > coordinate_dev,
-                                    int search_space)
+bool BiRRTstarPlanner::init_planner(vector<double> start_conf, vector<double> ee_goal_pose, vector<int> constraint_vec_goal_pose,
+                                    vector<pair<double, double> > coordinate_dev, int search_space)
 {
 
   //Check dimension of config
@@ -976,8 +978,8 @@ bool BiRRTstarPlanner::init_planner(vector<double> start_conf, vector<double> ee
 }
 
 //Initialize RRT* Planner (given start and final endeffector pose)
-bool BiRRTstarPlanner::init_planner(vector<double> ee_start_pose, vector<int> constraint_vec_start_pose, vector<double> ee_goal_pose, vector<int> constraint_vec_goal_pose,
-                                    vector<pair<double, double> > coordinate_dev, int search_space)
+bool BiRRTstarPlanner::init_planner(vector<double> ee_start_pose, vector<int> constraint_vec_start_pose, vector<double> ee_goal_pose,
+                                    vector<int> constraint_vec_goal_pose, vector<pair<double, double> > coordinate_dev, int search_space)
 {
 
   //Note: ee_start_pose and ee_goal_pose represents the end-effector pose with respect to the "base_link"
@@ -1646,7 +1648,8 @@ bool BiRRTstarPlanner::init_planner_real_robot_goal_config(const vector<double> 
   return init_ok;
 }
 
-bool BiRRTstarPlanner::run_planner(int search_space, bool flag_iter_or_time, double max_iter_time, bool show_tree_vis, double iter_sleep, int planner_run_number)
+bool BiRRTstarPlanner::run_planner(int search_space, bool flag_iter_or_time, double max_iter_time, bool show_tree_vis, double iter_sleep,
+                                   int planner_run_number)
 {
 
   // ----- Path to files storing the result joint and endeffector Trajectory of the RRT* planner-----------
@@ -1977,7 +1980,6 @@ bool BiRRTstarPlanner::run_planner(int search_space, bool flag_iter_or_time, dou
 
     //Increment iteration counter
     m_executed_planner_iter++;
-    ROS_INFO("Current iteration no: %d", m_executed_planner_iter);
 
     //Get time elapsed since planner started
     gettimeofday(&m_timer, NULL);
@@ -2284,8 +2286,7 @@ void BiRRTstarPlanner::reset_planner_to_initial_state()
 }
 
 //Finds and returns 8D robot pose from a requested end effector poes
-vector<double> BiRRTstarPlanner::getFullPoseFromEEPose(const vector<double> &endEffectorPose, const vector<pair<double, double> > &endEffectorDeviations,
-                                                       const vector<double> &poseInit)
+bool BiRRTstarPlanner::getFullPoseFromEEPose(const vector<double> &endEffectorPose, const vector<pair<double, double> > &endEffectorDeviations, const vector<double> &poseInit, vector<double> &poseSolution)
 {
   double sx = sin(endEffectorPose[3] / 2);
   double sy = sin(endEffectorPose[4] / 2);
@@ -2310,17 +2311,17 @@ vector<double> BiRRTstarPlanner::getFullPoseFromEEPose(const vector<double> &end
 
   int trial_counter = 0;
   double initPoseDev = 0.02;
-  while (trial_counter < 100)
+  while (trial_counter < 1)
   {
     //Output joint and endeffector trajectory from controller
     vector<vector<double> > joint_trajectory;
     vector<vector<double> > ee_trajectory;
 
     //Get  random start config
-    vector<double> configurationInit = sampleJointConfig_Vector(poseInit, initPoseDev);
+    //vector<double> configurationInit = sampleJointConfig_Vector(poseInit, initPoseDev);
 
     //Set new random start config
-    m_RobotMotionController->setStartConf(configurationInit);
+    m_RobotMotionController->setStartConf(poseInit);
 
     //Set ee goal pose for numerical IK solver
     //Note: "set_EE_goal_pose" needs to be called after "setStartConf" since this function also initializes the initial error
@@ -2333,16 +2334,19 @@ vector<double> BiRRTstarPlanner::getFullPoseFromEEPose(const vector<double> &end
     if (connector_state == kuka_motion_controller::REACHED)
     {
       if (m_FeasibilityChecker->isConfigValid(joint_trajectory.back()))
-        return joint_trajectory.back();
-      else if(trial_counter >= 100)
-        return vector<double>(1);
+      {
+        poseSolution = joint_trajectory.back();
+        return true;
+      }
+      else if (trial_counter >= 100)
+        return false;
     }
 
     ++trial_counter;
     initPoseDev += 0.002;
   }
 
-  return vector<double>();
+  return false;
 }
 
 vector<vector<double> > &BiRRTstarPlanner::getJointTrajectoryRef()
@@ -2919,7 +2923,8 @@ vector<double> BiRRTstarPlanner::computeEEPose(KDL::JntArray start_conf)
 }
 
 //Compute IK for given endeffector goal pose
-vector<double> BiRRTstarPlanner::findIKSolution(vector<double> goal_ee_pose, vector<int> constraint_vec, vector<pair<double, double> > coordinate_dev, bool show_motion)
+vector<double> BiRRTstarPlanner::findIKSolution(vector<double> goal_ee_pose, vector<int> constraint_vec, vector<pair<double, double> > coordinate_dev,
+                                                bool show_motion)
 {
   //Init configuration validity
   bool collision_free = false;
@@ -2948,7 +2953,8 @@ vector<double> BiRRTstarPlanner::findIKSolution(vector<double> goal_ee_pose, vec
     m_RobotMotionController->set_EE_goal_pose(goal_ee_pose);
 
     //control loop execution
-    kuka_motion_controller::Status connector_state = m_RobotMotionController->run_VDLS_Control_Connector(1000, joint_trajectory, ee_trajectory, show_motion, show_motion);
+    kuka_motion_controller::Status connector_state = m_RobotMotionController->run_VDLS_Control_Connector(1000, joint_trajectory, ee_trajectory, show_motion,
+                                                                                                         show_motion);
 
     //Set last configuration of joint trajectory as goal config / ik solution
     ik_solution = joint_trajectory[joint_trajectory.size() - 1];
@@ -3015,7 +3021,8 @@ vector<double> BiRRTstarPlanner::findIKSolution(vector<double> goal_ee_pose, vec
     m_RobotMotionController->set_EE_goal_pose(goal_ee_pose);
 
     //control loop execution
-    kuka_motion_controller::Status connector_state = m_RobotMotionController->run_VDLS_Control_Connector(1000, joint_trajectory, ee_trajectory, show_motion, show_motion);
+    kuka_motion_controller::Status connector_state = m_RobotMotionController->run_VDLS_Control_Connector(1000, joint_trajectory, ee_trajectory, show_motion,
+                                                                                                         show_motion);
 
     //Set last configuration of joint trajectory as goal config / ik solution
     ik_solution = joint_trajectory[joint_trajectory.size() - 1];
@@ -3046,8 +3053,8 @@ vector<double> BiRRTstarPlanner::findIKSolution(vector<double> goal_ee_pose, vec
 }
 
 //Generate a configuration for a given EE pose
-vector<double> BiRRTstarPlanner::generate_config_from_ee_pose(vector<double> ee_pose, vector<int> constraint_vec_ee_pose, vector<pair<double, double> > coordinate_dev,
-                                                              bool show_motion)
+vector<double> BiRRTstarPlanner::generate_config_from_ee_pose(vector<double> ee_pose, vector<int> constraint_vec_ee_pose,
+                                                              vector<pair<double, double> > coordinate_dev, bool show_motion)
 {
   //Convert XYZ euler orientation of start and goal pose to quaternion
   vector<double> quat_ee_pose = m_RobotMotionController->convertEulertoQuat(ee_pose[3], ee_pose[4], ee_pose[5]);
@@ -3071,7 +3078,8 @@ vector<double> BiRRTstarPlanner::generate_config_from_ee_pose(vector<double> ee_
 
 //Generate a configuration for a given EE pose using a reference config
 vector<double> BiRRTstarPlanner::generate_config_from_ee_pose_with_reference_config(vector<double> ee_pose, vector<int> constraint_vec_ee_pose,
-                                                                                    vector<pair<double, double> > coordinate_dev, vector<double> mean_init_config, bool show_motion)
+                                                                                    vector<pair<double, double> > coordinate_dev,
+                                                                                    vector<double> mean_init_config, bool show_motion)
 {
   //Convert XYZ euler orientation of start and goal pose to quaternion
   vector<double> quat_ee_pose = m_RobotMotionController->convertEulertoQuat(ee_pose[3], ee_pose[4], ee_pose[5]);
@@ -3095,7 +3103,8 @@ vector<double> BiRRTstarPlanner::generate_config_from_ee_pose_with_reference_con
 
 //Generate start and goal configuration for a given start and goal EE pose
 vector<vector<double> > BiRRTstarPlanner::generate_start_goal_config(vector<double> start_pose, vector<int> constraint_vec_start_pose, vector<double> goal_pose,
-                                                                     vector<int> constraint_vec_goal_pose, vector<pair<double, double> > coordinate_dev, bool show_motion)
+                                                                     vector<int> constraint_vec_goal_pose, vector<pair<double, double> > coordinate_dev,
+                                                                     bool show_motion)
 {
   //Return value [0] = start config, [1] = start config
   vector<vector<double> > start_goal_config(2);
@@ -3104,7 +3113,8 @@ vector<vector<double> > BiRRTstarPlanner::generate_start_goal_config(vector<doub
 
   //Set path to the file that will store the start and goal config for each scenario
   char* file_path_start_goal_config;
-  string folder_path = m_terminal_configs_path + "/Start_Goal_Configurations/" + m_planning_group + "_" + m_planning_world->getSceneName() + "_start_goal_config.txt";
+  string folder_path = m_terminal_configs_path + "/Start_Goal_Configurations/" + m_planning_group + "_" + m_planning_world->getSceneName()
+      + "_start_goal_config.txt";
   file_path_start_goal_config = new char[folder_path.size() + 1];
   copy(folder_path.begin(), folder_path.end(), file_path_start_goal_config);
   file_path_start_goal_config[folder_path.size()] = '\0'; // don't forget the terminating 0
@@ -3219,8 +3229,8 @@ bool BiRRTstarPlanner::expandTree(Rrt_star_tree *tree, Node nn_node, Node x_rand
     //double time_projection_start = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
 
     //Project original random sample onto constraint manifold
-    bool projection_x_rand = m_RobotMotionController->run_config_retraction(x_rand.config, m_task_frame, m_grasp_transform, m_constraint_vector, m_coordinate_dev,
-                                                                            m_max_projection_iter);
+    bool projection_x_rand = m_RobotMotionController->run_config_retraction(x_rand.config, m_task_frame, m_grasp_transform, m_constraint_vector,
+                                                                            m_coordinate_dev, m_max_projection_iter);
 
     //Get time elapsed
     //gettimeofday(&m_timer, NULL);
@@ -3254,8 +3264,8 @@ bool BiRRTstarPlanner::expandTree(Rrt_star_tree *tree, Node nn_node, Node x_rand
         }
 
         //Project sample onto constraint manifold
-        bool projection_succeed = m_RobotMotionController->run_config_retraction(exp_node_towards_rand_node.config, m_task_frame, m_grasp_transform, m_constraint_vector,
-                                                                                 m_coordinate_dev, m_max_projection_iter);
+        bool projection_succeed = m_RobotMotionController->run_config_retraction(exp_node_towards_rand_node.config, m_task_frame, m_grasp_transform,
+                                                                                 m_constraint_vector, m_coordinate_dev, m_max_projection_iter);
 
         if (projection_succeed == true && m_FeasibilityChecker->isConfigValid(exp_node_towards_rand_node.config))
         {
@@ -3678,7 +3688,7 @@ void BiRRTstarPlanner::connectGraphsControl(Rrt_star_tree *tree, Node x_connect,
 
                     //Set selected edge
                     edge_selected = ext_edge;
-                    edge_selected.child_node_id = node_selected.node_id;  //Reset child node ID of edge, because x_new's ID is w.r.t. the other tree data structure
+                    edge_selected.child_node_id = node_selected.node_id; //Reset child node ID of edge, because x_new's ID is w.r.t. the other tree data structure
 
                     //Set flag indicating that the tree has been expanded without connecting to the other tree
                     tree_expand = true;
@@ -3937,7 +3947,7 @@ void BiRRTstarPlanner::connectGraphsInterpolation(Rrt_star_tree *tree, Node x_co
               //Increment local tree nodes counter
               num_edges_tree++;
               //Reset child node ID of edge, because original original_extend_node has not been reached
-              ext_edge.child_node_id = ext_node.node_id;  //Reset child node ID of edge, because original_extend_node's ID is w.r.t. the other tree data structure
+              ext_edge.child_node_id = ext_node.node_id; //Reset child node ID of edge, because original_extend_node's ID is w.r.t. the other tree data structure
 
               //Collect current expanded node and edge (later added to the tree if x_new has been reached by a legal path)
               selected_via_nodes.push_back(ext_node);
@@ -4089,7 +4099,7 @@ void BiRRTstarPlanner::connectGraphsInterpolation(Rrt_star_tree *tree, Node x_co
                   //Set selected edge
                   edge_selected = ext_edge;
                   edge_selected.edge_id = num_edges_tree;
-                  edge_selected.child_node_id = node_selected.node_id;  //Reset child node ID of edge, because x_new's ID is w.r.t. the other tree data structure
+                  edge_selected.child_node_id = node_selected.node_id; //Reset child node ID of edge, because x_new's ID is w.r.t. the other tree data structure
 
                   //Set flag indicating that the tree has established a connection to the other tree (not only expanded)
                   tree_expand = false;
@@ -4154,7 +4164,7 @@ void BiRRTstarPlanner::connectGraphsInterpolation(Rrt_star_tree *tree, Node x_co
                       //Increment local tree nodes counter
                       num_edges_tree++;
                       //Reset child node ID of edge, because original original_extend_node has not been reached
-                      ext_edge.child_node_id = ext_node.node_id;  //Reset child node ID of edge, because original_extend_node's ID is w.r.t. the other tree data structure
+                      ext_edge.child_node_id = ext_node.node_id; //Reset child node ID of edge, because original_extend_node's ID is w.r.t. the other tree data structure
 
                       //Collect current expanded node and edge (later added to the tree if x_new has been reached by a legal path)
                       selected_via_nodes.push_back(ext_node);
@@ -4175,7 +4185,7 @@ void BiRRTstarPlanner::connectGraphsInterpolation(Rrt_star_tree *tree, Node x_co
                       //Set selected edge
                       edge_selected = ext_edge;
                       edge_selected.edge_id = num_edges_tree;
-                      edge_selected.child_node_id = node_selected.node_id;  //Reset child node ID of edge, because x_new's ID is w.r.t. the other tree data structure
+                      edge_selected.child_node_id = node_selected.node_id; //Reset child node ID of edge, because x_new's ID is w.r.t. the other tree data structure
 
                       //Set flag indicating that the tree has been expanded without connecting to the other tree
                       tree_expand = true;
@@ -4240,8 +4250,8 @@ void BiRRTstarPlanner::connectGraphsInterpolation(Rrt_star_tree *tree, Node x_co
         }
 
         //Project sample onto constraint manifold
-        bool projection_succeed = m_RobotMotionController->run_config_retraction(exp_node_towards_tree_A.config, m_task_frame, m_grasp_transform, m_constraint_vector,
-                                                                                 m_coordinate_dev, m_max_projection_iter);
+        bool projection_succeed = m_RobotMotionController->run_config_retraction(exp_node_towards_tree_A.config, m_task_frame, m_grasp_transform,
+                                                                                 m_constraint_vector, m_coordinate_dev, m_max_projection_iter);
 
         if (projection_succeed == true && m_FeasibilityChecker->isConfigValid(exp_node_towards_tree_A.config))
         {
@@ -4620,8 +4630,8 @@ vector<double> BiRRTstarPlanner::sampleEEposefromEllipse()
           if (i == 0)
             transformation_L(i, j) = m_cost_best_solution_path / 2.0; // m_cost_best_solution_path = cost of current best solution path
           else
-            transformation_L(i, j) = sqrt((m_cost_best_solution_path * m_cost_best_solution_path) - (m_start_tree.nodes[0].cost_h.total * m_start_tree.nodes[0].cost_h.total))
-                / 2.0;  //m_tree.nodes[1].cost_h.total = Heurisitc cost of start configuration (node_id = 1), i.e. theoretical minimum cost reachable
+            transformation_L(i, j) = sqrt(
+                (m_cost_best_solution_path * m_cost_best_solution_path) - (m_start_tree.nodes[0].cost_h.total * m_start_tree.nodes[0].cost_h.total)) / 2.0; //m_tree.nodes[1].cost_h.total = Heurisitc cost of start configuration (node_id = 1), i.e. theoretical minimum cost reachable
 
           //Computations for Matrix "M"
           if (i < diag_matrix.cols() - 1)
@@ -4940,7 +4950,8 @@ KDL::JntArray BiRRTstarPlanner::sampleJointConfigfromEllipse_JntArray()
           else
           {
             transformation_L_rev(i, j) = sqrt(
-                (m_cost_best_solution_path_revolute * m_cost_best_solution_path_revolute) - (m_start_tree.nodes[0].cost_h.revolute * m_start_tree.nodes[0].cost_h.revolute)) / 2.0; //m_start_tree.nodes[0].cost_h = Heurisitc cost of start configuration (node_id = 1), i.e. theoretical minimum cost reachable
+                (m_cost_best_solution_path_revolute * m_cost_best_solution_path_revolute)
+                    - (m_start_tree.nodes[0].cost_h.revolute * m_start_tree.nodes[0].cost_h.revolute)) / 2.0; //m_start_tree.nodes[0].cost_h = Heurisitc cost of start configuration (node_id = 1), i.e. theoretical minimum cost reachable
           }
         }
         else
@@ -4963,8 +4974,8 @@ KDL::JntArray BiRRTstarPlanner::sampleJointConfigfromEllipse_JntArray()
           else
           {
             transformation_L_prism(i, j) = sqrt(
-                (m_cost_best_solution_path_prismatic * m_cost_best_solution_path_prismatic) - (m_start_tree.nodes[0].cost_h.prismatic * m_start_tree.nodes[0].cost_h.prismatic))
-                / 2.0;  //m_start_tree.nodes[0].cost_h = Heurisitc cost of start configuration (node_id = 1), i.e. theoretical minimum cost reachable
+                (m_cost_best_solution_path_prismatic * m_cost_best_solution_path_prismatic)
+                    - (m_start_tree.nodes[0].cost_h.prismatic * m_start_tree.nodes[0].cost_h.prismatic)) / 2.0; //m_start_tree.nodes[0].cost_h = Heurisitc cost of start configuration (node_id = 1), i.e. theoretical minimum cost reachable
           }
         }
         else
@@ -5028,7 +5039,8 @@ KDL::JntArray BiRRTstarPlanner::sampleJointConfigfromEllipse_JntArray()
       // 1) The base position is within the confined environment borders
       // 2) The environment is not confined (i.e. infinite space for maneuvering available)
       if ((copy_rand_conf_array(0) < m_env_size_x[1] && copy_rand_conf_array(0) > m_env_size_x[0] && copy_rand_conf_array(1) < m_env_size_y[1]
-          && copy_rand_conf_array(1) > m_env_size_y[0]) || (m_env_size_x[0] == 0.0 && m_env_size_x[1] == 0.0 && m_env_size_y[0] == 0.0 && m_env_size_y[1] == 0.0))
+          && copy_rand_conf_array(1) > m_env_size_y[0])
+          || (m_env_size_x[0] == 0.0 && m_env_size_x[1] == 0.0 && m_env_size_y[0] == 0.0 && m_env_size_y[1] == 0.0))
         inside_environment = true;
       else
         inside_environment = false;
@@ -5671,7 +5683,8 @@ bool BiRRTstarPlanner::connectNodesInterpolation(Rrt_star_tree *tree, Node near_
 }
 
 //Interpolate configurations of near_node and end_node
-bool BiRRTstarPlanner::interpolateConfigurations(Node near_node, Node end_node, int num_points, vector<vector<double> > &joint_traj, vector<vector<double> > &ee_traj)
+bool BiRRTstarPlanner::interpolateConfigurations(Node near_node, Node end_node, int num_points, vector<vector<double> > &joint_traj,
+                                                 vector<vector<double> > &ee_traj)
 {
 
   //Interpolation process result
@@ -5735,8 +5748,8 @@ bool BiRRTstarPlanner::interpolateConfigurations(Node near_node, Node end_node, 
     if (m_constraint_active == true)
     {
       //Compute task error
-      vector<double> task_error_interpolation = m_RobotMotionController->compute_task_error(c_space_via_point_vector, m_task_frame, m_grasp_transform, m_constraint_vector,
-                                                                                            m_coordinate_dev);
+      vector<double> task_error_interpolation = m_RobotMotionController->compute_task_error(c_space_via_point_vector, m_task_frame, m_grasp_transform,
+                                                                                            m_constraint_vector, m_coordinate_dev);
       //double task_error_interpolation_norm =m_RobotMotionController->getVectorNorm(task_error_interpolation);
       bool task_error_within_bounds = m_RobotMotionController->is_error_within_bounds(task_error_interpolation);
 
@@ -5843,7 +5856,8 @@ bool BiRRTstarPlanner::choose_node_parent_control(Rrt_star_tree *tree, vector<in
 }
 
 //Choose Parent for x_new minimizing the cost of reaching x_new (given the set of vertices surrounding x_new as potential parents)
-bool BiRRTstarPlanner::choose_node_parent_interpolation(Rrt_star_tree *tree, vector<int> near_vertices, Node nn_node, Edge &e_new, Node &x_new, bool show_tree_vis)
+bool BiRRTstarPlanner::choose_node_parent_interpolation(Rrt_star_tree *tree, vector<int> near_vertices, Node nn_node, Edge &e_new, Node &x_new,
+                                                        bool show_tree_vis)
 {
 
 //    //Variable for timer
@@ -6030,13 +6044,14 @@ bool BiRRTstarPlanner::choose_node_parent_interpolation(Rrt_star_tree *tree, vec
             //Is task frame orientation defined global or w.r.t near node frame
             if (m_task_orient_global == false)
             {
-              KDL::Rotation ee_orient = KDL::Rotation::Quaternion(curr_x_near.ee_pose[3], curr_x_near.ee_pose[4], curr_x_near.ee_pose[5], curr_x_near.ee_pose[6]);
+              KDL::Rotation ee_orient = KDL::Rotation::Quaternion(curr_x_near.ee_pose[3], curr_x_near.ee_pose[4], curr_x_near.ee_pose[5],
+                                                                  curr_x_near.ee_pose[6]);
               m_task_frame.M = ee_orient;
             }
 
             //Project sample onto constraint manifold
-            bool projection_succeed = m_RobotMotionController->run_config_retraction(exp_node_towards_x_new.config, m_task_frame, m_grasp_transform, m_constraint_vector,
-                                                                                     m_coordinate_dev, m_max_projection_iter);
+            bool projection_succeed = m_RobotMotionController->run_config_retraction(exp_node_towards_x_new.config, m_task_frame, m_grasp_transform,
+                                                                                     m_constraint_vector, m_coordinate_dev, m_max_projection_iter);
 
             if (projection_succeed == true && m_FeasibilityChecker->isConfigValid(exp_node_towards_x_new.config))
             {
@@ -6611,8 +6626,8 @@ void BiRRTstarPlanner::rewireTreeInterpolation(Rrt_star_tree *tree, vector<int> 
             //double time_config_retraction_start = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
 
             //Project sample onto constraint manifold
-            bool projection_succeed = m_RobotMotionController->run_config_retraction(exp_node_towards_x_near.config, m_task_frame, m_grasp_transform, m_constraint_vector,
-                                                                                     m_coordinate_dev, m_max_projection_iter);
+            bool projection_succeed = m_RobotMotionController->run_config_retraction(exp_node_towards_x_near.config, m_task_frame, m_grasp_transform,
+                                                                                     m_constraint_vector, m_coordinate_dev, m_max_projection_iter);
 
             //Get time elapsed
             //gettimeofday(&m_timer, NULL);
@@ -6642,7 +6657,8 @@ void BiRRTstarPlanner::rewireTreeInterpolation(Rrt_star_tree *tree, vector<int> 
 
               //Check additionally whether expansion has made progress towards x_near
               double dist_curr_x_new_to_x_near = m_Heuristic.euclidean_joint_space_distance(curr_x_new.config, tree->nodes[near_vertices[nn_num]].config);
-              double dist_projected_sample_to_x_near = m_Heuristic.euclidean_joint_space_distance(exp_node_towards_x_near.config, tree->nodes[near_vertices[nn_num]].config);
+              double dist_projected_sample_to_x_near = m_Heuristic.euclidean_joint_space_distance(exp_node_towards_x_near.config,
+                                                                                                  tree->nodes[near_vertices[nn_num]].config);
 
               if (dist_near_to_projected_sample < m_min_projection_distance || dist_curr_x_new_to_x_near < dist_projected_sample_to_x_near)
               {
@@ -6739,7 +6755,8 @@ void BiRRTstarPlanner::rewireTreeInterpolation(Rrt_star_tree *tree, vector<int> 
             //cout<<"Near Vertex reached!"<<endl;
 
             //Connect current curr_x_new to x_new
-            bool connection_result = connectNodesInterpolation(tree, curr_x_new, tree->nodes[near_vertices[nn_num]], m_num_traj_segments_interp, gen_node, gen_edge);
+            bool connection_result = connectNodesInterpolation(tree, curr_x_new, tree->nodes[near_vertices[nn_num]], m_num_traj_segments_interp, gen_node,
+                                                               gen_edge);
 
             //Check whether cost of reaching x_near via x_new is lower than current cost of x_near
             if (gen_node.cost_reach.total <= tree->nodes[near_vertices[nn_num]].cost_reach.total)
@@ -6768,7 +6785,8 @@ void BiRRTstarPlanner::rewireTreeInterpolation(Rrt_star_tree *tree, vector<int> 
                   //cout<<"Edge: "<<tree->nodes[tree->nodes[near_vertices[nn_num]].parent_id].outgoing_edges[eg_num].root_node_id<<" to "<<tree->nodes[near_vertices[nn_num].parent_id].outgoing_edges[eg_num].child_node_id<<endl;
 
                   //Find edge in parent node leading to near node
-                  if (tree->nodes[tree->nodes[near_vertices[nn_num]].parent_id].outgoing_edges[eg_num].child_node_id == tree->nodes[near_vertices[nn_num]].node_id)
+                  if (tree->nodes[tree->nodes[near_vertices[nn_num]].parent_id].outgoing_edges[eg_num].child_node_id
+                      == tree->nodes[near_vertices[nn_num]].node_id)
                   {
                     //cout<<"Rewire: Removing edge!!!"<<endl;
 
@@ -7882,8 +7900,8 @@ void BiRRTstarPlanner::writePlannerStatistics(char *statistics_file, char *cost_
 
   //------------------ Write data
   planner_stat_file << "planner_name" << " " << m_planner_type << endl << "planning_group" << " " << m_planning_group << endl\
- << "planning_result" << " " << m_planner_success
-      << endl;
+ << "planning_result" << " "
+      << m_planner_success << endl;
 
   //Planner run with maximum planning iterations or time
   if (m_max_planner_iter != 0)
@@ -7899,8 +7917,8 @@ void BiRRTstarPlanner::writePlannerStatistics(char *statistics_file, char *cost_
 
   planner_stat_file << "first_solution_iter" << " " << m_first_solution_iter << endl\
  << "first_solution_time" << " " << m_time_first_solution << endl\
- << "last_solution_iter"
-      << " " << m_last_solution_iter << endl\
+
+      << "last_solution_iter" << " " << m_last_solution_iter << endl\
  << "last_solution_time" << " " << m_time_last_solution << endl;
 
   //Planner run with maximum planning iterations or time
@@ -7919,22 +7937,24 @@ void BiRRTstarPlanner::writePlannerStatistics(char *statistics_file, char *cost_
  << "cost_theoretical_solution_prismatics" << " " << m_cost_theoretical_solution_path[2] << endl\
 
       << "cost_final_solution_total" << " " << m_cost_best_solution_path << endl\
- << "cost_final_solution_revolute" << " " << m_cost_best_solution_path_revolute << endl\
+ << "cost_final_solution_revolute" << " "
+      << m_cost_best_solution_path_revolute << endl\
+ << "cost_final_solution_prismatic" << " " << m_cost_best_solution_path_prismatic << endl\
 
-      << "cost_final_solution_prismatic" << " " << m_cost_best_solution_path_prismatic << endl\
- << "num_nodes_start_tree" << " " << m_start_tree.num_nodes << endl\
+      << "num_nodes_start_tree" << " " << m_start_tree.num_nodes << endl\
+ << "num_nodes_goal_tree" << " " << m_goal_tree.num_nodes << endl\
 
-      << "num_nodes_goal_tree" << " " << m_goal_tree.num_nodes << endl\
- << "num_nodes_total" << " " << (m_start_tree.num_nodes + m_goal_tree.num_nodes) << endl\
-
-      << "num_edges_start_tree" << " " << m_start_tree.num_edges << endl\
+      << "num_nodes_total" << " " << (m_start_tree.num_nodes + m_goal_tree.num_nodes) << endl\
+ << "num_edges_start_tree" << " " << m_start_tree.num_edges
+      << endl\
  << "num_edges_goal_tree" << " " << m_goal_tree.num_edges << endl\
  << "num_edges_total" << " "
       << (m_start_tree.num_edges + m_goal_tree.num_edges) << endl\
  << "num_rewire_start_tree" << " " << m_start_tree.num_rewire_operations << endl\
- << "num_rewire_goal_tree"
-      << " " << m_goal_tree.num_rewire_operations << endl\
- << "num_rewire_total" << " " << (m_start_tree.num_rewire_operations + m_goal_tree.num_rewire_operations) << endl;
+
+      << "num_rewire_goal_tree" << " " << m_goal_tree.num_rewire_operations << endl\
+ << "num_rewire_total" << " "
+      << (m_start_tree.num_rewire_operations + m_goal_tree.num_rewire_operations) << endl;
 
   //Close the file
   planner_stat_file.close();
@@ -7960,8 +7980,9 @@ void BiRRTstarPlanner::writePlannerStatistics(char *statistics_file, char *cost_
   }
 
   //Write header
-  planner_cost_file << "planner_name" << " " << "iteration" << " " << "planning_time_elapsed" << " " << "cost_solution_total" << " " << "cost_solution_revolute" << " "
-      << "cost_solution_prismatic" << " " << "theoretical_cost_total" << " " << "theoretical_cost_revolute" << " " << "theoretical_cost_prismatic" << endl;
+  planner_cost_file << "planner_name" << " " << "iteration" << " " << "planning_time_elapsed" << " " << "cost_solution_total" << " " << "cost_solution_revolute"
+      << " " << "cost_solution_prismatic" << " " << "theoretical_cost_total" << " " << "theoretical_cost_revolute" << " " << "theoretical_cost_prismatic"
+      << endl;
 
   for (int i = 0; i < m_solution_cost_trajectory.size(); i++)
   {
@@ -7972,7 +7993,8 @@ void BiRRTstarPlanner::writePlannerStatistics(char *statistics_file, char *cost_
       planner_cost_file << m_solution_cost_trajectory[i][j] << " ";
     }
     //Write theoretical solution cost (total, revolute, prismatic)
-    planner_cost_file << m_cost_theoretical_solution_path[0] << " " << m_cost_theoretical_solution_path[1] << " " << m_cost_theoretical_solution_path[2] << endl;
+    planner_cost_file << m_cost_theoretical_solution_path[0] << " " << m_cost_theoretical_solution_path[1] << " " << m_cost_theoretical_solution_path[2]
+        << endl;
   }
 
   //Close the file

@@ -43,11 +43,11 @@ class FeasibilityChecker
 	void setCollisionCheckingStepWidth(double step_width);
 	
 	//Checking an Edge of for collisions with obstacles
-    bool isEdgeValid(Edge tree_edge, bool print_contacts = false);
-    bool isEdgeValid(Edge tree_edge, int &last_valid_node_idx, bool print_contacts = false);
+    bool isEdgeValid(Edge tree_edge, bool print_contacts = true);
+    bool isEdgeValid(Edge tree_edge, int &last_valid_node_idx, bool print_contacts = true);
     //Checking a Config for collisions with obstacles
-    bool isConfigValid(vector<double> config, bool print_contacts = false);
-    bool isConfigValid(KDL::JntArray config, bool print_contacts = false);
+    bool isConfigValid(vector<double> config, bool print_contacts = true);
+    bool isConfigValid(KDL::JntArray config, bool print_contacts = true);
 
     //Definition of virtual methods (used for solution path smoothing)
     //bool ConfigFeasible(const ParabolicRamp::Vector& x);

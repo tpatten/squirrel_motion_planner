@@ -14,6 +14,7 @@
 #include <kdl/chainiksolvervel_wdls.hpp>
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/chainiksolverpos_nr_jl.hpp>
+#include <kdl/chainiksolverpos_lma.hpp>
 
 #include <squirrel_8dof_planner/squirrel_8dof_planner_structures.hpp>
 
@@ -31,12 +32,19 @@ class BasePoseFinder
   KDL::ChainFkSolverPos_recursive* fkSolverPos;
   KDL::ChainIkSolverVel_wdls* ikSolverVel;
   KDL::ChainIkSolverPos_NR_JL* ikSolverPosJL;
+  KDL::ChainIkSolverPos* ikSolverPos;
 
 public:
   /**
    * @brief Constructor. Initializes everything.
    */
   BasePoseFinder();
+
+  // ******************** POSE FINDING ********************
+
+  bool findJoints();
+
+  void findPose(const std::vector<Real> joints);
 
 private:
 
@@ -58,6 +66,14 @@ private:
    * @return Returns false if the defined chains are not available.
    */
   bool initializeKDL();
+
+  // ******************** POSE FINDING ********************
+
+  bool setRotation(Tuple3D &axisX, Tuple3D &axisY, KDL::Frame &frame);
+
+  // ******************** INLINES ********************
+
+  bool jointsInRange(const KDL::JntArray &joints);
 };
 
 } //namespace SquirrelMotionPlanner
