@@ -6,7 +6,7 @@ namespace SquirrelMotionPlanner
 // ******************** PUBLIC MEMBERS ********************
 
 Planner::Planner() :
-    nhPrivate("~"), birrtStarPlanner("robotino_robot"), interactiveMarkerServer("endeffector_goal")
+    nhPrivate("~"), birrtStarPlanner("robotino_robot"), interactiveMarkerServer("endeffector_goal"), collisionChecker(NULL)
 {
   initializeParameters();
   if (posesFolding.size() == 0)
@@ -21,7 +21,7 @@ Planner::Planner() :
 
   initializeInteractiveMarker();
 
-  collisionChecker = new CollisionChecker();
+  collisionChecker = new CollisionChecker;
 
 //  posesTrajectory.clear();
 //  posesTrajectory.push_back(Pose(8, 0.0));
@@ -348,6 +348,9 @@ void Planner::subscriberPoseHandler(const sensor_msgs::JointState &msg)
     else if (msg.name[i] == "base_jointz")
       poseCurrent[2] = msg.position[i];
   }
+
+  if(collisionChecker != NULL)
+    collisionChecker->updateTransforms(poseCurrent);
 }
 
 bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequest &req, squirrel_motion_planner_msgs::PlanPoseResponse &res)
@@ -515,7 +518,6 @@ bool Planner::serviceCallGetOctomap()
     ROS_ERROR("Received octomap is empty, planning will not be executed.");
     return false;
   }
-
 
   Real dummy;
   octree->getMetricMin(mapMinX, mapMinY, dummy);
@@ -1416,7 +1418,7 @@ inline void Planner::convertPose(const Pose &posePrev, Pose &poseTarget, const s
 
 inline void Planner::waitAndSpin(const Real seconds)
 {
-  for(UInt i = 0; i < 10*seconds; ++i)
+  for (UInt i = 0; i < 10 * seconds; ++i)
   {
     ros::spinOnce();
     ros::Duration(0.1).sleep();

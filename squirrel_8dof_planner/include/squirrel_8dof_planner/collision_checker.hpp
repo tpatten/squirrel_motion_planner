@@ -23,19 +23,22 @@ namespace SquirrelMotionPlanner
 
 class CollisionChecker
 {
-  struct TransformTree
+  struct TransformLink
   {
-    std::vector<TransformTree> children;
-    TransformTree* parent;
     KDL::Frame transform;
+    KDL::Frame *transformParent;
     std::string name;
+
+    KDL::Frame transformToParent;
+    const KDL::Joint* joint;
+    Real* jointValue;
   };
 
   ros::NodeHandle nh;
 
   KDL::Tree kdlTree;
-  TransformTree transformTree;
   std::vector<Real> jointAngles;
+  std::vector<TransformLink> transformLinks;
 
 public:
   /**
@@ -48,6 +51,13 @@ public:
       ros::shutdown();
       return;
     }
+  }
+
+  void updateTransforms(const std::vector<Real> &angles)
+  {
+    for (UInt i = 0; i < jointAngles.size(); ++i)
+      jointAngles[i] = angles[i];
+    updateTransforms();
   }
 
 private:
@@ -79,72 +89,93 @@ private:
       return false;
     }
 
-
-    buildTree();
-
     jointAngles.resize(8, 0.0);
-    long tb = ros::Time::now().toNSec();
-    updateTransforms(transformTree);
-    std::cout << "time: " << (ros::Time::now().toNSec() - tb) / 1000000.0 << "ms." << std::endl;
+    buildTree();
 
     return true;
   }
 
   void buildTree()
   {
-    transformTree.name = kdlTree.getRootSegment()->second.segment.getName();
-    transformTree.transform = KDL::Frame::Identity();
-    expandTree(kdlTree.getRootSegment(), transformTree);
+    transformLinks.reserve(100);
+    transformLinks.push_back(TransformLink());
+    transformLinks.back().name = kdlTree.getRootSegment()->second.segment.getName();
+    transformLinks.back().transform = KDL::Frame::Identity();
+    transformLinks.back().transformParent = NULL;
+    transformLinks.back().joint = NULL;
+    transformLinks.back().transformToParent = KDL::Frame::Identity();
+
+    expandTree(kdlTree.getRootSegment(), 0);
   }
 
-  void expandTree(const KDL::SegmentMap::const_iterator& segment, TransformTree &tree)
+  void expandTree(const KDL::SegmentMap::const_iterator& segment, UInt indexParent)
   {
-    TransformTree treeChild;
     for (std::vector<KDL::SegmentMap::const_iterator>::const_iterator child = segment->second.children.begin(); child != segment->second.children.end();
         ++child)
     {
-      treeChild.name = (*child)->second.segment.getName();
-      treeChild.parent = &tree;
-      treeChild.transform = (*child)->second.segment.getFrameToTip() * tree.transform;
-      tree.children.push_back(treeChild);
+      transformLinks.push_back(TransformLink());
+      transformLinks.back().name = (*child)->second.segment.getName();
+      transformLinks.back().transformParent = &transformLinks[indexParent].transform;
 
-      expandTree(*child, tree.children.back());
-    }
-  }
-
-  void updateTransforms(TransformTree &tree)
-  {
-    for(std::vector<TransformTree>::iterator child = tree.children.begin(); child != tree.children.end(); ++child)
-    {
-      if((*child).name == "base_x_link")
-        (*child).transform = kdlTree.getSegment("base_x_link")->second.segment.getJoint().pose(jointAngles[0]) * tree.transform;
-      else if((*child).name == "base_y_link")
-        (*child).transform = kdlTree.getSegment("base_y_link")->second.segment.getJoint().pose(jointAngles[1]) * tree.transform;
-      else if((*child).name == "base_theta_link")
-        (*child).transform = kdlTree.getSegment("base_theta_link")->second.segment.getJoint().pose(jointAngles[2]) * tree.transform;
-      else if((*child).name == "arm_link1")
-        (*child).transform = kdlTree.getSegment("arm_link1")->second.segment.getJoint().pose(jointAngles[3]) * tree.transform;
-      else if((*child).name == "arm_motor2")
-        (*child).transform = kdlTree.getSegment("arm_motor2")->second.segment.getJoint().pose(jointAngles[4]) * tree.transform;
-      else if((*child).name == "arm_link3")
-        (*child).transform = kdlTree.getSegment("arm_link3")->second.segment.getJoint().pose(jointAngles[5]) * tree.transform;
-      else if((*child).name == "arm_link4")
-        (*child).transform = kdlTree.getSegment("arm_link4")->second.segment.getJoint().pose(jointAngles[6]) * tree.transform;
-      else if((*child).name == "arm_link5")
-        (*child).transform = kdlTree.getSegment("arm_link5")->second.segment.getJoint().pose(jointAngles[7]) * tree.transform;
+      if (transformLinks.back().name == "base_x_link")
+      {
+        transformLinks.back().joint = &((*child)->second.segment.getJoint());
+        transformLinks.back().jointValue = &jointAngles[0];
+      }
+      else if (transformLinks.back().name == "base_y_link")
+      {
+        transformLinks.back().joint = &((*child)->second.segment.getJoint());
+        transformLinks.back().jointValue = &jointAngles[1];
+      }
+      else if (transformLinks.back().name == "base_theta_link")
+      {
+        transformLinks.back().joint = &((*child)->second.segment.getJoint());
+        transformLinks.back().jointValue = &jointAngles[2];
+      }
+      else if (transformLinks.back().name == "arm_link1")
+      {
+        transformLinks.back().joint = &((*child)->second.segment.getJoint());
+        transformLinks.back().jointValue = &jointAngles[3];
+      }
+      else if (transformLinks.back().name == "arm_motor2")
+      {
+        transformLinks.back().joint = &((*child)->second.segment.getJoint());
+        transformLinks.back().jointValue = &jointAngles[4];
+      }
+      else if (transformLinks.back().name == "arm_link3")
+      {
+        transformLinks.back().joint = &((*child)->second.segment.getJoint());
+        transformLinks.back().jointValue = &jointAngles[5];
+      }
+      else if (transformLinks.back().name == "arm_link4")
+      {
+        transformLinks.back().joint = &((*child)->second.segment.getJoint());
+        transformLinks.back().jointValue = &jointAngles[6];
+      }
+      else if (transformLinks.back().name == "arm_link5")
+      {
+        transformLinks.back().joint = &((*child)->second.segment.getJoint());
+        transformLinks.back().jointValue = &jointAngles[7];
+      }
       else
-        (*child).transform = kdlTree.getSegment((*child).name)->second.segment.getFrameToTip() * tree.transform;
+      {
+        transformLinks.back().transformToParent = (*child)->second.segment.getFrameToTip();
+        transformLinks.back().joint = NULL;
+      }
 
-      updateTransforms(*child);
+      expandTree(*child, transformLinks.size() - 1);
     }
   }
 
-  void printTreeNames(const TransformTree &tree, std::string indent) const
+  void updateTransforms()
   {
-    indent += "  ";
-    std::cout << indent << tree.name << std::endl;
-    for(std::vector<TransformTree>::const_iterator child = tree.children.begin(); child != tree.children.end(); ++child)
-      printTreeNames(*child, indent);
+    for (std::vector<TransformLink>::iterator transformLink = transformLinks.begin() + 1; transformLink != transformLinks.end(); ++transformLink)
+    {
+      if (transformLink->joint != NULL)
+        transformLink->transform = (*(transformLink->transformParent)) * transformLink->joint->pose(*(transformLink->jointValue));
+      else
+        transformLink->transform = (*(transformLink->transformParent)) * transformLink->transformToParent;
+    }
   }
 };
 
