@@ -5,7 +5,7 @@
         <chain base_link="base_link_origin" tip_link="hand_wrist_link" />
     </group>
 
-     <virtual_joint name="world_joint" type="planar" parent_frame="origin" child_link="base_link_origin"/> 
+    <virtual_joint name="world_joint" type="planar" parent_frame="origin" child_link="base_link_origin"/> 
 
     <!--PASSIVE JOINT: Purpose: this element is used to mark joints that are not actuated-->
     <passive_joint name="neck_pan_joint" />

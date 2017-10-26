@@ -96,7 +96,6 @@ class Planner
    * Octomap
    */
   Real floorCollisionDistance;
-  octomap::OcTree* octree;
 
   /*
    * AStar

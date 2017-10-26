@@ -350,7 +350,7 @@ void Planner::subscriberPoseHandler(const sensor_msgs::JointState &msg)
   }
 
   if(collisionChecker != NULL)
-    collisionChecker->updateTransforms(poseCurrent);
+    collisionChecker->isInCollision(poseCurrent, std::vector<Real>(3, 0.0));
 }
 
 bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequest &req, squirrel_motion_planner_msgs::PlanPoseResponse &res)
@@ -512,7 +512,7 @@ bool Planner::serviceCallGetOctomap()
     return false;
   }
 
-  octree = dynamic_cast<octomap::OcTree*>(octomap_msgs::fullMsgToMap(res.map));
+  octomap::OcTree* octree = dynamic_cast<octomap::OcTree*>(octomap_msgs::fullMsgToMap(res.map));
   if (octree == NULL)
   {
     ROS_ERROR("Received octomap is empty, planning will not be executed.");
@@ -539,26 +539,25 @@ bool Planner::serviceCallGetOctomap()
     }
 
   octree->prune();
+  collisionChecker->setOcTree(octree);
 
-  Real x = (rand() % 1024) / 512.0;
-
-  moveit_msgs::PlanningScene msgScene;
-  msgScene.name = "octomap_scene";
-  msgScene.is_diff = true;
-  msgScene.world.octomap.header.frame_id = "map";
-  msgScene.world.octomap.header.stamp = ros::Time::now();
-  msgScene.world.octomap.header.seq = 0;
-  msgScene.world.octomap.octomap.header = msgScene.world.octomap.header;
-  msgScene.world.octomap.origin.orientation.w = 1.0;
-  msgScene.world.octomap.origin.orientation.x = 0.0;
-  msgScene.world.octomap.origin.orientation.y = 0.0;
-  msgScene.world.octomap.origin.orientation.z = 0.0;
-  msgScene.world.octomap.origin.position.x = x;
-  msgScene.world.octomap.origin.position.y = 0.0;
-  msgScene.world.octomap.origin.position.z = 0.0;
-  msgScene.world.octomap.octomap = res.map;
-
-  publisherPlanningScene.publish(msgScene);
+//  moveit_msgs::PlanningScene msgScene;
+//  msgScene.name = "octomap_scene";
+//  msgScene.is_diff = true;
+//  msgScene.world.octomap.header.frame_id = "map";
+//  msgScene.world.octomap.header.stamp = ros::Time::now();
+//  msgScene.world.octomap.header.seq = 0;
+//  msgScene.world.octomap.octomap.header = msgScene.world.octomap.header;
+//  msgScene.world.octomap.origin.orientation.w = 1.0;
+//  msgScene.world.octomap.origin.orientation.x = 0.0;
+//  msgScene.world.octomap.origin.orientation.y = 0.0;
+//  msgScene.world.octomap.origin.orientation.z = 0.0;
+//  msgScene.world.octomap.origin.position.x = 0.0;
+//  msgScene.world.octomap.origin.position.y = 0.0;
+//  msgScene.world.octomap.origin.position.z = 0.0;
+//  msgScene.world.octomap.octomap = res.map;
+//
+//  publisherPlanningScene.publish(msgScene);
 
   if (publisherOctomap.getNumSubscribers() > 0)
   {
@@ -588,6 +587,7 @@ void Planner::interactiveMarkerHandler(const visualization_msgs::InteractiveMark
 
 void Planner::createOccupancyMapFromOctomap()
 {
+  octomap::OcTree* octree;
   Real octreeMinZ, octreeMaxZ;
   Int octreeKeyMinX, octreeKeyMinY, octreeKeyMinZ;
   Int octreeKeyMaxX, octreeKeyMaxY, octreeKeyMaxZ;
@@ -1307,12 +1307,13 @@ inline void Planner::loadParameter(const string &name, std::vector<Real> &member
 
 inline bool Planner::isOctreeNodeOccupied(const octomap::OcTreeKey &key) const
 {
-  octomap::OcTreeNode* node = octree->search(key);
-
-  if (node != NULL)
-    return octree->isNodeOccupied(node);
-  else
-    return false;
+//  octomap::OcTreeNode* node = octree->search(key);
+//
+//  if (node != NULL)
+//    return octree->isNodeOccupied(node);
+//  else
+//    return false;
+  return false;
 }
 
 inline Tuple2D Planner::getPointFromCell(const Cell2D &cell) const
