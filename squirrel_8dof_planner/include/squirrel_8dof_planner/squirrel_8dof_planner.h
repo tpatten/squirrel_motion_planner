@@ -31,8 +31,8 @@
 #include <octomap/octomap.h>
 #include <octomap_msgs/conversions.h>
 #include <octomap_server/OctomapServer.h>
+#include <squirrel_8dof_planner/collision_checker.hpp>
 #include <squirrel_8dof_planner/squirrel_8dof_planner_structures.hpp>
-#include <squirrel_8dof_planner/base_pose_finder.h>
 
 namespace SquirrelMotionPlanner
 {
@@ -72,7 +72,7 @@ class Planner
   /*
    * Base Pose Finder
    */
-  BasePoseFinder basePoseFinder;
+  CollisionChecker* collisionChecker;
 
   /*
    * General search settings
