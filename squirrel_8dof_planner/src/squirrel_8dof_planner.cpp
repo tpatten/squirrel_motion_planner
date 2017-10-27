@@ -348,9 +348,6 @@ void Planner::subscriberPoseHandler(const sensor_msgs::JointState &msg)
     else if (msg.name[i] == "base_jointz")
       poseCurrent[2] = msg.position[i];
   }
-
-  if(collisionChecker != NULL)
-    collisionChecker->isInCollision(poseCurrent, std::vector<Real>(3, 0.0));
 }
 
 bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequest &req, squirrel_motion_planner_msgs::PlanPoseResponse &res)

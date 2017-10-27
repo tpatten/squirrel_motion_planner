@@ -56,7 +56,6 @@
     <disable_collisions link1="base_x_link" link2="hand_right_finger_upper_link" reason="Default"/>
     <disable_collisions link1="base_x_link" link2="hand_cableCanal_link" reason="Default"/>
     <disable_collisions link1="base_x_link" link2="kinect_link" reason="Default"/>
-
     <disable_collisions link1="base_y_link" link2="base_link_origin" reason="Default"/>
     <disable_collisions link1="base_y_link" link2="base_x_link" reason="Default"/>
     <disable_collisions link1="base_y_link" link2="base_theta_link" reason="Default"/>
@@ -90,7 +89,6 @@
     <disable_collisions link1="base_y_link" link2="hand_right_finger_upper_link" reason="Default"/>
     <disable_collisions link1="base_y_link" link2="hand_cableCanal_link" reason="Default"/>
     <disable_collisions link1="base_y_link" link2="kinect_link" reason="Default"/>
-
     <disable_collisions link1="base_theta_link" link2="base_link_origin" reason="Default"/>
     <disable_collisions link1="base_theta_link" link2="base_x_link" reason="Default"/>
     <disable_collisions link1="base_theta_link" link2="base_y_link" reason="Default"/>
@@ -124,7 +122,6 @@
     <disable_collisions link1="base_theta_link" link2="hand_right_finger_upper_link" reason="Default"/>
     <disable_collisions link1="base_theta_link" link2="hand_cableCanal_link" reason="Default"/>
     <disable_collisions link1="base_theta_link" link2="kinect_link" reason="Default"/>
-
     <disable_collisions link1="arm_base_link" link2="arm_link1" reason="Adjacent" />
     <disable_collisions link1="arm_base_link" link2="arm_link2" reason="Never" />
     <disable_collisions link1="arm_base_link" link2="arm_link3" reason="Never" />

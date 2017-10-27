@@ -6,6 +6,7 @@
 #include <sstream>
 #include <vector>
 #include <stdint.h>
+#include <map>
 
 #include <ros/ros.h>
 #include <ros/package.h>
@@ -107,6 +108,8 @@ private:
 
     if (!initializeFCL())
       return false;
+
+    findSelfCollisionPairsFCL();
 
     return true;
   }
@@ -271,6 +274,93 @@ private:
     }
     return true;
   }
+
+  void findSelfCollisionPairsFCL()
+  {
+    std::string pathSRDF;
+    pathSRDF = ros::package::getPath("squirrel_8dof_planner");
+    pathSRDF += "/config/robotino_plan.srdf";
+
+    std::vector<std::pair<std::string, std::string> > disPairs;
+    if (!parseSRDF(pathSRDF, disPairs) || disPairs.size() == 0 || links.size() == 0)
+    {
+      //all self collisions are used
+      for (UInt i = 0; i < links.size(); ++i)
+        for (UInt j = i + 1; j < links.size(); ++j)
+          selfCollisionPairs.push_back(std::make_pair(&links[i], &links[j]));
+    }
+    else
+    {
+      //use disabled links to only add the other links
+      std::map<std::string, UInt> linkIndices;
+      for (UInt i = 0; i < links.size(); ++i)
+        linkIndices[links[i].name] = i;
+
+      std::vector<std::vector<bool> > collisionMatrix(links.size(), std::vector<bool>(links.size(), true));
+
+      for (UInt i = 0; i < disPairs.size(); ++i)
+      {
+        collisionMatrix[linkIndices[disPairs[i].first]][linkIndices[disPairs[i].second]] = false;
+        collisionMatrix[linkIndices[disPairs[i].second]][linkIndices[disPairs[i].first]] = false;
+      }
+
+      for (UInt i = 0; i < links.size(); ++i)
+        for (UInt j = i + 1; j < links.size(); ++j)
+          if (collisionMatrix[i][j])
+            selfCollisionPairs.push_back(std::make_pair(&links[i], &links[j]));
+    }
+
+    std::cout << "Checking a total of " << selfCollisionPairs.size() << " self collision pairs." << std::endl;
+  }
+
+  bool parseSRDF(const std::string &filePath, std::vector<std::pair<std::string, std::string> > &disabledPairs) const
+  {
+    std::ifstream file(filePath.c_str());
+    if (!file.good())
+      return false;
+
+    std::string line;
+    while (std::getline(file, line))
+    {
+      if (line.find("<disable_collisions") != std::string::npos)
+      {
+        std::string link1, link2;
+        getLinksFromString(line, link1, link2);
+        disabledPairs.push_back(std::make_pair(link1, link2));
+      }
+    }
+
+    return true;
+  }
+
+  void getLinksFromString(const std::string &line, std::string &link1, std::string &link2) const
+  {
+    UInt posStart = line.find("link1"), nameLength, posTmp;
+    posStart += 7;
+    posTmp = posStart;
+    nameLength = 0;
+    while (posTmp < line.size() && line.at(posTmp) != '"')
+    {
+      ++nameLength;
+      ++posTmp;
+    }
+
+    link1 = line.substr(posStart, nameLength);
+
+    posStart = line.find("link2");
+    posStart += 7;
+    posTmp = posStart;
+    nameLength = 0;
+    while (posTmp < line.size() && line.at(posTmp) != '"')
+    {
+      ++nameLength;
+      ++posTmp;
+    }
+
+    link2 = line.substr(posStart, nameLength);
+  }
+
+  // ******************** COLLISION CHECKING ********************
 
   void updateTransforms(const std::vector<Real> &jointPositions, const std::vector<Real> &basePosition)
   {

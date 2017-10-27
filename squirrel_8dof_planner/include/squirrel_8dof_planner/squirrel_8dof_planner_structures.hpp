@@ -160,6 +160,10 @@ struct Tuple2D
   }
 };
 
+/**
+ * @brief A 3D tuple structure with an x, y, and z value.
+ * Used for representing a 3D floating point tuple, e.g., a metric 3D coordinate.
+ */
 struct Tuple3D
 {
   Real x;
