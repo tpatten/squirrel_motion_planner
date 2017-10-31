@@ -1,7 +1,4 @@
 #include <birrt_star_algorithm/birrt_star.h>
-#include <moveit/planning_scene_interface/planning_scene_interface.h>
-//#include <ompl/util/RandomNumbers.h>
-#include <tf/transform_listener.h>
 
 namespace birrt_star_motion_planning
 {
@@ -41,8 +38,8 @@ BiRRTstarPlanner::BiRRTstarPlanner(string planning_group)
 
   //Get Planning Environment Size
   //m_planning_world = boost::shared_ptr<planning_world::PlanningWorldBuilder>(new planning_world::PlanningWorldBuilder("robot_description", planning_group));
-  m_planning_world = boost::shared_ptr<planning_world::PlanningWorldBuilder>(
-      new planning_world::PlanningWorldBuilder(robot_description_robot, planning_group, m_ns_prefix_robot));
+//  m_planning_world = boost::shared_ptr<planning_world::PlanningWorldBuilder>(
+//      new planning_world::PlanningWorldBuilder(robot_description_robot, planning_group, m_ns_prefix_robot));
 
   //Set default environment size
   m_env_size_x.resize(2);
@@ -53,7 +50,7 @@ BiRRTstarPlanner::BiRRTstarPlanner(string planning_group)
   m_env_size_y[1] = 0.0; //env dim in positive y dir
 
   //Set default scene name
-  m_planning_world->setSceneName("motion_plan");
+  //m_planning_world->setSceneName("motion_plan");
 
   //Create Robot model
   //m_KDLRobotModel = boost::shared_ptr<kuka_motion_controller::KDLRobotModel>(new kuka_motion_controller::KDLRobotModel("robot_description", "planning_scene", "endeffector_trajectory", m_planning_group));
@@ -557,6 +554,8 @@ bool BiRRTstarPlanner::init_planner(vector<double> start_conf, vector<double> go
     return false;
   }
 
+  m_FeasibilityChecker->checkCount = 0;
+
   //Convert start and goal configuration into KDL Joint Array
   KDL::JntArray start_configuration = m_RobotMotionController->Vector_to_JntArray(start_conf);
   KDL::JntArray goal_configuration = m_RobotMotionController->Vector_to_JntArray(goal_conf);
@@ -590,10 +589,6 @@ bool BiRRTstarPlanner::init_planner(vector<double> start_conf, vector<double> go
     m_task_frame = m_KDLRobotModel->compute_FK_frame(m_manipulator_chain, start_configuration);
   }
 
-  //Compute Heuristic for root node (either distance between start and goal config or between start and goal endeffector pose)
-  //m_cost_theoretical_solution_path[0] -> total
-  //m_cost_theoretical_solution_path[1] -> revolute distance norm
-  //m_cost_theoretical_solution_path[2] -> prismatic distance norm
   if (search_space == 0) //Planning in Control Space
     m_cost_theoretical_solution_path[0] = m_Heuristic.euclidean_pose_distance(ee_start_pose, ee_goal_pose);
   else if (search_space == 1) //Planning in Joint Space
@@ -1204,449 +1199,449 @@ bool BiRRTstarPlanner::init_planner(vector<double> ee_start_pose, vector<int> co
 }
 
 //Run RRT* Planner given a target pose for the endeffector (last link along planning chain) w.r.t the /map frame
-bool BiRRTstarPlanner::init_planner_real_robot_goal_pose(const Eigen::Affine3d& goal, const vector<int> constraint_vec_goal_pose,
-                                                         const vector<pair<double, double> > target_coordinate_dev, const string planner_type)
-{
-  //------------ START CONFIG (from LOCALIZATION Node) --------------
-  vector<double> start_conf(m_num_joints);
-
-  //Set zero config
-  for (int j = 0; j < m_num_joints; j++)
-    start_conf[j] = 0.0;
-
-  //Determine whether one of the revolute joints belong to the base (i.e. theta joint)
-  // -> If yes, set the index where the manipulator joints start in the start_conf vector
-  int offset_manipulator_joint_indices = 0;
-  if ((m_num_joints_prismatic == 2 && m_num_joints_revolute != 0) || m_num_joints_revolute > 7)
-    offset_manipulator_joint_indices = 1;
-
-  //There are revolute joints that belong to the manipulator
-  if (m_num_joints_revolute > 1)
-  {
-    //WAIT FOR START CONFIG (get from /joint_states topic)
-    while (!m_lbr_joint_state_received)
-    {
-      ROS_INFO("Current Manipulator Joint State not available yet");
-
-      ros::spinOnce();
-    }
-
-    int start_manipulator_joint_indices = m_num_joints_prismatic + offset_manipulator_joint_indices;
-    for (int j = start_manipulator_joint_indices; j < m_num_joints; j++)
-      start_conf[j] = m_lbr_joint_state[j - start_manipulator_joint_indices];
-  }
-
-  //------------ GOAL CONFIG (from LOCALIZATION Node) --------------
-
-  //Planning is performed for mobile base
-  // Note: For base planning the goal pose is equal to the goal configuration, i.e. (x,y,theta) -> therefore no control-based config generation is run
-  if (m_num_joints_prismatic == 2 && m_num_joints_revolute == 1)
-  {
-    //Get goal config of base from input (in /map frame)
-    double goal_x_map, goal_y_map, goal_theta_map;
-
-    //Get rot_x, rot_y, rot_z
-    Eigen::Matrix3d rot = goal.linear();
-    Eigen::Vector3d angles = rot.eulerAngles(0, 1, 2);
-
-    //Set desired x,y,theta for base (in /map frame)
-    goal_x_map = goal.translation().x();
-    goal_y_map = goal.translation().y();
-    goal_theta_map = angles(2);
-
-    //Transform map to goal frame
-    tf::StampedTransform transform_map_to_goal;
-    transform_map_to_goal.setOrigin(tf::Vector3(goal_x_map, goal_y_map, 0.0));
-    transform_map_to_goal.setRotation(tf::createQuaternionFromYaw(goal_theta_map));
-    //transform_map_to_goal.setRotation(tf::createQuaternionFromYaw(goal_theta_map * (M_PI/180.0)));
-
-    //Get current pose of robot in the map frame
-    tf::TransformListener listener;
-    tf::StampedTransform transform_map_to_base;
-    try
-    {
-      listener.waitForTransform("/map", m_ns_prefix_robot + "base_link", ros::Time(0), ros::Duration(10.0));
-      listener.lookupTransform("/map", m_ns_prefix_robot + "base_link", ros::Time(0), transform_map_to_base);
-    }
-    catch (tf::TransformException ex)
-    {
-      ROS_ERROR("%s", ex.what());
-      ROS_ERROR("Transform /map to /base_link not available!");
-      return false;
-    }
-
-    //Transform goal from map to base frame
-    tf::StampedTransform transform_base_to_goal;
-    transform_base_to_goal.mult(transform_map_to_base.inverse(), transform_map_to_goal);
-
-    //Set Goal (in /base_link frame)
-    vector<double> goal_conf_base(3);
-    tf::Vector3 goal_trans_base = transform_base_to_goal.getOrigin();
-    tf::Quaternion goal_rot_base = transform_base_to_goal.getRotation();
-    goal_conf_base[0] = goal_trans_base.x();
-    goal_conf_base[1] = goal_trans_base.y();
-    double z_dir = transform_base_to_goal.getRotation().getAxis().z();
-    goal_conf_base[2] = z_dir > 0.0 ? goal_rot_base.getAngle() : -goal_rot_base.getAngle();
-
-    cout << "Goal pose in base frame" << endl;
-    //cout << goal_pose_base.matrix() << endl << endl;
-    cout << goal_conf_base[0] << endl;
-    cout << goal_conf_base[1] << endl;
-    cout << goal_conf_base[2] << endl << endl;
-
-    //cout <<goal_rot_base.getAngle() << endl;
-    //cout <<goal_rot_base.getAxis().z() << endl;
-
-    //Compute distance between start and goal config
-    double x_start_goal_dist = goal_conf_base[0] - start_conf[0];
-    double y_start_goal_dist = goal_conf_base[1] - start_conf[1];
-    double theta_start_goal_dist = goal_conf_base[2] - start_conf[2];
-    //Minimal distances required between start and goal config to trigger planning
-    double x_min_dist, y_min_dist, theta_min_dist;
-    x_min_dist = 0.1; //10 cm
-    y_min_dist = 0.1; //10 cm
-    theta_min_dist = 0.5236; // 30 degree
-
-    //Check whether planning is required
-    if (fabs(x_start_goal_dist) < x_min_dist && fabs(y_start_goal_dist) < y_min_dist && fabs(theta_start_goal_dist) < theta_min_dist)
-    {
-      //Trajectory must have at least two points
-      m_result_joint_trajectory.push_back(start_conf);
-      m_result_joint_trajectory.push_back(start_conf);
-
-      //Set planner type
-      m_planner_type = planner_type;
-      //Get scenario name
-      string scenario_name = m_planning_world->getSceneName();
-
-      //Set path to the file that will store the planned joint trajectory
-      string folder_path = m_planner_package_path + "/data/" + m_planner_type + "/" + scenario_name + "_joint_trajectory_run_0.txt";
-      m_file_path_joint_trajectory = new char[folder_path.size() + 1];
-      copy(folder_path.begin(), folder_path.end(), m_file_path_joint_trajectory);
-      m_file_path_joint_trajectory[folder_path.size()] = '\0'; // don't forget the terminating 0
-      //cout<<m_file_path_joint_trajectory<<endl;
-
-      m_KDLRobotModel->writeTrajectoryToFile(m_result_joint_trajectory, m_file_path_joint_trajectory);
-
-      //Robot already at target pose (success = true)
-      return true;
-    }
-
-    //------------ PLANNER INITIALIZATION --------------
-
-    //Initialize Planner
-    bool init_ok = init_planner(start_conf, goal_conf_base, 1);
-    //Remark: Fails is start or goal config (start_conf_base,goal_conf_base) is invalid
-
-    return init_ok;
-  }
-
-  //Planning is performed for manipulator
-  if (m_num_joints_prismatic == 0 && m_num_joints_revolute != 0)
-  {
-    //------------ GOAL ENDEFFECTOR POSE (from function input) --------------
-
-    //Get endeffector goal pose from input (in /map frame)
-    double goal_x_map, goal_y_map, goal_z_map, goal_rot_x_map, goal_rot_y_map, goal_rot_z_map;
-
-    //Get rot_x, rot_y, rot_z
-    Eigen::Matrix3d rot = goal.linear();
-    Eigen::Vector3d angles = rot.eulerAngles(0, 1, 2);
-
-    //Set desired x,y,z,rotX,rotY,rotZ for endeffector (in /map frame)
-    goal_x_map = goal.translation().x();
-    goal_y_map = goal.translation().y();
-    goal_z_map = goal.translation().z();
-    goal_rot_x_map = angles(0); //roll
-    goal_rot_y_map = angles(1); //pitch
-    goal_rot_z_map = angles(2); //yaw
-
-    //Transform from map to endeffector goal frame
-    tf::StampedTransform transform_map_to_ee_goal;
-    transform_map_to_ee_goal.setOrigin(tf::Vector3(goal_x_map, goal_y_map, goal_z_map));
-    transform_map_to_ee_goal.setRotation(tf::createQuaternionFromRPY(goal_rot_x_map, goal_rot_y_map, goal_rot_z_map));
-
-    //Get current robot arm base pose (in the /map frame)
-    tf::TransformListener listener;
-    tf::StampedTransform transform_map_to_arm_base;
-    try
-    {
-      listener.waitForTransform("/map", m_ns_prefix_robot + "lbr_0_link", ros::Time(0), ros::Duration(10.0));
-      listener.lookupTransform("/map", m_ns_prefix_robot + "lbr_0_link", ros::Time(0), transform_map_to_arm_base);
-    }
-    catch (tf::TransformException ex)
-    {
-      ROS_ERROR("%s", ex.what());
-      ROS_ERROR("Transform /map to /lbr_0_link not available!");
-      return false;
-    }
-
-    //Transform ee goal from map to robot arm base frame
-    tf::StampedTransform transform_arm_base_to_goal;
-    transform_arm_base_to_goal.mult(transform_map_to_arm_base.inverse(), transform_map_to_ee_goal);
-
-    //Set Goal (in /lbr_0_link frame)
-    vector<double> goal_pose_endeffector(6);
-    //Position
-    tf::Vector3 goal_trans_ee = transform_arm_base_to_goal.getOrigin();
-    goal_pose_endeffector[0] = goal_trans_ee.x();
-    goal_pose_endeffector[1] = goal_trans_ee.y();
-    goal_pose_endeffector[2] = goal_trans_ee.z();
-    //Orientation
-    tf::Quaternion goal_rot_ee = transform_arm_base_to_goal.getRotation();
-    tf::Matrix3x3 m(goal_rot_ee);
-    m.getRPY(goal_pose_endeffector[3], goal_pose_endeffector[4], goal_pose_endeffector[5]); //Roll, Pitch, Yaw
-
-    cout << "Goal endeffector pose in robot arm base frame" << endl;
-    cout << "Position" << endl;
-    cout << goal_pose_endeffector[0] << endl;
-    cout << goal_pose_endeffector[1] << endl;
-    cout << goal_pose_endeffector[2] << endl;
-    cout << "Orientation" << endl;
-    cout << goal_pose_endeffector[3] << endl;
-    cout << goal_pose_endeffector[4] << endl;
-    cout << goal_pose_endeffector[5] << endl << endl;
-
-    //------------ PLANNER INITIALIZATION --------------
-
-    //Initialize Planner
-    //Syntax: init_planner(vector<double> start_conf, vector<double> ee_goal_pose, vector<int> constraint_vec_goal_pose, vector<pair<double,double> > coordinate_dev, int search_space)
-    bool init_ok = init_planner(start_conf, goal_pose_endeffector, constraint_vec_goal_pose, target_coordinate_dev, 1);
-    //Remark: Fails is start or goal config (start_conf_base,goal_conf_base) is invalid
-
-    return init_ok;
-  }
-
-  //Planning is performed for mobile manipulator
-  // -> Note: In this case the goal pose corresponds to the goal config -> thus no need to run controller to generate goal config
-  if (m_num_joints_prismatic == 2 && m_num_joints_revolute > 1)
-  {
-    //------------ GOAL ENDEFFECTOR POSE (from function input) --------------
-
-    //Get endeffector goal pose from input (in /map frame)
-    double goal_x_map, goal_y_map, goal_z_map, goal_rot_x_map, goal_rot_y_map, goal_rot_z_map;
-
-    //Get rot_x, rot_y, rot_z
-    Eigen::Matrix3d rot = goal.linear();
-    Eigen::Vector3d angles = rot.eulerAngles(0, 1, 2);
-
-    //Set desired x,y,z,rotX,rotY,rotZ for endeffector (in /map frame)
-    goal_x_map = goal.translation().x();
-    goal_y_map = goal.translation().y();
-    goal_z_map = goal.translation().z();
-    goal_rot_x_map = angles(0); //roll
-    goal_rot_y_map = angles(1); //pitch
-    goal_rot_z_map = angles(2); //yaw
-
-    //Transform from map to endeffector goal frame
-    tf::StampedTransform transform_map_to_ee_goal;
-    transform_map_to_ee_goal.setOrigin(tf::Vector3(goal_x_map, goal_y_map, goal_z_map));
-    transform_map_to_ee_goal.setRotation(tf::createQuaternionFromRPY(goal_rot_x_map, goal_rot_y_map, goal_rot_z_map));
-
-    //Get current robot arm base pose (in the /map frame)
-    tf::TransformListener listener;
-    tf::StampedTransform transform_map_to_base;
-    try
-    {
-      listener.waitForTransform("/map", m_ns_prefix_robot + "base_link", ros::Time(0), ros::Duration(10.0));
-      listener.lookupTransform("/map", m_ns_prefix_robot + "base_link", ros::Time(0), transform_map_to_base);
-    }
-    catch (tf::TransformException ex)
-    {
-      ROS_ERROR("%s", ex.what());
-      ROS_ERROR("Transform /map to /base_link not available!");
-      return false;
-    }
-
-    //Transform from /base_link frame to goal ee frame
-    tf::StampedTransform transform_base_to_ee_goal;
-    transform_base_to_ee_goal.mult(transform_map_to_base.inverse(), transform_map_to_ee_goal);
-
-    //Set Goal (in /base_link frame)
-    vector<double> goal_pose_endeffector(6);
-    //Position
-    tf::Vector3 goal_trans_ee = transform_base_to_ee_goal.getOrigin();
-    goal_pose_endeffector[0] = goal_trans_ee.x();
-    goal_pose_endeffector[1] = goal_trans_ee.y();
-    goal_pose_endeffector[2] = goal_trans_ee.z();
-    //Orientation
-    tf::Quaternion goal_rot_ee = transform_base_to_ee_goal.getRotation();
-    tf::Matrix3x3 m(goal_rot_ee);
-    m.getRPY(goal_pose_endeffector[3], goal_pose_endeffector[4], goal_pose_endeffector[5]); //Roll, Pitch, Yaw
-
-    cout << "Goal endeffector pose in robot base link frame" << endl;
-    cout << "Position" << endl;
-    cout << goal_pose_endeffector[0] << endl;
-    cout << goal_pose_endeffector[1] << endl;
-    cout << goal_pose_endeffector[2] << endl;
-    cout << "Orientation" << endl;
-    cout << goal_pose_endeffector[3] << endl;
-    cout << goal_pose_endeffector[4] << endl;
-    cout << goal_pose_endeffector[5] << endl << endl;
-
-    //------------ PLANNER INITIALIZATION --------------
-
-    //Initialize Planner
-    //Syntax: init_planner(vector<double> start_conf, vector<double> ee_goal_pose, vector<int> constraint_vec_goal_pose, vector<pair<double,double> > coordinate_dev, int search_space)
-    bool init_ok = init_planner(start_conf, goal_pose_endeffector, constraint_vec_goal_pose, target_coordinate_dev, 1);
-
-    //Remark: Fails is start or goal config (start_conf_base,goal_conf_base) is invalid
-  }
-
-}
-
-bool BiRRTstarPlanner::init_planner_real_robot_goal_config(const vector<double> goal, const string planner_type)
-{
-  //Check whether dimension of goal config vector is equal the number of joints in the planning group
-  if (goal.size() != m_num_joints)
-  {
-    ROS_ERROR("Dimension of configuration vector does not match number of joints in planning group!!");
-    return false;
-  }
-
-  //------------ START CONFIG (from LOCALIZATION Node) --------------
-  vector<double> start_conf(m_num_joints);
-
-  //Set zero config
-  for (int j = 0; j < m_num_joints; j++)
-    start_conf[j] = 0.0;
-
-  //Determine whether one of the revolute joints belong to the base (i.e. theta joint)
-  // -> If yes, set the index where the manipulator joints start in the start_conf vector
-  int offset_manipulator_joint_indices = 0;
-  if ((m_num_joints_prismatic == 2 && m_num_joints_revolute != 0) || m_num_joints_revolute > 7)
-    offset_manipulator_joint_indices = 1;
-
-  //There are revolute joints that belong to the manipulator
-  if (m_num_joints_revolute > 1)
-  {
-    //WAIT FOR START CONFIG (get from /joint_states topic)
-    while (!m_lbr_joint_state_received)
-    {
-      ROS_INFO("Current Manipulator Joint State not available yet");
-
-      ros::spinOnce();
-    }
-
-    int start_manipulator_joint_indices = m_num_joints_prismatic + offset_manipulator_joint_indices;
-    for (int j = start_manipulator_joint_indices; j < m_num_joints; j++)
-      start_conf[j] = m_lbr_joint_state[j - start_manipulator_joint_indices];
-  }
-
-  //------------ GOAL CONFIG (from LOCALIZATION Node) --------------
-
-  //Goal configuration in base_link frame
-  vector<double> goal_conf(m_num_joints);
-
-  //Planning includes mobile base -> thus base goal pose needs to be transformed from map frame into base_link frame
-  if (m_num_joints_prismatic == 2 && m_num_joints_revolute != 0)
-  {
-
-    //Get goal config of base from input (in /map frame)
-    double goal_x_map, goal_y_map, goal_theta_map;
-
-    //Set desired x,y,theta for base (in /map frame)
-    goal_x_map = goal[0];
-    goal_y_map = goal[1];
-    goal_theta_map = goal[2];
-
-    //Transform map to goal frame
-    tf::StampedTransform transform_map_to_goal;
-    transform_map_to_goal.setOrigin(tf::Vector3(goal_x_map, goal_y_map, 0.0));
-    transform_map_to_goal.setRotation(tf::createQuaternionFromYaw(goal_theta_map));
-    //transform_map_to_goal.setRotation(tf::createQuaternionFromYaw(goal_theta_map * (M_PI/180.0)));
-
-    //Get current pose of robot in the map frame
-    tf::TransformListener listener;
-    tf::StampedTransform transform_map_to_base;
-    try
-    {
-      listener.waitForTransform("/map", m_ns_prefix_robot + "base_link", ros::Time(0), ros::Duration(10.0));
-      listener.lookupTransform("/map", m_ns_prefix_robot + "base_link", ros::Time(0), transform_map_to_base);
-    }
-    catch (tf::TransformException ex)
-    {
-      ROS_ERROR("%s", ex.what());
-      ROS_ERROR("Transform /map to /base_link not available!");
-      return false;
-    }
-
-    //Transform goal from map to base frame
-    tf::StampedTransform transform_base_to_goal;
-    transform_base_to_goal.mult(transform_map_to_base.inverse(), transform_map_to_goal);
-
-    //Set Goal (in /base_link frame)
-    tf::Vector3 goal_trans_base = transform_base_to_goal.getOrigin();
-    tf::Quaternion goal_rot_base = transform_base_to_goal.getRotation();
-    goal_conf[0] = goal_trans_base.x();
-    goal_conf[1] = goal_trans_base.y();
-    double z_dir = transform_base_to_goal.getRotation().getAxis().z();
-    goal_conf[2] = z_dir > 0.0 ? goal_rot_base.getAngle() : -goal_rot_base.getAngle();
-
-    cout << "Goal pose in base frame" << endl;
-    //cout << goal_pose_base.matrix() << endl << endl;
-    cout << goal_conf[0] << endl;
-    cout << goal_conf[1] << endl;
-    cout << goal_conf[2] << endl << endl;
-
-    //Check whether planning group includes only the revolute joint of the mobile base
-    // -> If yes, check whether the base is already at the correct pose or planning is required
-    if (m_num_joints_revolute == 1)
-    {
-      //Compute distance between start and goal config
-      double x_start_goal_dist = goal_conf[0] - start_conf[0];
-      double y_start_goal_dist = goal_conf[1] - start_conf[1];
-      double theta_start_goal_dist = goal_conf[2] - start_conf[2];
-      //Minimal distances required between start and goal config to trigger planning
-      double x_min_dist, y_min_dist, theta_min_dist;
-      x_min_dist = 0.1; //10 cm
-      y_min_dist = 0.1; //10 cm
-      theta_min_dist = 0.5236; // 30 degree
-
-      //Check whether planning is required
-      if (fabs(x_start_goal_dist) < x_min_dist && fabs(y_start_goal_dist) < y_min_dist && fabs(theta_start_goal_dist) < theta_min_dist)
-      {
-        //Trajectory must have at least two points
-        m_result_joint_trajectory.push_back(start_conf);
-        m_result_joint_trajectory.push_back(start_conf);
-
-        //Set planner type
-        m_planner_type = planner_type;
-        //Get scenario name
-        string scenario_name = m_planning_world->getSceneName();
-
-        //Set path to the file that will store the planned joint trajectory
-        string folder_path = m_planner_package_path + "/data/" + m_planner_type + "/" + scenario_name + "_joint_trajectory_run_0.txt";
-        m_file_path_joint_trajectory = new char[folder_path.size() + 1];
-        copy(folder_path.begin(), folder_path.end(), m_file_path_joint_trajectory);
-        m_file_path_joint_trajectory[folder_path.size()] = '\0'; // don't forget the terminating 0
-        //cout<<m_file_path_joint_trajectory<<endl;
-
-        m_KDLRobotModel->writeTrajectoryToFile(m_result_joint_trajectory, m_file_path_joint_trajectory);
-
-        //Robot already at target pose (success = true)
-        return true;
-      }
-    }
-  }
-
-  //Planning is performed using also joints of the manipulator
-  if (m_num_joints_revolute > 1)
-  {
-    int start_manipulator_joint_indices = m_num_joints_prismatic + offset_manipulator_joint_indices;
-    for (int j = start_manipulator_joint_indices; j < m_num_joints; j++)
-      goal_conf[j] = goal[j];
-
-  }
-
-  //------------ PLANNER INITIALIZATION --------------
-
-  //Initialize Planner
-  bool init_ok = init_planner(start_conf, goal_conf, 1);
-  //Remark: Fails is start or goal config (start_conf_base,goal_conf_base) is invalid
-
-  return init_ok;
-}
+//bool BiRRTstarPlanner::init_planner_real_robot_goal_pose(const Eigen::Affine3d& goal, const vector<int> constraint_vec_goal_pose,
+//                                                         const vector<pair<double, double> > target_coordinate_dev, const string planner_type)
+//{
+//  //------------ START CONFIG (from LOCALIZATION Node) --------------
+//  vector<double> start_conf(m_num_joints);
+//
+//  //Set zero config
+//  for (int j = 0; j < m_num_joints; j++)
+//    start_conf[j] = 0.0;
+//
+//  //Determine whether one of the revolute joints belong to the base (i.e. theta joint)
+//  // -> If yes, set the index where the manipulator joints start in the start_conf vector
+//  int offset_manipulator_joint_indices = 0;
+//  if ((m_num_joints_prismatic == 2 && m_num_joints_revolute != 0) || m_num_joints_revolute > 7)
+//    offset_manipulator_joint_indices = 1;
+//
+//  //There are revolute joints that belong to the manipulator
+//  if (m_num_joints_revolute > 1)
+//  {
+//    //WAIT FOR START CONFIG (get from /joint_states topic)
+//    while (!m_lbr_joint_state_received)
+//    {
+//      ROS_INFO("Current Manipulator Joint State not available yet");
+//
+//      ros::spinOnce();
+//    }
+//
+//    int start_manipulator_joint_indices = m_num_joints_prismatic + offset_manipulator_joint_indices;
+//    for (int j = start_manipulator_joint_indices; j < m_num_joints; j++)
+//      start_conf[j] = m_lbr_joint_state[j - start_manipulator_joint_indices];
+//  }
+//
+//  //------------ GOAL CONFIG (from LOCALIZATION Node) --------------
+//
+//  //Planning is performed for mobile base
+//  // Note: For base planning the goal pose is equal to the goal configuration, i.e. (x,y,theta) -> therefore no control-based config generation is run
+//  if (m_num_joints_prismatic == 2 && m_num_joints_revolute == 1)
+//  {
+//    //Get goal config of base from input (in /map frame)
+//    double goal_x_map, goal_y_map, goal_theta_map;
+//
+//    //Get rot_x, rot_y, rot_z
+//    Eigen::Matrix3d rot = goal.linear();
+//    Eigen::Vector3d angles = rot.eulerAngles(0, 1, 2);
+//
+//    //Set desired x,y,theta for base (in /map frame)
+//    goal_x_map = goal.translation().x();
+//    goal_y_map = goal.translation().y();
+//    goal_theta_map = angles(2);
+//
+//    //Transform map to goal frame
+//    tf::StampedTransform transform_map_to_goal;
+//    transform_map_to_goal.setOrigin(tf::Vector3(goal_x_map, goal_y_map, 0.0));
+//    transform_map_to_goal.setRotation(tf::createQuaternionFromYaw(goal_theta_map));
+//    //transform_map_to_goal.setRotation(tf::createQuaternionFromYaw(goal_theta_map * (M_PI/180.0)));
+//
+//    //Get current pose of robot in the map frame
+//    tf::TransformListener listener;
+//    tf::StampedTransform transform_map_to_base;
+//    try
+//    {
+//      listener.waitForTransform("/map", m_ns_prefix_robot + "base_link", ros::Time(0), ros::Duration(10.0));
+//      listener.lookupTransform("/map", m_ns_prefix_robot + "base_link", ros::Time(0), transform_map_to_base);
+//    }
+//    catch (tf::TransformException ex)
+//    {
+//      ROS_ERROR("%s", ex.what());
+//      ROS_ERROR("Transform /map to /base_link not available!");
+//      return false;
+//    }
+//
+//    //Transform goal from map to base frame
+//    tf::StampedTransform transform_base_to_goal;
+//    transform_base_to_goal.mult(transform_map_to_base.inverse(), transform_map_to_goal);
+//
+//    //Set Goal (in /base_link frame)
+//    vector<double> goal_conf_base(3);
+//    tf::Vector3 goal_trans_base = transform_base_to_goal.getOrigin();
+//    tf::Quaternion goal_rot_base = transform_base_to_goal.getRotation();
+//    goal_conf_base[0] = goal_trans_base.x();
+//    goal_conf_base[1] = goal_trans_base.y();
+//    double z_dir = transform_base_to_goal.getRotation().getAxis().z();
+//    goal_conf_base[2] = z_dir > 0.0 ? goal_rot_base.getAngle() : -goal_rot_base.getAngle();
+//
+//    cout << "Goal pose in base frame" << endl;
+//    //cout << goal_pose_base.matrix() << endl << endl;
+//    cout << goal_conf_base[0] << endl;
+//    cout << goal_conf_base[1] << endl;
+//    cout << goal_conf_base[2] << endl << endl;
+//
+//    //cout <<goal_rot_base.getAngle() << endl;
+//    //cout <<goal_rot_base.getAxis().z() << endl;
+//
+//    //Compute distance between start and goal config
+//    double x_start_goal_dist = goal_conf_base[0] - start_conf[0];
+//    double y_start_goal_dist = goal_conf_base[1] - start_conf[1];
+//    double theta_start_goal_dist = goal_conf_base[2] - start_conf[2];
+//    //Minimal distances required between start and goal config to trigger planning
+//    double x_min_dist, y_min_dist, theta_min_dist;
+//    x_min_dist = 0.1; //10 cm
+//    y_min_dist = 0.1; //10 cm
+//    theta_min_dist = 0.5236; // 30 degree
+//
+//    //Check whether planning is required
+//    if (fabs(x_start_goal_dist) < x_min_dist && fabs(y_start_goal_dist) < y_min_dist && fabs(theta_start_goal_dist) < theta_min_dist)
+//    {
+//      //Trajectory must have at least two points
+//      m_result_joint_trajectory.push_back(start_conf);
+//      m_result_joint_trajectory.push_back(start_conf);
+//
+//      //Set planner type
+//      m_planner_type = planner_type;
+//      //Get scenario name
+//      //string scenario_name = m_planning_world->getSceneName();
+//
+//      //Set path to the file that will store the planned joint trajectory
+//      string folder_path = m_planner_package_path + "/data/" + m_planner_type + "/" + scenario_name + "_joint_trajectory_run_0.txt";
+//      m_file_path_joint_trajectory = new char[folder_path.size() + 1];
+//      copy(folder_path.begin(), folder_path.end(), m_file_path_joint_trajectory);
+//      m_file_path_joint_trajectory[folder_path.size()] = '\0'; // don't forget the terminating 0
+//      //cout<<m_file_path_joint_trajectory<<endl;
+//
+//      m_KDLRobotModel->writeTrajectoryToFile(m_result_joint_trajectory, m_file_path_joint_trajectory);
+//
+//      //Robot already at target pose (success = true)
+//      return true;
+//    }
+//
+//    //------------ PLANNER INITIALIZATION --------------
+//
+//    //Initialize Planner
+//    bool init_ok = init_planner(start_conf, goal_conf_base, 1);
+//    //Remark: Fails is start or goal config (start_conf_base,goal_conf_base) is invalid
+//
+//    return init_ok;
+//  }
+//
+//  //Planning is performed for manipulator
+//  if (m_num_joints_prismatic == 0 && m_num_joints_revolute != 0)
+//  {
+//    //------------ GOAL ENDEFFECTOR POSE (from function input) --------------
+//
+//    //Get endeffector goal pose from input (in /map frame)
+//    double goal_x_map, goal_y_map, goal_z_map, goal_rot_x_map, goal_rot_y_map, goal_rot_z_map;
+//
+//    //Get rot_x, rot_y, rot_z
+//    Eigen::Matrix3d rot = goal.linear();
+//    Eigen::Vector3d angles = rot.eulerAngles(0, 1, 2);
+//
+//    //Set desired x,y,z,rotX,rotY,rotZ for endeffector (in /map frame)
+//    goal_x_map = goal.translation().x();
+//    goal_y_map = goal.translation().y();
+//    goal_z_map = goal.translation().z();
+//    goal_rot_x_map = angles(0); //roll
+//    goal_rot_y_map = angles(1); //pitch
+//    goal_rot_z_map = angles(2); //yaw
+//
+//    //Transform from map to endeffector goal frame
+//    tf::StampedTransform transform_map_to_ee_goal;
+//    transform_map_to_ee_goal.setOrigin(tf::Vector3(goal_x_map, goal_y_map, goal_z_map));
+//    transform_map_to_ee_goal.setRotation(tf::createQuaternionFromRPY(goal_rot_x_map, goal_rot_y_map, goal_rot_z_map));
+//
+//    //Get current robot arm base pose (in the /map frame)
+//    tf::TransformListener listener;
+//    tf::StampedTransform transform_map_to_arm_base;
+//    try
+//    {
+//      listener.waitForTransform("/map", m_ns_prefix_robot + "lbr_0_link", ros::Time(0), ros::Duration(10.0));
+//      listener.lookupTransform("/map", m_ns_prefix_robot + "lbr_0_link", ros::Time(0), transform_map_to_arm_base);
+//    }
+//    catch (tf::TransformException ex)
+//    {
+//      ROS_ERROR("%s", ex.what());
+//      ROS_ERROR("Transform /map to /lbr_0_link not available!");
+//      return false;
+//    }
+//
+//    //Transform ee goal from map to robot arm base frame
+//    tf::StampedTransform transform_arm_base_to_goal;
+//    transform_arm_base_to_goal.mult(transform_map_to_arm_base.inverse(), transform_map_to_ee_goal);
+//
+//    //Set Goal (in /lbr_0_link frame)
+//    vector<double> goal_pose_endeffector(6);
+//    //Position
+//    tf::Vector3 goal_trans_ee = transform_arm_base_to_goal.getOrigin();
+//    goal_pose_endeffector[0] = goal_trans_ee.x();
+//    goal_pose_endeffector[1] = goal_trans_ee.y();
+//    goal_pose_endeffector[2] = goal_trans_ee.z();
+//    //Orientation
+//    tf::Quaternion goal_rot_ee = transform_arm_base_to_goal.getRotation();
+//    tf::Matrix3x3 m(goal_rot_ee);
+//    m.getRPY(goal_pose_endeffector[3], goal_pose_endeffector[4], goal_pose_endeffector[5]); //Roll, Pitch, Yaw
+//
+//    cout << "Goal endeffector pose in robot arm base frame" << endl;
+//    cout << "Position" << endl;
+//    cout << goal_pose_endeffector[0] << endl;
+//    cout << goal_pose_endeffector[1] << endl;
+//    cout << goal_pose_endeffector[2] << endl;
+//    cout << "Orientation" << endl;
+//    cout << goal_pose_endeffector[3] << endl;
+//    cout << goal_pose_endeffector[4] << endl;
+//    cout << goal_pose_endeffector[5] << endl << endl;
+//
+//    //------------ PLANNER INITIALIZATION --------------
+//
+//    //Initialize Planner
+//    //Syntax: init_planner(vector<double> start_conf, vector<double> ee_goal_pose, vector<int> constraint_vec_goal_pose, vector<pair<double,double> > coordinate_dev, int search_space)
+//    bool init_ok = init_planner(start_conf, goal_pose_endeffector, constraint_vec_goal_pose, target_coordinate_dev, 1);
+//    //Remark: Fails is start or goal config (start_conf_base,goal_conf_base) is invalid
+//
+//    return init_ok;
+//  }
+//
+//  //Planning is performed for mobile manipulator
+//  // -> Note: In this case the goal pose corresponds to the goal config -> thus no need to run controller to generate goal config
+//  if (m_num_joints_prismatic == 2 && m_num_joints_revolute > 1)
+//  {
+//    //------------ GOAL ENDEFFECTOR POSE (from function input) --------------
+//
+//    //Get endeffector goal pose from input (in /map frame)
+//    double goal_x_map, goal_y_map, goal_z_map, goal_rot_x_map, goal_rot_y_map, goal_rot_z_map;
+//
+//    //Get rot_x, rot_y, rot_z
+//    Eigen::Matrix3d rot = goal.linear();
+//    Eigen::Vector3d angles = rot.eulerAngles(0, 1, 2);
+//
+//    //Set desired x,y,z,rotX,rotY,rotZ for endeffector (in /map frame)
+//    goal_x_map = goal.translation().x();
+//    goal_y_map = goal.translation().y();
+//    goal_z_map = goal.translation().z();
+//    goal_rot_x_map = angles(0); //roll
+//    goal_rot_y_map = angles(1); //pitch
+//    goal_rot_z_map = angles(2); //yaw
+//
+//    //Transform from map to endeffector goal frame
+//    tf::StampedTransform transform_map_to_ee_goal;
+//    transform_map_to_ee_goal.setOrigin(tf::Vector3(goal_x_map, goal_y_map, goal_z_map));
+//    transform_map_to_ee_goal.setRotation(tf::createQuaternionFromRPY(goal_rot_x_map, goal_rot_y_map, goal_rot_z_map));
+//
+//    //Get current robot arm base pose (in the /map frame)
+//    tf::TransformListener listener;
+//    tf::StampedTransform transform_map_to_base;
+//    try
+//    {
+//      listener.waitForTransform("/map", m_ns_prefix_robot + "base_link", ros::Time(0), ros::Duration(10.0));
+//      listener.lookupTransform("/map", m_ns_prefix_robot + "base_link", ros::Time(0), transform_map_to_base);
+//    }
+//    catch (tf::TransformException ex)
+//    {
+//      ROS_ERROR("%s", ex.what());
+//      ROS_ERROR("Transform /map to /base_link not available!");
+//      return false;
+//    }
+//
+//    //Transform from /base_link frame to goal ee frame
+//    tf::StampedTransform transform_base_to_ee_goal;
+//    transform_base_to_ee_goal.mult(transform_map_to_base.inverse(), transform_map_to_ee_goal);
+//
+//    //Set Goal (in /base_link frame)
+//    vector<double> goal_pose_endeffector(6);
+//    //Position
+//    tf::Vector3 goal_trans_ee = transform_base_to_ee_goal.getOrigin();
+//    goal_pose_endeffector[0] = goal_trans_ee.x();
+//    goal_pose_endeffector[1] = goal_trans_ee.y();
+//    goal_pose_endeffector[2] = goal_trans_ee.z();
+//    //Orientation
+//    tf::Quaternion goal_rot_ee = transform_base_to_ee_goal.getRotation();
+//    tf::Matrix3x3 m(goal_rot_ee);
+//    m.getRPY(goal_pose_endeffector[3], goal_pose_endeffector[4], goal_pose_endeffector[5]); //Roll, Pitch, Yaw
+//
+//    cout << "Goal endeffector pose in robot base link frame" << endl;
+//    cout << "Position" << endl;
+//    cout << goal_pose_endeffector[0] << endl;
+//    cout << goal_pose_endeffector[1] << endl;
+//    cout << goal_pose_endeffector[2] << endl;
+//    cout << "Orientation" << endl;
+//    cout << goal_pose_endeffector[3] << endl;
+//    cout << goal_pose_endeffector[4] << endl;
+//    cout << goal_pose_endeffector[5] << endl << endl;
+//
+//    //------------ PLANNER INITIALIZATION --------------
+//
+//    //Initialize Planner
+//    //Syntax: init_planner(vector<double> start_conf, vector<double> ee_goal_pose, vector<int> constraint_vec_goal_pose, vector<pair<double,double> > coordinate_dev, int search_space)
+//    bool init_ok = init_planner(start_conf, goal_pose_endeffector, constraint_vec_goal_pose, target_coordinate_dev, 1);
+//
+//    //Remark: Fails is start or goal config (start_conf_base,goal_conf_base) is invalid
+//  }
+//
+//}
+//
+//bool BiRRTstarPlanner::init_planner_real_robot_goal_config(const vector<double> goal, const string planner_type)
+//{
+//  //Check whether dimension of goal config vector is equal the number of joints in the planning group
+//  if (goal.size() != m_num_joints)
+//  {
+//    ROS_ERROR("Dimension of configuration vector does not match number of joints in planning group!!");
+//    return false;
+//  }
+//
+//  //------------ START CONFIG (from LOCALIZATION Node) --------------
+//  vector<double> start_conf(m_num_joints);
+//
+//  //Set zero config
+//  for (int j = 0; j < m_num_joints; j++)
+//    start_conf[j] = 0.0;
+//
+//  //Determine whether one of the revolute joints belong to the base (i.e. theta joint)
+//  // -> If yes, set the index where the manipulator joints start in the start_conf vector
+//  int offset_manipulator_joint_indices = 0;
+//  if ((m_num_joints_prismatic == 2 && m_num_joints_revolute != 0) || m_num_joints_revolute > 7)
+//    offset_manipulator_joint_indices = 1;
+//
+//  //There are revolute joints that belong to the manipulator
+//  if (m_num_joints_revolute > 1)
+//  {
+//    //WAIT FOR START CONFIG (get from /joint_states topic)
+//    while (!m_lbr_joint_state_received)
+//    {
+//      ROS_INFO("Current Manipulator Joint State not available yet");
+//
+//      ros::spinOnce();
+//    }
+//
+//    int start_manipulator_joint_indices = m_num_joints_prismatic + offset_manipulator_joint_indices;
+//    for (int j = start_manipulator_joint_indices; j < m_num_joints; j++)
+//      start_conf[j] = m_lbr_joint_state[j - start_manipulator_joint_indices];
+//  }
+//
+//  //------------ GOAL CONFIG (from LOCALIZATION Node) --------------
+//
+//  //Goal configuration in base_link frame
+//  vector<double> goal_conf(m_num_joints);
+//
+//  //Planning includes mobile base -> thus base goal pose needs to be transformed from map frame into base_link frame
+//  if (m_num_joints_prismatic == 2 && m_num_joints_revolute != 0)
+//  {
+//
+//    //Get goal config of base from input (in /map frame)
+//    double goal_x_map, goal_y_map, goal_theta_map;
+//
+//    //Set desired x,y,theta for base (in /map frame)
+//    goal_x_map = goal[0];
+//    goal_y_map = goal[1];
+//    goal_theta_map = goal[2];
+//
+//    //Transform map to goal frame
+//    tf::StampedTransform transform_map_to_goal;
+//    transform_map_to_goal.setOrigin(tf::Vector3(goal_x_map, goal_y_map, 0.0));
+//    transform_map_to_goal.setRotation(tf::createQuaternionFromYaw(goal_theta_map));
+//    //transform_map_to_goal.setRotation(tf::createQuaternionFromYaw(goal_theta_map * (M_PI/180.0)));
+//
+//    //Get current pose of robot in the map frame
+//    tf::TransformListener listener;
+//    tf::StampedTransform transform_map_to_base;
+//    try
+//    {
+//      listener.waitForTransform("/map", m_ns_prefix_robot + "base_link", ros::Time(0), ros::Duration(10.0));
+//      listener.lookupTransform("/map", m_ns_prefix_robot + "base_link", ros::Time(0), transform_map_to_base);
+//    }
+//    catch (tf::TransformException &ex)
+//    {
+//      ROS_ERROR("%s", ex.what());
+//      ROS_ERROR("Transform /map to /base_link not available!");
+//      return false;
+//    }
+//
+//    //Transform goal from map to base frame
+//    tf::StampedTransform transform_base_to_goal;
+//    transform_base_to_goal.mult(transform_map_to_base.inverse(), transform_map_to_goal);
+//
+//    //Set Goal (in /base_link frame)
+//    tf::Vector3 goal_trans_base = transform_base_to_goal.getOrigin();
+//    tf::Quaternion goal_rot_base = transform_base_to_goal.getRotation();
+//    goal_conf[0] = goal_trans_base.x();
+//    goal_conf[1] = goal_trans_base.y();
+//    double z_dir = transform_base_to_goal.getRotation().getAxis().z();
+//    goal_conf[2] = z_dir > 0.0 ? goal_rot_base.getAngle() : -goal_rot_base.getAngle();
+//
+//    cout << "Goal pose in base frame" << endl;
+//    //cout << goal_pose_base.matrix() << endl << endl;
+//    cout << goal_conf[0] << endl;
+//    cout << goal_conf[1] << endl;
+//    cout << goal_conf[2] << endl << endl;
+//
+//    //Check whether planning group includes only the revolute joint of the mobile base
+//    // -> If yes, check whether the base is already at the correct pose or planning is required
+//    if (m_num_joints_revolute == 1)
+//    {
+//      //Compute distance between start and goal config
+//      double x_start_goal_dist = goal_conf[0] - start_conf[0];
+//      double y_start_goal_dist = goal_conf[1] - start_conf[1];
+//      double theta_start_goal_dist = goal_conf[2] - start_conf[2];
+//      //Minimal distances required between start and goal config to trigger planning
+//      double x_min_dist, y_min_dist, theta_min_dist;
+//      x_min_dist = 0.1; //10 cm
+//      y_min_dist = 0.1; //10 cm
+//      theta_min_dist = 0.5236; // 30 degree
+//
+//      //Check whether planning is required
+//      if (fabs(x_start_goal_dist) < x_min_dist && fabs(y_start_goal_dist) < y_min_dist && fabs(theta_start_goal_dist) < theta_min_dist)
+//      {
+//        //Trajectory must have at least two points
+//        m_result_joint_trajectory.push_back(start_conf);
+//        m_result_joint_trajectory.push_back(start_conf);
+//
+//        //Set planner type
+//        m_planner_type = planner_type;
+//        //Get scenario name
+//        string scenario_name = m_planning_world->getSceneName();
+//
+//        //Set path to the file that will store the planned joint trajectory
+//        string folder_path = m_planner_package_path + "/data/" + m_planner_type + "/" + scenario_name + "_joint_trajectory_run_0.txt";
+//        m_file_path_joint_trajectory = new char[folder_path.size() + 1];
+//        copy(folder_path.begin(), folder_path.end(), m_file_path_joint_trajectory);
+//        m_file_path_joint_trajectory[folder_path.size()] = '\0'; // don't forget the terminating 0
+//        //cout<<m_file_path_joint_trajectory<<endl;
+//
+//        m_KDLRobotModel->writeTrajectoryToFile(m_result_joint_trajectory, m_file_path_joint_trajectory);
+//
+//        //Robot already at target pose (success = true)
+//        return true;
+//      }
+//    }
+//  }
+//
+//  //Planning is performed using also joints of the manipulator
+//  if (m_num_joints_revolute > 1)
+//  {
+//    int start_manipulator_joint_indices = m_num_joints_prismatic + offset_manipulator_joint_indices;
+//    for (int j = start_manipulator_joint_indices; j < m_num_joints; j++)
+//      goal_conf[j] = goal[j];
+//
+//  }
+//
+//  //------------ PLANNER INITIALIZATION --------------
+//
+//  //Initialize Planner
+//  bool init_ok = init_planner(start_conf, goal_conf, 1);
+//  //Remark: Fails is start or goal config (start_conf_base,goal_conf_base) is invalid
+//
+//  return init_ok;
+//}
 
 bool BiRRTstarPlanner::run_planner(int search_space, bool flag_iter_or_time, double max_iter_time, bool show_tree_vis, double iter_sleep,
                                    int planner_run_number)
@@ -1660,7 +1655,7 @@ bool BiRRTstarPlanner::run_planner(int search_space, bool flag_iter_or_time, dou
   string_planner_run_number = convert_planner_run_number.str(); //set Result to the content of the stream
 
   //Get Planning Scenario Name
-  string scenario_name = m_planning_world->getSceneName();
+  string scenario_name = "scenario";//m_planning_world->getSceneName();
 
   //Get planner type depending on planner settings
   if (m_informed_sampling_active == false && m_tree_optimization_active == false)
@@ -2069,6 +2064,7 @@ bool BiRRTstarPlanner::run_planner(int search_space, bool flag_iter_or_time, dou
   //////writePlannerStatistics(m_file_path_planner_statistics, m_file_path_cost_evolution);
 
   //Return planner result (true = success, false = failure)
+
   return m_solution_path_available;
 
 }
@@ -2285,8 +2281,14 @@ void BiRRTstarPlanner::reset_planner_to_initial_state()
 
 }
 
+void BiRRTstarPlanner::setOctree(const octomap::OcTree* octree, const std::vector<double> &mapToBase)
+{
+  m_FeasibilityChecker->setOctree(octree, mapToBase);
+}
+
 //Finds and returns 8D robot pose from a requested end effector poes
-bool BiRRTstarPlanner::getFullPoseFromEEPose(const vector<double> &endEffectorPose, const vector<pair<double, double> > &endEffectorDeviations, const vector<double> &poseInit, vector<double> &poseSolution)
+bool BiRRTstarPlanner::getFullPoseFromEEPose(const vector<double> &endEffectorPose, const vector<pair<double, double> > &endEffectorDeviations,
+                                             const vector<double> &poseInit, vector<double> &poseSolution)
 {
   double sx = sin(endEffectorPose[3] / 2);
   double sy = sin(endEffectorPose[4] / 2);
@@ -2368,15 +2370,15 @@ void BiRRTstarPlanner::setPlanningSceneInfo(vector<double> size_x, vector<double
   m_env_size_x[1] = size_x[1];
   m_env_size_y[0] = size_y[0];
   m_env_size_y[1] = size_y[1];
-  m_planning_world->setSceneName(scene_name);
+  //m_planning_world->setSceneName(scene_name);
   //m_planning_world->insertEnvironmentBorders(m_env_size_x,m_env_size_y,0.6,scene_name);
 }
 
-void BiRRTstarPlanner::setPlanningSceneInfo(planning_world::PlanningWorldBuilder world_builder)
-{
-  world_builder.getEnvironmentDimensions(m_env_size_x, m_env_size_y);
-  m_planning_world->setSceneName(world_builder.getSceneName());
-}
+//void BiRRTstarPlanner::setPlanningSceneInfo(planning_world::PlanningWorldBuilder world_builder)
+//{
+//  world_builder.getEnvironmentDimensions(m_env_size_x, m_env_size_y);
+//  m_planning_world->setSceneName(world_builder.getSceneName());
+//}
 
 //LBR Joint State Subscriber Callback
 void BiRRTstarPlanner::callback_lbr_joint_states(const sensor_msgs::JointState::ConstPtr& msg)
@@ -2394,508 +2396,6 @@ void BiRRTstarPlanner::callback_lbr_joint_states(const sensor_msgs::JointState::
   //Flag indicating that lbr joint state is available
   m_lbr_joint_state_received = true;
 }
-
-////Implementation of the virtual function "move" defined in Abstract Class robot_interface_definition
-//bool BiRRTstarPlanner::plan(const Eigen::Affine3d& goal){
-
-//    //Planning result
-//    bool success = false;
-
-//    if(m_planning_group == "omnirob_base" || m_planning_group == "pr2_base")
-//    {
-//        //Move base to goal pose
-//        success = move_base(goal);
-//    }
-//    else if (m_planning_group == "omnirob_lbr_sdh" || m_planning_group == "pr2_base_arm")
-//    {
-//        //Move endeffector to goal (using also the base)
-//        success = move_base_endeffector(goal);
-//    }
-//    else if (m_planning_group == "kuka_complete_arm" || m_planning_group == "pr2_arm")
-//    {
-//        //Move endeffector to goal (fixed base)
-//        success = move_endeffector(goal);
-//    }
-//    else{
-//        ROS_ERROR("You defined an unknown planning group!");
-//        return false;
-//    }
-
-//    //Reset the planner data
-//    reset_planner_only();
-
-//    //Return planning result
-//    return success;
-
-//}
-
-////Planning for moving the omnirob_base from the current pose in the map to a target destination
-//bool BiRRTstarPlanner::move_base(const Eigen::Affine3d& goal)
-//{
-//    //Notes:
-//    // -> Start Config for base is always x,y,theta = 0, 0, 0 (planning is performed in base_link)
-//    // -> Goal config must be expressed in base_link (map to base_link + map to goal pose transforms are known)
-
-//    //------------ WORLD SETUP --------------
-
-//    //Note:
-//    //  -> size of environment defined w.r.t. /base_link of /map frame depending on "m_planning_frame"
-//    //World dimensions
-//    vector<double> env_size_x(2);
-//    env_size_x[0] = -4.0;
-//    env_size_x[1] = 1.0;
-//    vector<double> env_size_y(2);
-//    env_size_y[0] = -1.0;
-//    env_size_y[1] = 4.0;
-//    setPlanningSceneInfo(env_size_x,env_size_y,"neurobots_demo");
-
-//    //------------ START CONFIG (from LOCALIZATION Node) --------------
-//    vector<double> start_conf_base(3);
-
-//    //Set config to zero (i.e. robot is at position of base_link frame given by localization node)
-//    start_conf_base[0] = 0.0; //x
-//    start_conf_base[1] = 0.0; //y
-//    start_conf_base[2] = 0.0; //theta
-
-//    //------------ GOAL CONFIG (from LOCALIZATION Node) --------------
-
-//    //Get goal config of base from input (in /map frame)
-//    double goal_x_map, goal_y_map, goal_theta_map;
-
-//    //Get rot_x, rot_y, rot_z
-//    Eigen::Matrix3d rot = goal.linear();
-//    Eigen::Vector3d angles = rot.eulerAngles(0,1,2);
-
-//    //Set desired x,y,theta for base (in /map frame)
-//    goal_x_map = goal.translation().x();
-//    goal_y_map = goal.translation().y();
-//    goal_theta_map = angles(2);
-
-//    //Transform map to goal frame
-//    tf::StampedTransform transform_map_to_goal;
-//    transform_map_to_goal.setOrigin(tf::Vector3(goal_x_map,goal_y_map, 0.0));
-//    transform_map_to_goal.setRotation(tf::createQuaternionFromYaw(goal_theta_map));
-//    //transform_map_to_goal.setRotation(tf::createQuaternionFromYaw(goal_theta_map * (M_PI/180.0)));
-
-//    //Get current pose of robot in the map frame
-//    tf::TransformListener listener;
-//    tf::StampedTransform transform_map_to_base;
-//    try {
-//        listener.waitForTransform("/map", m_ns_prefix_robot + "base_link", ros::Time(0), ros::Duration(10.0) );
-//        listener.lookupTransform("/map", m_ns_prefix_robot + "base_link", ros::Time(0), transform_map_to_base);
-//    } catch (tf::TransformException ex) {
-//        ROS_ERROR("%s",ex.what());
-//        ROS_ERROR("Transform /map to /base_link not available!");
-//        return false;
-//    }
-
-//    //Transform goal from map to base frame
-//    tf::StampedTransform transform_base_to_goal;
-//    transform_base_to_goal.mult(transform_map_to_base.inverse(),transform_map_to_goal);
-
-//    //Set Goal (in /base_link frame)
-//    vector<double> goal_conf_base(3);
-//    tf::Vector3 goal_trans_base = transform_base_to_goal.getOrigin();
-//    tf::Quaternion goal_rot_base = transform_base_to_goal.getRotation();
-//    goal_conf_base[0] = goal_trans_base.x();
-//    goal_conf_base[1] = goal_trans_base.y();
-//    double z_dir = transform_base_to_goal.getRotation().getAxis().z();
-//    goal_conf_base[2] = z_dir > 0.0 ? goal_rot_base.getAngle() : -goal_rot_base.getAngle();
-
-//    //Convert goal_pose for base from vector to Eigen::Affine3d
-//    Eigen::Affine3d goal_pose_base;
-//    Eigen::Affine3d trans_base(Eigen::Translation3d(Eigen::Vector3d(goal_conf_base[0],goal_conf_base[1],0)));
-//    Eigen::Affine3d rot_base = Eigen::Affine3d(Eigen::AngleAxisd(goal_conf_base[2], Eigen::Vector3d(0, 0, 1)));
-//    goal_pose_base = trans_base * rot_base;
-
-//    cout <<"Goal pose in base frame" << endl;
-//    //cout << goal_pose_base.matrix() << endl << endl;
-//    cout <<goal_conf_base[0] << endl;
-//    cout <<goal_conf_base[1] << endl;
-//    cout <<goal_conf_base[2] << endl<<endl;
-
-//    //cout <<goal_rot_base.getAngle() << endl;
-//    //cout <<goal_rot_base.getAxis().z() << endl;
-
-//    //Compute distance between start and goal config
-//    double x_start_goal_dist = goal_conf_base[0] - start_conf_base[0];
-//    double y_start_goal_dist = goal_conf_base[1] - start_conf_base[1];
-//    double theta_start_goal_dist = goal_conf_base[2] - start_conf_base[2];
-//    //Minimal distances required between start and goal config to trigger planning
-//    double x_min_dist, y_min_dist, theta_min_dist;
-//    x_min_dist = 0.1; //10 cm
-//    y_min_dist = 0.1; //10 cm
-//    theta_min_dist = 0.5236; // 30 degree
-
-//    //Check whether planning is required
-//    if (fabs(x_start_goal_dist) < x_min_dist && fabs(y_start_goal_dist) < y_min_dist && fabs(theta_start_goal_dist) < theta_min_dist)
-//    {
-//        //Trajectory must have at least two points
-//        m_result_joint_trajectory.push_back(start_conf_base);
-//        m_result_joint_trajectory.push_back(start_conf_base);
-
-//        m_planner_type = "bi_informed_rrt_star";
-//        string scenario_name = m_planning_world->getSceneName();
-
-//        //Set path to the file that will store the planned joint trajectory
-//        string folder_path = m_planner_package_path + "/data/"+ m_planner_type +"/"+  scenario_name  + "_joint_trajectory_run_0.txt";
-//        m_file_path_joint_trajectory = new char[folder_path.size() + 1];
-//        copy(folder_path.begin(), folder_path.end(), m_file_path_joint_trajectory);
-//        m_file_path_joint_trajectory[folder_path.size()] = '\0'; // don't forget the terminating 0
-//        //cout<<m_file_path_joint_trajectory<<endl;
-
-//        m_KDLRobotModel->writeTrajectoryToFile(m_result_joint_trajectory,m_file_path_joint_trajectory);
-
-//        //Robot already at target pose (success = true)
-//        return true;
-//    }
-
-//    //------------ PLANNER INITIALIZATION --------------
-
-//    //Initialize Planner
-//    bool init_ok = init_planner(start_conf_base,goal_conf_base,1);
-
-//    //Remark: Fails is start or goal config (start_conf_base,goal_conf_base) is invalid
-
-//    //------------ PLANNER PARAMETERIZATION --------------
-
-//    //Set edge cost variable weights (to apply motion preferences)
-//    vector<double> edge_cost_weights(3);
-//    //Weight for base translation motion
-//    edge_cost_weights[0] = 1.0; //base_x motion weight
-//    edge_cost_weights[1] = 1.0; //base_y motion weight
-//    //Weight for base rotation motion (set higher to get motion with preferably less base rotations)
-//    edge_cost_weights[2] = 3.0; //base_theta motion weight
-//    setEdgeCostWeights(edge_cost_weights);
-
-//    //------------ RUN PLANNER --------------
-//    // Params : PlanningSpace, Iter(0)_or_time(1), max. iterations or time, show_tree, sleep_between_iters, run_number
-
-//    bool success = false;
-//    if(init_ok){
-//        success = run_planner(1, 1, m_max_planning_time, 1, 0.0, 0);
-//    }else{
-//        ROS_ERROR("Planner initialization failed!!!");
-//    }
-
-//    //------------ RETURN PLANNING RESULT --------------
-//    return success;
-//}
-
-////Planning for moving the endeffector from the current pose to a target pose
-//bool BiRRTstarPlanner::move_endeffector(const Eigen::Affine3d& goal)
-//{
-
-//    //------------ WORLD SETUP --------------
-
-//    //TODO:
-//    //  -> get size of environment from database or /map topic (see "omnirob_gmapping" package for map file)
-
-//    //World dimensions
-//    vector<double> env_size_x(2);
-//    env_size_x[0] = -5.0;
-//    env_size_x[1] = 5.0;
-//    vector<double> env_size_y(2);
-//    env_size_y[0] = -5.0;
-//    env_size_y[1] = 5.0;
-//    setPlanningSceneInfo(env_size_x,env_size_y,"neurobots_demo");
-
-//    //------------ WAIT FOR START CONFIG (get from /joint_states topic) --------------
-
-//    while(!m_lbr_joint_state_received)
-//    {
-//        ROS_INFO("Current LBR Joint State not available yet");
-
-//        ros::spinOnce();
-//    }
-
-//    //------------ GOAL ENDEFFECTOR POSE (from function input) --------------
-
-//    //Get endeffector goal pose from input (in /map frame)
-//    double goal_x_map, goal_y_map, goal_z_map, goal_rot_x_map, goal_rot_y_map, goal_rot_z_map;
-
-//    //Get rot_x, rot_y, rot_z
-//    Eigen::Matrix3d rot = goal.linear();
-//    Eigen::Vector3d angles = rot.eulerAngles(0,1,2);
-
-//    //Set desired x,y,z,rotX,rotY,rotZ for endeffector (in /map frame)
-//    goal_x_map = goal.translation().x();
-//    goal_y_map = goal.translation().y();
-//    goal_z_map = goal.translation().z();
-//    goal_rot_x_map = angles(0); //roll
-//    goal_rot_y_map = angles(1); //pitch
-//    goal_rot_z_map = angles(2); //yaw
-
-//    //Transform from map to endeffector goal frame
-//    tf::StampedTransform transform_map_to_ee_goal;
-//    transform_map_to_ee_goal.setOrigin(tf::Vector3(goal_x_map, goal_y_map, goal_z_map));
-//    transform_map_to_ee_goal.setRotation(tf::createQuaternionFromRPY(goal_rot_x_map, goal_rot_y_map, goal_rot_z_map));
-
-//    //Get current robot arm base pose (in the /map frame)
-//    tf::TransformListener listener;
-//    tf::StampedTransform transform_map_to_arm_base;
-//    try {
-//        listener.waitForTransform("/map", "/lbr_0_link", ros::Time(0), ros::Duration(10.0) );
-//        listener.lookupTransform("/map", "/lbr_0_link", ros::Time(0), transform_map_to_arm_base);
-//    } catch (tf::TransformException ex) {
-//        ROS_ERROR("%s",ex.what());
-//        ROS_ERROR("Transform /map to /lbr_0_link not available!");
-//        return false;
-//    }
-
-//    //Transform ee goal from map to robot arm base frame
-//    tf::StampedTransform transform_arm_base_to_goal;
-//    transform_arm_base_to_goal.mult(transform_map_to_arm_base.inverse(),transform_map_to_ee_goal);
-
-//    //Set Goal (in /lbr_0_link frame)
-//    vector<double> goal_pose_endeffector(6);
-//    //Position
-//    tf::Vector3 goal_trans_ee = transform_arm_base_to_goal.getOrigin();
-//    goal_pose_endeffector[0] = goal_trans_ee.x();
-//    goal_pose_endeffector[1] = goal_trans_ee.y();
-//    goal_pose_endeffector[2] = goal_trans_ee.z();
-//    //Orientation
-//    tf::Quaternion goal_rot_ee = transform_arm_base_to_goal.getRotation();
-//    tf::Matrix3x3 m(goal_rot_ee);
-//    m.getRPY(goal_pose_endeffector[3], goal_pose_endeffector[4], goal_pose_endeffector[5]); //Roll, Pitch, Yaw
-
-//    cout <<"Goal endeffector pose in robot arm base frame" << endl;
-//    cout << "Position"<< endl;
-//    cout <<goal_pose_endeffector[0] << endl;
-//    cout <<goal_pose_endeffector[1] << endl;
-//    cout <<goal_pose_endeffector[2] << endl;
-//    cout << "Orientation"<< endl;
-//    cout <<goal_pose_endeffector[3] << endl;
-//    cout <<goal_pose_endeffector[4] << endl;
-//    cout <<goal_pose_endeffector[5] << endl<<endl;
-
-//    //------------ CONSTRAINT ENDEFFECTOR POSE COORDINATES --------------
-
-//    vector<int> constraint_vec_goal_pose(6);  // (0 = don't care, 1 = constraint)
-//    constraint_vec_goal_pose[0] = 1; //X
-//    constraint_vec_goal_pose[1] = 1; //Y
-//    constraint_vec_goal_pose[2] = 1; //Z
-//    constraint_vec_goal_pose[3] = 0; //RotX
-//    constraint_vec_goal_pose[4] = 0; //RotY
-//    constraint_vec_goal_pose[5] = 0; //RotZ
-
-//    //Permitted displacement for ee coordinates w.r.t desired target frame
-//    vector<pair<double,double> > target_coordinate_dev(6);
-//    target_coordinate_dev[0].first = -0.005;    //negative X deviation [m]
-//    target_coordinate_dev[0].second = 0.005;    //positive X deviation
-//    target_coordinate_dev[1].first = -0.005;    //negative Y deviation
-//    target_coordinate_dev[1].second = 0.005;    //positive Y deviation
-//    target_coordinate_dev[2].first = -0.005;    //negative Z deviation
-//    target_coordinate_dev[2].second = 0.005;    //positive Z deviation
-//    target_coordinate_dev[3].first = -0.05;     //negative Xrot deviation [rad]
-//    target_coordinate_dev[3].second = 0.05;     //positive Xrot deviation
-//    target_coordinate_dev[4].first = -0.05;     //negative Yrot deviation
-//    target_coordinate_dev[4].second = 0.05;     //positive Yrot deviation
-//    target_coordinate_dev[5].first = -0.05;     //negative Zrot deviation
-//    target_coordinate_dev[5].second = 0.05;     //positive Zrot deviation
-
-//    //------------ PLANNER INITIALIZATION --------------
-
-//    //Initialize Planner
-//    //Syntax: init_planner(vector<double> start_conf, vector<double> ee_goal_pose, vector<int> constraint_vec_goal_pose, vector<pair<double,double> > coordinate_dev, int search_space)
-//    bool init_ok = init_planner(m_lbr_joint_state, goal_pose_endeffector, constraint_vec_goal_pose, target_coordinate_dev, 1);
-
-//    //Remark: Fails is start or goal config (start_conf_base,goal_conf_base) is invalid
-
-//    //------------ PLANNER PARAMETERIZATION --------------
-
-//    //Set edge cost variable weights (to apply motion preferences)
-//    vector<double> edge_cost_weights(7);
-//    //Weight for manipulator joints
-//    edge_cost_weights[0] = 1.0; //base_x motion weight
-//    edge_cost_weights[1] = 1.0; //base_y motion weight
-//    edge_cost_weights[2] = 1.0; //base_theta motion weight
-//    edge_cost_weights[3] = 1.0; //base_theta motion weight
-//    edge_cost_weights[4] = 1.0; //base_theta motion weight
-//    edge_cost_weights[5] = 1.0; //base_theta motion weight
-//    edge_cost_weights[6] = 1.0; //base_theta motion weight
-//    setEdgeCostWeights(edge_cost_weights);
-
-//    //------------ RUN PLANNER --------------
-//    // Params : PlanningSpace, Iter(0)_or_time(1), max. iterations or time, show_tree, sleep_between_iters, run_number
-
-//    bool success = false;
-//    if(init_ok){
-//        success = run_planner(1, 1, m_max_planning_time, 1, 0.0, 0);
-//    }else{
-//        ROS_ERROR("Planner initialization failed!!!");
-//    }
-
-//    //------------ RETURN PLANNING RESULT --------------
-//    return success;
-
-//}
-
-//bool BiRRTstarPlanner::move_base_endeffector(const Eigen::Affine3d& goal){
-
-//    while(!m_lbr_joint_state_received)
-//    {
-//        ROS_INFO("Current LBR Joint State not available yet");
-
-//        ros::spinOnce();
-//    }
-
-//    //------------ WORLD SETUP --------------
-
-//    //TODO:
-//    //  -> get size of environment from database or /map topic (see "omnirob_gmapping" package for map file)
-
-//    //World dimensions
-//    vector<double> env_size_x(2);
-//    env_size_x[0] = -5.0;
-//    env_size_x[1] = 5.0;
-//    vector<double> env_size_y(2);
-//    env_size_y[0] = -5.0;
-//    env_size_y[1] = 5.0;
-//    setPlanningSceneInfo(env_size_x,env_size_y,"neurobots_demo");
-
-//    //------------ START CONFIG (from /joint_states topic) --------------
-//    vector<double> start_conf_omnirob_arm(10);
-
-//    //Set base config to zero (i.e. robot is at position of base_link frame given by localization node)
-//    start_conf_omnirob_arm[0] = 0.0; //x
-//    start_conf_omnirob_arm[1] = 0.0; //y
-//    start_conf_omnirob_arm[2] = 0.0; //theta
-
-//    //Get joint config of lbr arm
-//    start_conf_omnirob_arm[3] = m_lbr_joint_state[0]; //joint 1
-//    start_conf_omnirob_arm[4] = m_lbr_joint_state[1]; //joint 2
-//    start_conf_omnirob_arm[5] = m_lbr_joint_state[2]; //joint 3
-//    start_conf_omnirob_arm[6] = m_lbr_joint_state[3]; //joint 4
-//    start_conf_omnirob_arm[7] = m_lbr_joint_state[4]; //joint 5
-//    start_conf_omnirob_arm[8] = m_lbr_joint_state[5]; //joint 6
-//    start_conf_omnirob_arm[9] = m_lbr_joint_state[6]; //joint 7
-
-//    //------------ GOAL ENDEFFECTOR POSE (from function input) --------------
-
-//    //Get endeffector goal pose from input (in /map frame)
-//    double goal_x_map, goal_y_map, goal_z_map, goal_rot_x_map, goal_rot_y_map, goal_rot_z_map;
-
-//    //Get rot_x, rot_y, rot_z
-//    Eigen::Matrix3d rot = goal.linear();
-//    Eigen::Vector3d angles = rot.eulerAngles(0,1,2);
-
-//    //Set desired x,y,z,rotX,rotY,rotZ for endeffector (in /map frame)
-//    goal_x_map = goal.translation().x();
-//    goal_y_map = goal.translation().y();
-//    goal_z_map = goal.translation().z();
-//    goal_rot_x_map = angles(0); //roll
-//    goal_rot_y_map = angles(1); //pitch
-//    goal_rot_z_map = angles(2); //yaw
-
-//    //Transform from map to endeffector goal frame
-//    tf::StampedTransform transform_map_to_ee_goal;
-//    transform_map_to_ee_goal.setOrigin(tf::Vector3(goal_x_map, goal_y_map, goal_z_map));
-//    transform_map_to_ee_goal.setRotation(tf::createQuaternionFromRPY(goal_rot_x_map, goal_rot_y_map, goal_rot_z_map));
-
-//    //Get current robot arm base pose (in the /map frame)
-//    tf::TransformListener listener;
-//    tf::StampedTransform transform_map_to_base;
-//    try {
-//        listener.waitForTransform("/map", m_ns_prefix_robot + "base_link", ros::Time(0), ros::Duration(10.0) );
-//        listener.lookupTransform("/map", m_ns_prefix_robot + "base_link", ros::Time(0), transform_map_to_base);
-//    } catch (tf::TransformException ex) {
-//        ROS_ERROR("%s",ex.what());
-//        ROS_ERROR("Transform /map to /base_link not available!");
-//        return false;
-//    }
-
-//    //Transform from /base_link frame to goal ee frame
-//    tf::StampedTransform transform_base_to_ee_goal;
-//    transform_base_to_ee_goal.mult(transform_map_to_base.inverse(),transform_map_to_ee_goal);
-
-//    //Set Goal (in /base_link frame)
-//    vector<double> goal_pose_endeffector(6);
-//    //Position
-//    tf::Vector3 goal_trans_ee = transform_base_to_ee_goal.getOrigin();
-//    goal_pose_endeffector[0] = goal_trans_ee.x();
-//    goal_pose_endeffector[1] = goal_trans_ee.y();
-//    goal_pose_endeffector[2] = goal_trans_ee.z();
-//    //Orientation
-//    tf::Quaternion goal_rot_ee = transform_base_to_ee_goal.getRotation();
-//    tf::Matrix3x3 m(goal_rot_ee);
-//    m.getRPY(goal_pose_endeffector[3], goal_pose_endeffector[4], goal_pose_endeffector[5]); //Roll, Pitch, Yaw
-
-//    cout <<"Goal endeffector pose in robot base link frame" << endl;
-//    cout << "Position"<< endl;
-//    cout <<goal_pose_endeffector[0] << endl;
-//    cout <<goal_pose_endeffector[1] << endl;
-//    cout <<goal_pose_endeffector[2] << endl;
-//    cout << "Orientation"<< endl;
-//    cout <<goal_pose_endeffector[3] << endl;
-//    cout <<goal_pose_endeffector[4] << endl;
-//    cout <<goal_pose_endeffector[5] << endl<<endl;
-
-//    //------------ CONSTRAINT ENDEFFECTOR POSE COORDINATES --------------
-
-//    vector<int> constraint_vec_goal_pose(6);  // (0 = don't care, 1 = constraint)
-//    constraint_vec_goal_pose[0] = 1; //X
-//    constraint_vec_goal_pose[1] = 1; //Y
-//    constraint_vec_goal_pose[2] = 1; //Z
-//    constraint_vec_goal_pose[3] = 0; //RotX
-//    constraint_vec_goal_pose[4] = 0; //RotY
-//    constraint_vec_goal_pose[5] = 0; //RotZ
-
-//    //Permitted displacement for ee coordinates w.r.t desired target frame
-//    vector<pair<double,double> > target_coordinate_dev(6);
-//    target_coordinate_dev[0].first = -0.005;    //negative X deviation [m]
-//    target_coordinate_dev[0].second = 0.005;    //positive X deviation
-//    target_coordinate_dev[1].first = -0.005;    //negative Y deviation
-//    target_coordinate_dev[1].second = 0.005;    //positive Y deviation
-//    target_coordinate_dev[2].first = -0.005;    //negative Z deviation
-//    target_coordinate_dev[2].second = 0.005;    //positive Z deviation
-//    target_coordinate_dev[3].first = -0.05;     //negative Xrot deviation [rad]
-//    target_coordinate_dev[3].second = 0.05;     //positive Xrot deviation
-//    target_coordinate_dev[4].first = -0.05;     //negative Yrot deviation
-//    target_coordinate_dev[4].second = 0.05;     //positive Yrot deviation
-//    target_coordinate_dev[5].first = -0.05;     //negative Zrot deviation
-//    target_coordinate_dev[5].second = 0.05;     //positive Zrot deviation
-
-//    //------------ PLANNER INITIALIZATION --------------
-
-//    //Initialize Planner
-//    //Syntax: init_planner(vector<double> start_conf, vector<double> ee_goal_pose, vector<int> constraint_vec_goal_pose, vector<pair<double,double> > coordinate_dev, int search_space)
-//    bool init_ok = init_planner(start_conf_omnirob_arm, goal_pose_endeffector, constraint_vec_goal_pose, target_coordinate_dev, 1);
-
-//    //Remark: Fails is start or goal config (start_conf_base,goal_conf_base) is invalid
-
-//    //------------ PLANNER PARAMETERIZATION --------------
-
-//    //Set edge cost variable weights (to apply motion preferences)
-//    vector<double> edge_cost_weights(10);
-//    //Weight for base joints
-//    edge_cost_weights[0] = 1.0; //base_x motion weight
-//    edge_cost_weights[1] = 1.0; //base_y motion weight
-//    edge_cost_weights[2] = 3.0; //base_theta motion weight
-//    //Weight for lbr joints
-//    edge_cost_weights[3] = 1.0; //lbr joint 1 weight
-//    edge_cost_weights[4] = 1.0; //lbr joint 2 weight
-//    edge_cost_weights[5] = 1.0; //lbr joint 3 weight
-//    edge_cost_weights[6] = 1.0; //lbr joint 4 weight
-//    edge_cost_weights[7] = 1.0; //lbr joint 5 weight
-//    edge_cost_weights[8] = 1.0; //lbr joint 6 weight
-//    edge_cost_weights[9] = 1.0; //lbr joint 7 weight
-//    setEdgeCostWeights(edge_cost_weights);
-
-//    //------------ RUN PLANNER --------------
-//    // Params : PlanningSpace, Iter(0)_or_time(1), max. iterations or time, show_tree, sleep_between_iters, run_number
-
-//    bool success = false;
-//    if(init_ok){
-//        success = run_planner(1, 1, m_max_planning_time, 1, 0.0, 0);
-//    }else{
-//        ROS_ERROR("Planner initialization failed!!!");
-//    }
-
-//    //------------ RETURN PLANNING RESULT --------------
-//    return success;
-
-//}
 
 //Compute pose of endeffector in start configuration
 vector<double> BiRRTstarPlanner::computeEEPose(vector<double> start_conf)
@@ -3102,64 +2602,64 @@ vector<double> BiRRTstarPlanner::generate_config_from_ee_pose_with_reference_con
 }
 
 //Generate start and goal configuration for a given start and goal EE pose
-vector<vector<double> > BiRRTstarPlanner::generate_start_goal_config(vector<double> start_pose, vector<int> constraint_vec_start_pose, vector<double> goal_pose,
-                                                                     vector<int> constraint_vec_goal_pose, vector<pair<double, double> > coordinate_dev,
-                                                                     bool show_motion)
-{
-  //Return value [0] = start config, [1] = start config
-  vector<vector<double> > start_goal_config(2);
-
-  //------------ Set file path ------------
-
-  //Set path to the file that will store the start and goal config for each scenario
-  char* file_path_start_goal_config;
-  string folder_path = m_terminal_configs_path + "/Start_Goal_Configurations/" + m_planning_group + "_" + m_planning_world->getSceneName()
-      + "_start_goal_config.txt";
-  file_path_start_goal_config = new char[folder_path.size() + 1];
-  copy(folder_path.begin(), folder_path.end(), file_path_start_goal_config);
-  file_path_start_goal_config[folder_path.size()] = '\0'; // don't forget the terminating 0
-  //cout<<file_path_start_goal_config<<endl;
-
-  // -------------------- Generate Star and Goal Config ----------------------------
-
-  //Convert XYZ euler orientation of start and goal pose to quaternion
-  vector<double> quat_start_pose = m_RobotMotionController->convertEulertoQuat(start_pose[3], start_pose[4], start_pose[5]);
-  vector<double> quat_goal_pose = m_RobotMotionController->convertEulertoQuat(goal_pose[3], goal_pose[4], goal_pose[5]);
-
-  //Set up start pose with orientation expressed by quaternion
-  vector<double> start_ee_pose_quat_orient(7);
-  start_ee_pose_quat_orient[0] = start_pose[0]; //x
-  start_ee_pose_quat_orient[1] = start_pose[1]; //y
-  start_ee_pose_quat_orient[2] = start_pose[2]; //z
-  start_ee_pose_quat_orient[3] = quat_start_pose[0];  //quat_x
-  start_ee_pose_quat_orient[4] = quat_start_pose[1];  //quat_y
-  start_ee_pose_quat_orient[5] = quat_start_pose[2];  //quat_z
-  start_ee_pose_quat_orient[6] = quat_start_pose[3];  //quat_w
-  //Set up goal pose with orientation expressed by quaternion
-  vector<double> goal_ee_pose_quat_orient(7);
-  goal_ee_pose_quat_orient[0] = goal_pose[0]; //x
-  goal_ee_pose_quat_orient[1] = goal_pose[1]; //y
-  goal_ee_pose_quat_orient[2] = goal_pose[2]; //z
-  goal_ee_pose_quat_orient[3] = quat_goal_pose[0];  //quat_x
-  goal_ee_pose_quat_orient[4] = quat_goal_pose[1];  //quat_y
-  goal_ee_pose_quat_orient[5] = quat_goal_pose[2];  //quat_z
-  goal_ee_pose_quat_orient[6] = quat_goal_pose[3];  //quat_w
-
-  //Find configuration for endeffector goal pose (using ik_sol_ee_start_pose as mean config for init_config sampling)
-  //Note: -> Gaussian sampling for initial config is only performed for revolute joints
-  //      -> Initial values for prismatic joint are sampled uniformly from their respective joint range)
-  start_goal_config[1] = findIKSolution(goal_ee_pose_quat_orient, constraint_vec_goal_pose, coordinate_dev, show_motion);
-
-  //Find configuration for endeffector start pose
-  start_goal_config[0] = findIKSolution(start_ee_pose_quat_orient, constraint_vec_start_pose, coordinate_dev, start_goal_config[1], show_motion);
-
-  //Write the start and goal configuration to file
-  writeStartGoalConfig(file_path_start_goal_config, start_goal_config[0], start_goal_config[1]);
-
-  //Return start and goal config
-  return start_goal_config;
-
-}
+//vector<vector<double> > BiRRTstarPlanner::generate_start_goal_config(vector<double> start_pose, vector<int> constraint_vec_start_pose, vector<double> goal_pose,
+//                                                                     vector<int> constraint_vec_goal_pose, vector<pair<double, double> > coordinate_dev,
+//                                                                     bool show_motion)
+//{
+//  //Return value [0] = start config, [1] = start config
+//  vector<vector<double> > start_goal_config(2);
+//
+//  //------------ Set file path ------------
+//
+//  //Set path to the file that will store the start and goal config for each scenario
+//  char* file_path_start_goal_config;
+//  string folder_path = m_terminal_configs_path + "/Start_Goal_Configurations/" + m_planning_group + "_" + m_planning_world->getSceneName()
+//      + "_start_goal_config.txt";
+//  file_path_start_goal_config = new char[folder_path.size() + 1];
+//  copy(folder_path.begin(), folder_path.end(), file_path_start_goal_config);
+//  file_path_start_goal_config[folder_path.size()] = '\0'; // don't forget the terminating 0
+//  //cout<<file_path_start_goal_config<<endl;
+//
+//  // -------------------- Generate Star and Goal Config ----------------------------
+//
+//  //Convert XYZ euler orientation of start and goal pose to quaternion
+//  vector<double> quat_start_pose = m_RobotMotionController->convertEulertoQuat(start_pose[3], start_pose[4], start_pose[5]);
+//  vector<double> quat_goal_pose = m_RobotMotionController->convertEulertoQuat(goal_pose[3], goal_pose[4], goal_pose[5]);
+//
+//  //Set up start pose with orientation expressed by quaternion
+//  vector<double> start_ee_pose_quat_orient(7);
+//  start_ee_pose_quat_orient[0] = start_pose[0]; //x
+//  start_ee_pose_quat_orient[1] = start_pose[1]; //y
+//  start_ee_pose_quat_orient[2] = start_pose[2]; //z
+//  start_ee_pose_quat_orient[3] = quat_start_pose[0];  //quat_x
+//  start_ee_pose_quat_orient[4] = quat_start_pose[1];  //quat_y
+//  start_ee_pose_quat_orient[5] = quat_start_pose[2];  //quat_z
+//  start_ee_pose_quat_orient[6] = quat_start_pose[3];  //quat_w
+//  //Set up goal pose with orientation expressed by quaternion
+//  vector<double> goal_ee_pose_quat_orient(7);
+//  goal_ee_pose_quat_orient[0] = goal_pose[0]; //x
+//  goal_ee_pose_quat_orient[1] = goal_pose[1]; //y
+//  goal_ee_pose_quat_orient[2] = goal_pose[2]; //z
+//  goal_ee_pose_quat_orient[3] = quat_goal_pose[0];  //quat_x
+//  goal_ee_pose_quat_orient[4] = quat_goal_pose[1];  //quat_y
+//  goal_ee_pose_quat_orient[5] = quat_goal_pose[2];  //quat_z
+//  goal_ee_pose_quat_orient[6] = quat_goal_pose[3];  //quat_w
+//
+//  //Find configuration for endeffector goal pose (using ik_sol_ee_start_pose as mean config for init_config sampling)
+//  //Note: -> Gaussian sampling for initial config is only performed for revolute joints
+//  //      -> Initial values for prismatic joint are sampled uniformly from their respective joint range)
+//  start_goal_config[1] = findIKSolution(goal_ee_pose_quat_orient, constraint_vec_goal_pose, coordinate_dev, show_motion);
+//
+//  //Find configuration for endeffector start pose
+//  start_goal_config[0] = findIKSolution(start_ee_pose_quat_orient, constraint_vec_start_pose, coordinate_dev, start_goal_config[1], show_motion);
+//
+//  //Write the start and goal configuration to file
+//  writeStartGoalConfig(file_path_start_goal_config, start_goal_config[0], start_goal_config[1]);
+//
+//  //Return start and goal config
+//  return start_goal_config;
+//
+//}
 
 //Activate Tree Optimization Features
 void BiRRTstarPlanner::activateTreeOptimization()
@@ -4447,13 +3947,6 @@ void BiRRTstarPlanner::connectGraphsInterpolation(Rrt_star_tree *tree, Node x_co
     gettimeofday(&m_timer, NULL);
     double sol_time = m_timer.tv_sec + (m_timer.tv_usec / 1000000.0);
     m_time_last_solution = sol_time - m_time_planning_start;
-
-    //Output
-//    cout << "**New Best Solution Path (through CONNECT)**" << endl;
-//    cout << "Total Cost: " << m_cost_best_solution_path << endl;
-//    cout << "Revolute Cost: " << m_cost_best_solution_path_revolute << endl;
-//    cout << "Prismatic Cost: " << m_cost_best_solution_path_prismatic << endl;
-
   }
   else //No new solution found, but tree has been probably expanded towards the other tree
   {
@@ -4476,25 +3969,8 @@ void BiRRTstarPlanner::connectGraphsInterpolation(Rrt_star_tree *tree, Node x_co
 //Insert Node and Edge into the RRT* Tree
 void BiRRTstarPlanner::insertNode(Rrt_star_tree *tree, Edge e_new, Node x_new, bool show_tree_vis)
 {
-  //Assign ID to edge
-  // -> equals the index of this edge in the edge marker array
-  //e_new.edge_id = tree->num_edges;
-
-//    cout<<"Add edge to insertNode:"<<endl;
-//    cout<<x_new.parent_id<<endl;
-
-//    cout<<"Edge data insertNode:"<<endl;
-//    cout<<e_new.edge_id<<endl;
-//    cout<<e_new.root_node_id<<endl;
-//    cout<<e_new.child_node_id<<endl;
-
   //Store outgoing edge in near node providing the lowest cost for reaching x_new from start_node
   tree->nodes[x_new.parent_id].outgoing_edges.push_back(e_new);
-
-//    cout<<"insertNode Parent data:"<<endl;
-//    cout<<tree->nodes[x_new.parent_id].node_id<<endl;
-//    cout<<tree->nodes[x_new.parent_id].cost_reach.total<<endl;
-//    cout<<tree->nodes[x_new.parent_id].outgoing_edges.size()<<endl;
 
   //Store new node in RRT* tree
   tree->nodes.push_back(x_new);
@@ -4516,19 +3992,6 @@ void BiRRTstarPlanner::insertNode(Rrt_star_tree *tree, Edge e_new, Node x_new, b
   tree->num_edges++;
 
 }
-
-////Check whether a solution has been found (not neccessarily the optimal one)
-//bool BiRRTstarPlanner::solution_path_available()
-//{
-//    //Check if goal node has a parent node (goal node has parent_id = -1 until it has been reached by a tree node)
-//    if(tree.nodes[0].parent_id > 0)
-//    {
-//        return true;
-//    }
-//    else
-//        return false;
-
-//}
 
 //Sample Endeffector pose (used for Control-based tree expansion)
 vector<double> BiRRTstarPlanner::sampleEEpose()
@@ -4734,16 +4197,6 @@ void BiRRTstarPlanner::jointConfigEllipseInitialization()
     }
   }
 
-//    for (int j = 0 ; j < m_num_joints_revolute ; j++)
-//    {
-//        m_ball_center[j] = (m_config_start_pose[j] + m_config_goal_pose[j]) / 2.0;
-//        a1_rev[j] = (m_config_goal_pose[j] - m_config_start_pose[j]) / m_start_tree.nodes[0].cost_h.total; //m_start_tree.nodes[0].cost_h.total = heuristic for start node config
-//        if (j == 0)
-//            id_m1_rev[j] = 1.0;
-//        else
-//            id_m1_rev[j] = 0.0;
-//    }
-
   //Matrix required to compute matrix "C"
   Eigen::MatrixXd matrix_M_rev;
   //Diagonal matrix required to compute matrix "C"
@@ -4757,9 +4210,6 @@ void BiRRTstarPlanner::jointConfigEllipseInitialization()
 
     // Compute SVD (as a result we obtain U*S*V)
     Eigen::JacobiSVD<Eigen::MatrixXd> svd_rev(matrix_M_rev, Eigen::ComputeFullU | Eigen::ComputeFullV);
-    //std::cout << "Its singular values are:" << std::endl << svd_rev.singularValues() << std::endl;
-    //std::cout << "Its left singular vectors are the columns of the thin U matrix:" << std::endl << svd_rev.matrixU() << std::endl;
-    //std::cout << "Its right singular vectors are the columns of the thin V matrix:" << std::endl << svd_rev.matrixV() << std::endl;
 
     //Compute "diag_matrix" required for "C"
     for (int i = 0; i < diag_matrix_rev.cols(); i++)
@@ -4799,10 +4249,6 @@ void BiRRTstarPlanner::jointConfigEllipseInitialization()
     diag_matrix_prism.resize(m_num_joints_prismatic, m_num_joints_prismatic);
 
     Eigen::JacobiSVD<Eigen::MatrixXd> svd_prism(matrix_M_prism, Eigen::ComputeFullU | Eigen::ComputeFullV);
-    //std::cout << "Its singular values are:" << std::endl << svd_prism.singularValues() << std::endl;
-    //std::cout << "Its left singular vectors are the columns of the thin U matrix:" << std::endl << svd_prism.matrixU() << std::endl;
-    //std::cout << "Its right singular vectors are the columns of the thin V matrix:" << std::endl << svd_prism.matrixV() << std::endl;
-
     for (int i = 0; i < diag_matrix_prism.cols(); i++)
     {
       for (int j = 0; j < diag_matrix_prism.cols(); j++)
@@ -4832,11 +4278,6 @@ void BiRRTstarPlanner::jointConfigEllipseInitialization()
 //Sample Configuration (as JntArray) from Ellipse containing configurations that may improve current solution
 KDL::JntArray BiRRTstarPlanner::sampleJointConfigfromEllipse_JntArray()
 {
-
-//    //Variable for timer
-//    gettimeofday(&m_timer, NULL);
-//    double time_start = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-
   //Random config sampled from ellipse -> to be returned by the function
   KDL::JntArray rand_conf_array;
   rand_conf_array = KDL::JntArray(m_num_joints);
@@ -5053,11 +4494,6 @@ KDL::JntArray BiRRTstarPlanner::sampleJointConfigfromEllipse_JntArray()
     //    collision_free = false;
 
   }
-
-//    //Get time elapsed
-//    gettimeofday(&m_timer, NULL);
-//    double time_end = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-//    printf("sampleJointConfigfromEllipse_JntArray %.6lf seconds elapsed\n", time_end - time_start);
 
   //Return random configuration from Ellipse
   return rand_conf_array;
@@ -5364,13 +4800,6 @@ Node BiRRTstarPlanner::find_nearest_neighbour_interpolation(Rrt_star_tree *tree,
       }
     }
   }
-
-  //cout<<"Nearest neighbour ID: "<<id_nearest_neighbour<<endl;
-
-//    //Get time elapsed
-//    gettimeofday(&m_timer, NULL);
-//    double time_end = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-//    printf("find_nearest_neighbour_interpolation %.6lf seconds elapsed\n", time_end - time_start);
 
   return tree->nodes[id_nearest_neighbour];
 }
@@ -5694,17 +5123,6 @@ bool BiRRTstarPlanner::interpolateConfigurations(Node near_node, Node end_node, 
   vector<double> start_conf = near_node.config;
   vector<double> end_conf = end_node.config;
 
-  //Store first config and ee pose
-  //joint_traj.push_back(start_conf);
-  //ee_traj.push_back(near_node.ee_pose);
-
-//     cout<<"End config: "<<endl;
-//    for(int j = 0 ; j < m_num_joints ; j++)
-//    {
-//        cout<<end_conf[j]<<endl;
-//    }
-//    cout<<endl;
-
   //Compute
   vector<double> c_space_dist(m_num_joints);
   vector<double> c_space_step_width(m_num_joints);
@@ -5777,17 +5195,6 @@ bool BiRRTstarPlanner::interpolateConfigurations(Node near_node, Node end_node, 
 
   //Return Interpolation process result
   return interpolation_success;
-
-//    cout<<"End EE pose IN:"<<endl;
-//    cout<<end_node.ee_pose[0]<<endl;
-//    cout<<end_node.ee_pose[1]<<endl;
-//    cout<<end_node.ee_pose[2]<<endl;
-
-//    cout<<"End EE pose Out:"<<endl;
-//    cout<<ee_traj[ee_traj.size()-1][0]<<endl;
-//    cout<<ee_traj[ee_traj.size()-1][1]<<endl;
-//    cout<<ee_traj[ee_traj.size()-1][2]<<endl;
-
 }
 
 //Choose Parent for x_new minimizing the cost of reaching x_new (given the set of vertices surrounding x_new as potential parents)
@@ -6064,13 +5471,7 @@ bool BiRRTstarPlanner::choose_node_parent_interpolation(Rrt_star_tree *tree, vec
               double dist_projected_sample_to_x_new = m_Heuristic.euclidean_joint_space_distance(exp_node_towards_x_new.config, x_new.config);
 
               if (dist_near_to_projected_sample < m_min_projection_distance || dist_curr_x_near_to_x_new < dist_projected_sample_to_x_new)
-              {
-                //if(dist_near_to_projected_sample < m_min_projection_distance)
-                //    cout<<"choose_node_parent_Interpolation: Sample projected back onto config of near node!"<<endl;
-                //else
-                //    cout<<"choose_node_parent_Interpolation: Projected sample is further away from x_new than x_near!"<<endl;
                 break;
-              }
               else
               {
                 //cout<<"Projection generated new sample!"<<endl;
@@ -6201,25 +5602,6 @@ bool BiRRTstarPlanner::choose_node_parent_interpolation(Rrt_star_tree *tree, vec
       insertNode(tree, selected_via_edges[i], selected_via_nodes[i], show_tree_vis);
   }
 
-//    cout<<"Add edge to choose parent:"<<endl;
-//    cout<<x_new.parent_id<<endl;
-
-//    cout<<"Edge data choose parent:"<<endl;
-//    cout<<e_new.edge_id<<endl;
-//    cout<<e_new.root_node_id<<endl;
-//    cout<<e_new.child_node_id<<endl;
-
-//    cout<<"choose parent Parent data:"<<endl;
-//    cout<<"Tree name: "<<tree->name<<endl;
-//    cout<<tree->nodes[x_new.parent_id].node_id<<endl;
-//    cout<<tree->nodes[x_new.parent_id].cost_reach.total<<endl;
-//    cout<<tree->nodes[x_new.parent_id].outgoing_edges.size()<<endl;
-
-//    //Get time elapsed
-//    gettimeofday(&m_timer, NULL);
-//    double time_end = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-//    printf("choose_node_parent_interpolation %.6lf seconds elapsed\n", time_end - time_start);
-
   //Return flag whether a parent has been found
   return parent_found;
 }
@@ -6247,10 +5629,6 @@ void BiRRTstarPlanner::rewireTreeControl(Rrt_star_tree *tree, vector<int> near_v
 
       if (connector_result == kuka_motion_controller::REACHED)
       {
-        //cout<<"Rewire: Node reached!!!"<<endl;
-        //cout<<"Old cost: "<<tree->nodes[near_vertices[nn_num]].cost_reach.total<<endl;
-        //cout<<"New cost: "<<gen_node.cost_reach.total<<endl;
-
         //If cost of reaching the near vertex via x_new is smaller than the current cost to reach the near vertex
         if (gen_node.cost_reach.total < tree->nodes[near_vertices[nn_num]].cost_reach.total)
         {
@@ -6258,9 +5636,6 @@ void BiRRTstarPlanner::rewireTreeControl(Rrt_star_tree *tree, vector<int> near_v
 
           //Compute cost reduction
           cost_reduction[0] = gen_node.cost_reach.total - tree->nodes[near_vertices[nn_num]].cost_reach.total;
-
-          //cout<<"Parent Node ID: "<<tree->nodes[near_vertices[nn_num]].parent_id<<endl;
-          //cout<<"Number of outgoing edges: "<<tree->nodes[tree->nodes[near_vertices[nn_num]].parent_id].outgoing_edges.size()<<endl;
 
           //Index of the outgoing edge from near_vertices[nn_num].parent_id to be erased
           int out_edge_erase_index = 0;
@@ -6352,17 +5727,6 @@ void BiRRTstarPlanner::rewireTreeControl(Rrt_star_tree *tree, vector<int> near_v
 //Rewire Nodes of the Tree, i.e. checking if some if the nodes can be reached by a lower cost path
 void BiRRTstarPlanner::rewireTreeInterpolation(Rrt_star_tree *tree, vector<int> near_vertices, Node x_new, bool show_tree_vis)
 {
-
-//    //Variable for timer
-//    gettimeofday(&m_timer, NULL);
-//    double time_start = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-
-//    //Cost reduction obtained by connecting x_new to near_vertices[nn_num] (total + for revolute and primatic components)
-//    vector<double> cost_reduction(3);
-//    cost_reduction[0]= 0.0; //total
-//    cost_reduction[1]= 0.0; //revolute
-//    cost_reduction[2]= 0.0; //prismatic
-
   //Number of near nodes
   int num_near_nodes = near_vertices.size();
 
@@ -6396,19 +5760,11 @@ void BiRRTstarPlanner::rewireTreeInterpolation(Rrt_star_tree *tree, vector<int> 
   //#pragma omp parallel for //Paralellize the rewire operation
   for (int nn_num = num_near_nodes - 1; nn_num >= (num_near_nodes - near_vertices_counter); nn_num--)
   {
-    //TODO:
-    // - Rewire only nodes that are inside the ellipsoidal subset
-    //
-
     //Do not consider
     // -> the parent node of x_new for rewiring operation
     // -> the near nodes that are connected to the start node (there can't be a new connection via x_new to them providing lower cost)
     if (near_vertices[nn_num] != x_new.parent_id && tree->nodes[near_vertices[nn_num]].parent_id != 0)
     {
-      //Near Nodes of tree can be neglected for the REWIRE operation if their cost-to-reach is already ...
-      // lower than the cost-to-reach of x_new, i.e. x_new cannot provide an alternative path of lower cost to the near node
-      //if(x_new.cost_reach.total < tree->nodes[near_vertices[nn_num]].cost_reach.total)
-      //{
 
       //If no constraints are active (simple linear interpolation, no first order retraction , i.e. sample projection, required)
       if (m_constraint_active == false)
@@ -6422,10 +5778,6 @@ void BiRRTstarPlanner::rewireTreeInterpolation(Rrt_star_tree *tree, vector<int> 
         //If cost of reaching the near vertex via x_new is smaller than the current cost to reach the near vertex
         if (gen_node.cost_reach.total < tree->nodes[near_vertices[nn_num]].cost_reach.total)
         {
-          //cout<<"Rewire: Node reached!!!"<<endl;
-          //cout<<"Old cost: "<<tree->nodes[near_vertices[nn_num]].cost_reach.total<<endl;
-          //cout<<"New cost: "<<gen_node.cost_reach.total<<endl;
-
           //If edge from x_new to near vertex is valid
           //int last_valid_node_idx = 0; //Not used but required by m_FeasibilityChecker->isEdgeValid-Function
           if (m_FeasibilityChecker->isEdgeValid(gen_edge))
@@ -6570,20 +5922,6 @@ void BiRRTstarPlanner::rewireTreeInterpolation(Rrt_star_tree *tree, vector<int> 
 
         //Get current number of edges in the tree (required to avoid incrementing the number of edges while searching for a lowest cost path to x_near via x_new)
         num_edges_tree = tree->num_edges;
-        //}
-
-//                    //Variable for timer
-//                    gettimeofday(&m_timer, NULL);
-//                    double time_while_loop_start = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-
-//                    double total_time_config_retraction = 0.0;
-//                    double total_time_config_interpolation = 0.0;
-//                    double total_time_recursive_cost_update = 0.0;
-//                    double total_time_progress_check = 0.0;
-//                    double total_time_step_towards_random_sample = 0.0;
-//                    double total_time_add_remove_edge = 0.0;
-//                    double total_time_collision_check = 0.0;
-//                    int total_num_iter_while_loop = 0;
 
         bool new_sample_reached = false;
         while (new_sample_reached == false)
@@ -6597,11 +5935,6 @@ void BiRRTstarPlanner::rewireTreeInterpolation(Rrt_star_tree *tree, vector<int> 
           //Perform a step from curr_x_new towards x_near using a fixed step size (returns true when x_near has been reached by expansion)
           Node exp_node_towards_x_near = tree->nodes[near_vertices[nn_num]];
           new_sample_reached = stepTowardsRandSample(curr_x_new, exp_node_towards_x_near, m_constraint_extend_step_factor);
-
-          //Get time elapsed
-          //gettimeofday(&m_timer, NULL);
-          //double time_step_towards_rand_end = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-          //total_time_step_towards_random_sample += (time_step_towards_rand_end - time_step_towards_rand_start);
 
           //Projection only required if x_new has not been reached (because x_new.config is already on constraint manifold)
           if (new_sample_reached == false)
@@ -6629,28 +5962,9 @@ void BiRRTstarPlanner::rewireTreeInterpolation(Rrt_star_tree *tree, vector<int> 
             bool projection_succeed = m_RobotMotionController->run_config_retraction(exp_node_towards_x_near.config, m_task_frame, m_grasp_transform,
                                                                                      m_constraint_vector, m_coordinate_dev, m_max_projection_iter);
 
-            //Get time elapsed
-            //gettimeofday(&m_timer, NULL);
-            //double time_config_retraction_end = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-            //total_time_config_retraction += (time_config_retraction_end - time_config_retraction_start);
-
-            //Variable for timer
-            //gettimeofday(&m_timer, NULL);
-            //double time_collision_check_start = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-
             //Check whether projection succeded and whether the resulting config is valid
             if (projection_succeed == true && m_FeasibilityChecker->isConfigValid(exp_node_towards_x_near.config))
             {
-
-              //Get time elapsed
-              //gettimeofday(&m_timer, NULL);
-              //double time_collision_check_end = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-              //total_time_collision_check += (time_collision_check_end - time_collision_check_start);
-
-              //Variable for timer
-              //gettimeofday(&m_timer, NULL);
-              //double time_progress_check_start = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-
               //Check if config retraction has projected the expanded config back onto the config of the new node "curr_x_new"
               // -> In this case the expansion is stuck, because each projected sample/config will be identical to the config of "curr_x_new"
               double dist_near_to_projected_sample = m_Heuristic.euclidean_joint_space_distance(curr_x_new.config, exp_node_towards_x_near.config);
@@ -6661,51 +5975,17 @@ void BiRRTstarPlanner::rewireTreeInterpolation(Rrt_star_tree *tree, vector<int> 
                                                                                                   tree->nodes[near_vertices[nn_num]].config);
 
               if (dist_near_to_projected_sample < m_min_projection_distance || dist_curr_x_new_to_x_near < dist_projected_sample_to_x_near)
-              {
-                //cout<<"Sample projected back onto config of new node, Expansion stuck, Exit Expansion!"<<endl;
                 break;
-              }
-              else
-              {
-                //cout<<"Projection generated new sample!"<<endl;
-                //cout<<dist_near_to_projected_sample<<endl;
-              }
-
-              //Get time elapsed
-              //gettimeofday(&m_timer, NULL);
-              //double time_progress_check_end = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-              //total_time_progress_check += (time_progress_check_end - time_progress_check_start);
-
-              //Variable for timer
-              //gettimeofday(&m_timer, NULL);
-              //double time_nodes_interpolation_start = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
 
               //Connect curr_x_new to projected sample
               bool connection_result = connectNodesInterpolation(tree, curr_x_new, exp_node_towards_x_near, m_num_traj_segments_interp, gen_node, gen_edge);
 
-              //Get time elapsed
-              //gettimeofday(&m_timer, NULL);
-              //double time_nodes_interpolation_end = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-              //total_time_config_interpolation += (time_nodes_interpolation_end - time_nodes_interpolation_start);
-
               //Check whether cost of projected sample is lower than current cost of x_near
               if (gen_node.cost_reach.total <= tree->nodes[near_vertices[nn_num]].cost_reach.total)
               {
-                //Variable for timer
-                //gettimeofday(&m_timer, NULL);
-                //double time_collision_check2_start = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-
                 //Check edge from curr_x_new to exp_node_towards_x_near for validity (collision check)
                 if (connection_result == true && m_FeasibilityChecker->isEdgeValid(gen_edge))
                 {
-                  //Get time elapsed
-                  //gettimeofday(&m_timer, NULL);
-                  //double time_collision_check2_end = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-                  //total_time_collision_check += (time_collision_check2_end - time_collision_check2_start);
-
-                  //#pragma omp critical(addViaNode)
-                  //{
-                  //Modify node data
                   gen_node.node_id = num_nodes_tree;
                   //Increment local tree nodes counter
                   num_nodes_tree++;
@@ -6732,28 +6012,18 @@ void BiRRTstarPlanner::rewireTreeInterpolation(Rrt_star_tree *tree, vector<int> 
 
                 }
                 else
-                {
-                  //cout<<"Edge to projected sample invalid"<<endl;
                   break;
-                }
+
               }
               else
-              {
-                //cout<<"Cost of Projected sample exeeded the cost of near node"<<endl;
                 break;
-              }
+
             }
             else
-            {
-              //cout<<"Projection failed"<<endl;
               break;
-            }
           }
           else
           {
-
-            //cout<<"Near Vertex reached!"<<endl;
-
             //Connect current curr_x_new to x_new
             bool connection_result = connectNodesInterpolation(tree, curr_x_new, tree->nodes[near_vertices[nn_num]], m_num_traj_segments_interp, gen_node,
                                                                gen_edge);
@@ -6764,10 +6034,6 @@ void BiRRTstarPlanner::rewireTreeInterpolation(Rrt_star_tree *tree, vector<int> 
               //Check edge from curr_x_new to exp_node_towards_x_near for validity (collision check)
               if (connection_result == true && m_FeasibilityChecker->isEdgeValid(gen_edge))
               {
-                //Variable for timer
-                //gettimeofday(&m_timer, NULL);
-                //double time_add_remove_edge_start = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-
                 //Compute cost reduction (total + for revolute and primatic components)
                 // -> used to update cost of children nodes
                 vector<double> cost_reduction(3);
@@ -6865,18 +6131,6 @@ void BiRRTstarPlanner::rewireTreeInterpolation(Rrt_star_tree *tree, vector<int> 
                 else
                   tree->nodes[near_vertices[nn_num]].cost_h.total = m_Heuristic.euclidean_joint_space_distance(gen_node.config, m_config_start_pose);
 
-//                                    //RRT* Tree Visu.
-//                                    if(show_tree_vis == true)
-//                                    {
-//                                        //cout<<" edge to visu added in REWIRE"<<endl;
-//                                        //Add edge to tree visualization
-//                                        #pragma omp critical(insertNodeOperation)
-//                                        add_tree_edge_vis(tree->name, gen_edge);
-//                                    }
-
-                //Insert via nodes and edges into tree (generated by stepping from x_new to x_near + first order projection)
-                //#pragma omp critical(insertNodeOperation)
-                //{
                 for (int i = 0; i < via_nodes.size(); i++)
                 {
                   //cout<<"insert node with id: "<<via_nodes[i].node_id<<endl;
@@ -6890,27 +6144,8 @@ void BiRRTstarPlanner::rewireTreeInterpolation(Rrt_star_tree *tree, vector<int> 
                 //Increment total number of edges in tree, because a new edge connecting curr_x_new to x_near has been is added
                 //Note: all other edges are added in insertNode above + num_edges counter is incremented there
                 tree->num_edges++;
-                //}
-
-                //Get time elapsed
-                //gettimeofday(&m_timer, NULL);
-                //double time_add_remove_edge_end = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-                //total_time_add_remove_edge += (time_add_remove_edge_end - time_add_remove_edge_start);
-
-                //Variable for timer
-                //gettimeofday(&m_timer, NULL);
-                //double time_cost_update_start = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-
-                // -> Update cost to reach near_vertex via x_new node and the cost following the near vertex
-                //tree->nodes[near_vertices[nn_num].node_id].cost_reach.total = gen_node.cost_reach.total;
-                //#pragma omp critical(edgeoperation)
 
                 recursiveNodeCostUpdate(tree, tree->nodes[near_vertices[nn_num]], cost_reduction, show_tree_vis);
-
-                //Get time elapsed
-                //gettimeofday(&m_timer, NULL);
-                //double time_cost_update_end = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-                //total_time_recursive_cost_update += (time_cost_update_end - time_cost_update_start);
 
                 //Clear array of nodes visited in recursiveNodeCostUpdate
                 testing_.clear();
@@ -6923,42 +6158,9 @@ void BiRRTstarPlanner::rewireTreeInterpolation(Rrt_star_tree *tree, vector<int> 
             }                                    //Solution path cost check
           }                                    //Query Sample Reached FALSE
         }                                    //END Loop While Sample Not Reached
-
-//                    //Get time elapsed
-//                    gettimeofday(&m_timer, NULL);
-//                    double time_while_loop_end = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-//                    double total_time_while_loop = time_while_loop_end - time_while_loop_start;
-//                    printf("rewireTreeInterpolation (While loop iterations) %i iterations\n", total_num_iter_while_loop);
-//                    printf("rewireTreeInterpolation (While loop) %.6lf seconds elapsed\n", total_time_while_loop);
-//                    printf("rewireTreeInterpolation (total time config retraction) %.6lf seconds elapsed\n", total_time_config_retraction);
-//                    printf("rewireTreeInterpolation (total time config interpolation) %.6lf seconds elapsed\n", total_time_config_interpolation);
-//                    printf("rewireTreeInterpolation (total time recursive cost update) %.6lf seconds elapsed\n", total_time_recursive_cost_update);
-//                    printf("rewireTreeInterpolation (total time progress check) %.6lf seconds elapsed\n", total_time_progress_check);
-//                    printf("rewireTreeInterpolation (total time step towards sample) %.6lf seconds elapsed\n", total_time_step_towards_random_sample);
-//                    printf("rewireTreeInterpolation (total time add remove edge) %.6lf seconds elapsed\n", total_time_add_remove_edge);
-//                    printf("rewireTreeInterpolation (total time collision checks) %.6lf seconds elapsed\n", total_time_collision_check);
-
-//                    if(total_time_while_loop > 3.0)
-//                    {
-//                        cout<<"Stopped due to long while loop"<<endl;
-//                        int z;
-//                        cin>>z;
-//                    }
-
       }                                    //END else Constraint Active
-
-//          }//End Cost check x_new.cost_reach.total < near_node.cost_reach.total
-//          else //We can leave the loop since all following near nodes have lower cost-to-reach than x_new (rewire cannot improve path cost to near nodes)
-//          {
-//            break;
-//          }
     } //End if exclusion parent and root node
   } //End iteration through near nodes
-
-//    //Get time elapsed
-//    gettimeofday(&m_timer, NULL);
-//    double time_end = m_timer.tv_sec+(m_timer.tv_usec/1000000.0);
-//    printf("rewireTreeInterpolation %.6lf seconds elapsed\n", time_end - time_start);
 
 }
 
@@ -7060,8 +6262,6 @@ void BiRRTstarPlanner::recursiveNodeCostUpdate(Rrt_star_tree *tree, Node tree_ve
       //Show updated solution path (updated by rewireing a node on the solution path)
       if (show_tree_vis == true)
       {
-        //Perform search for best solution path and shows it as a line strip
-        // -> "m_node_tree_B" (from tree_B) or "m_node_tree_A" (from tree_A) has an updated cost due to a parent that has been rewired
         showCurrentSolutionPath(m_connected_tree_name, m_node_tree_B, m_node_tree_A);
       }
 
@@ -7072,7 +6272,6 @@ void BiRRTstarPlanner::recursiveNodeCostUpdate(Rrt_star_tree *tree, Node tree_ve
   //Iterate through children of near vertex
   for (int edg = 0; edg < tree_vertex.outgoing_edges.size(); edg++)
   {
-
     //Call recursiveNodeCostUpdate for child node of current node corresponding to near_vertex
     recursiveNodeCostUpdate(tree, tree->nodes[tree_vertex.outgoing_edges[edg].child_node_id], cost_reduction, show_tree_vis);
   }
@@ -7182,12 +6381,6 @@ void BiRRTstarPlanner::setEdgeCostWeights(vector<double> ecw)
   }
 }
 
-////Function to set the configuration projection error threshold (used in constraint satisfaction function)
-//void BiRRTstarPlanner::setConfigProjectionErrorThreshold(double threshold)
-//{
-//    m_projection_error_threshold = threshold;
-//}
-
 //Perform a step from nearest neighbour towards random sample
 bool BiRRTstarPlanner::stepTowardsRandSample(Node nn_node, Node &x_rand, double extend_step_factor)
 {
@@ -7242,12 +6435,6 @@ bool BiRRTstarPlanner::stepTowardsRandSample(Node nn_node, Node &x_rand, double 
   // (prismatic and revolute joint expansion treated seperately)
   sum_squares_rev_joints = 0.0;
   sum_squares_prism_joints = 0.0;
-
-//    cout<<vec_length_rot<<endl;
-//    cout<<vec_length_prism<<endl;
-
-//    cout<<rot_joint_target_reached<<endl;
-//    cout<<prism_joint_target_reached<<endl;
 
   //Current Joint Index
   joint_idx = 0;
@@ -7349,25 +6536,6 @@ bool BiRRTstarPlanner::stepTowardsRandSample(Node nn_node, Node &x_rand, double 
     rand_sample_reached = false;
   }
 
-  //------------------------------------
-
-//    //Modify config of x_rand if initial config of x_rand has not been reached
-//    if(extend_vec_length_rot < vec_length_rot && extend_vec_length_prism < vec_length_prism)
-//    {
-//        //Set new config for x_rand
-//        x_rand.config = extend_config;
-
-//        //Set new ee pose for x_rand
-//        KDL::JntArray ext_configuration = m_RobotMotionController->Vector_to_JntArray(extend_config);
-//        x_rand.ee_pose = m_KDLRobotModel->compute_FK(m_manipulator_chain,ext_configuration);
-
-//    }
-//    else
-//    {
-//        //Configuration of x_rand has been reached (no modification to x_rand data performeds)
-//        rand_sample_reached = true;
-//    }
-
   return rand_sample_reached;
 
 }
@@ -7375,12 +6543,6 @@ bool BiRRTstarPlanner::stepTowardsRandSample(Node nn_node, Node &x_rand, double 
 // ------------------------------ Tree Visualization -----------------------------------------------------
 void BiRRTstarPlanner::add_tree_edge_vis(string tree_name, Edge new_edge)
 {
-
-//    cout<<"Add edge: "<<endl;
-//    cout<<new_edge.root_node_id<<endl;
-//    cout<<new_edge.child_node_id<<endl;
-//    cout<<new_edge.edge_id<<endl;
-
   geometry_msgs::Point ep;
 
   //Set marker data for current Line_strip/edge
@@ -7400,18 +6562,6 @@ void BiRRTstarPlanner::add_tree_edge_vis(string tree_name, Edge new_edge)
   add_edge_marker_.type = visualization_msgs::Marker::LINE_LIST; //Not LINE_STRIP, otherwise all points in the MarkerArray will be connected
   //LINE_LIST markers use only the x component of scale, for the line/edge width
   add_edge_marker_.scale.x = m_edge_marker_scale;
-
-//    //Generate Line_strip for new edge
-//    for (int tp = 0 ; tp < edge.ee_trajectory.size() ; tp++)
-//    {
-//        //Set current endeffector position (at point "tp" of the edge)
-//        ep.x = edge.ee_trajectory[tp][0]; //X
-//        ep.y = edge.ee_trajectory[tp][1]; //Y
-//        ep.z = edge.ee_trajectory[tp][2]; //Z
-
-//        //Enter current ee position into marker vector
-//        add_edge_marker_.points.push_back(ep);
-//    }
 
   //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   //NOTE : LINE_STRIP CAUSES RVIZ TO CRASH WHEN NUMBER OF POINTS IN MARKER ARRAY IS HIGHER THAN 8200 !!!!
@@ -7462,57 +6612,6 @@ void BiRRTstarPlanner::remove_tree_edge_vis(string tree_name, Edge old_edge)
     m_goal_tree_add_edge_marker_array_msg.markers.erase(m_goal_tree_add_edge_marker_array_msg.markers.begin() + old_edge.edge_id);
   else
     ROS_ERROR("UNKOWN TREE NAME");
-
-  //if(old_edge.child_node_id == 0)
-  //{
-//        cout<<"Remove edge: "<<endl;
-//        //cout<<old_edge.root_node_id<<endl;
-//        //cout<<old_edge.child_node_id<<endl;
-//        cout<<old_edge.edge_id<<endl;
-  //}
-
-  //Set marker data for current Line_strip/edge
-//    visualization_msgs::Marker remove_edge_marker_;
-//    remove_edge_marker_.header.stamp = ros::Time::now();
-//    //Set up properties for remove edge marker
-//    remove_edge_marker_.action = visualization_msgs::Marker::DELETE;
-//    remove_edge_marker_.header.frame_id = m_base_link_name;
-//    remove_edge_marker_.ns = "line_list";
-
-//    //Set marker ID
-//    //remove_edge_marker_.id = 0;
-//    remove_edge_marker_.id = old_edge.edge_id;
-//    //remove_edge_marker_.id = m_tree.num_edge_operations;
-
-//    //Set colour for tree edges
-//    remove_edge_marker_.color.r = 0.0;
-//    remove_edge_marker_.color.g = 1.0;
-//    remove_edge_marker_.color.b = 0.0;
-//    remove_edge_marker_.color.a = 1.0;
-
-//    //Set first and last endeffector position to represent edge to be removed
-//    geometry_msgs::Point ep;
-//    ep.x = old_edge.ee_trajectory[0][0]; //X
-//    ep.y = old_edge.ee_trajectory[0][1]; //Y
-//    ep.z = old_edge.ee_trajectory[0][2]; //Z
-//    remove_edge_marker_.points.push_back(ep);
-//    ep.x = old_edge.ee_trajectory[old_edge.ee_trajectory.size()-1][0]; //X
-//    ep.y = old_edge.ee_trajectory[old_edge.ee_trajectory.size()-1][1]; //Y
-//    ep.z = old_edge.ee_trajectory[old_edge.ee_trajectory.size()-1][2]; //Z
-//    remove_edge_marker_.points.push_back(ep);
-
-//    //Insert edge to be deleted
-//    remove_edge_marker_array_msg_.markers.push_back(remove_edge_marker_);
-
-//    cout<<"Remove edge"<<endl;
-//    for(int m = 0 ; m < remove_edge_marker_.points.size() ; m++)
-//    {
-//        cout<<"X: "<<remove_edge_marker_.points[m].x<<endl;
-//        cout<<"Y: "<<remove_edge_marker_.points[m].y<<endl;
-//        cout<<"Z: "<<remove_edge_marker_.points[m].z<<endl;
-//    }
-//    cout<<endl;
-
 }
 
 void BiRRTstarPlanner::add_tree_node_vis(string tree_name, Node new_node)
@@ -7526,11 +6625,6 @@ void BiRRTstarPlanner::add_tree_node_vis(string tree_name, Node new_node)
   bool tree_idx = tree_name == "START" ? true : false;
   if (tree_idx == true)
   {
-//        //Set color for tree nodes
-//        m_start_tree_add_nodes_marker.color.r = 0.0;
-//        m_start_tree_add_nodes_marker.color.g = 0.0;
-//        m_start_tree_add_nodes_marker.color.b = 1.0;
-
     m_start_tree_add_nodes_marker.points.push_back(tn);
   }
   else
@@ -7679,11 +6773,7 @@ void BiRRTstarPlanner::showCurrentSolutionPath(string connected_tree_name, Node 
 
     //Set current node to parent of current node (going one step backwards along the tree)
     start_tree_node = m_start_tree.nodes[start_tree_node.parent_id];
-
-    //cout<<"Solution path search (start tree): "<<start_tree_node.node_id<<endl;
   }
-
-  //cout<<"Solution path search (goal tree): "<<goal_tree_node.node_id<<endl;
 
   //Go backwards from connected goal tree node along the tree until goal node has been reached (start node  = m_goal_tree.nodes[0].id = 0)
   while (goal_tree_node.node_id != 0)
@@ -7742,11 +6832,7 @@ void BiRRTstarPlanner::showCurrentSolutionPath(string connected_tree_name, Node 
 
     //Set current node to parent of current node (going one step backwards along the tree)
     goal_tree_node = m_goal_tree.nodes[goal_tree_node.parent_id];
-
-    //cout<<"Solution path search (goal tree): "<<goal_tree_node.node_id<<endl;
   }
-
-  //cout<<endl;
 
   //Publish endeffector solution path
   m_ee_solution_path_pub.publish(ee_solution_path_marker); //Show line strip representing solution path
@@ -7780,7 +6866,6 @@ void BiRRTstarPlanner::computeFinalSolutionPathTrajectories()
   //Solution path edges of goal and star tre
   vector<Edge> solution_path_edges_start_tree;
   vector<Edge> solution_path_edges_goal_tree;
-  ;
 
   //Go backwards from connected start tree node along the tree until start node has been reached (start node  = m_start_tree.nodes[0].id = 0)
   while (start_tree_node.node_id != 0)
@@ -7803,8 +6888,6 @@ void BiRRTstarPlanner::computeFinalSolutionPathTrajectories()
 
     //Set current node to parent of current node (going one step backwards along the tree)
     start_tree_node = m_start_tree.nodes[start_tree_node.parent_id];
-
-    //cout<<"Solution path search: "<<start_tree_node.node_id<<endl;
   }
 
   //Go backwards from connected goal tree node along the tree until goal node has been reached (start node  = m_goal_tree.nodes[0].id = 0)
@@ -7829,8 +6912,6 @@ void BiRRTstarPlanner::computeFinalSolutionPathTrajectories()
 
     //Set current node to parent of current node (going one step backwards along the tree)
     goal_tree_node = m_goal_tree.nodes[goal_tree_node.parent_id];
-
-    //cout<<"Solution path search: "<<goal_tree_node.node_id<<endl;
   }
 
   //Build solution trajectories
@@ -7863,16 +6944,6 @@ void BiRRTstarPlanner::computeFinalSolutionPathTrajectories()
       m_result_ee_trajectory.push_back(solution_path_edges_goal_tree[spe].ee_trajectory[0]);
     }
   }
-
-  // --------------------------------- START: Smoothing --------------------------
-  //Perform a smoothing operation given the jerky joint trajectory solution as input
-  //solution_path_smoothing(m_result_joint_trajectory);
-  // --------------------------------- END: Smoothing --------------------------
-
-  //Write Planning results to file (joint and ee trajectory)
-  //////m_KDLRobotModel->writeTrajectoryToFile(m_result_joint_trajectory, m_file_path_joint_trajectory);
-  //////m_KDLRobotModel->writeTrajectoryToFile(m_result_ee_trajectory, m_file_path_ee_trajectory);
-
 }
 
 //Write Planner Statistics to File
@@ -8136,98 +7207,22 @@ bool BiRRTstarPlanner::readStartGoalConfig(char *start_goal_config_file, vector<
 }
 
 //Attach Object to the End-effector
-void BiRRTstarPlanner::attachObject(moveit_msgs::AttachedCollisionObject attached_object)
-{
-  //Store attached object (not used yet, but is probably required for attached object operations while planning)
-  m_attached_object = attached_object;
-
-  //Attach the given object "attached_object" to the end-effector in the start pose m_start_tree.nodes[0].ee_pose
-  m_planning_world->attachObjecttoEndeffector(attached_object, m_ee_start_pose);
-
-}
-
-//DeAttach Object to the End-effector
-void BiRRTstarPlanner::detachObject(moveit_msgs::AttachedCollisionObject attached_object)
-{
-  //Dettach the given object "attached_object" from the end-effector in the goal pose m_goal_tree.nodes[0].ee_pose
-  m_planning_world->detachObjectfromEndeffector(attached_object, m_ee_goal_pose);
-}
-
-////Method for Solution Path Smoothing (from Paper "Fast Smoothing of Manipulator Trajectories using Optimal Bounded-Acceleration Shortcuts")
-//void BiRRTstarPlanner::basic_solution_path_smoothing(vector<vector<double> > raw_joint_trajectory)
+//void BiRRTstarPlanner::attachObject(moveit_msgs::AttachedCollisionObject attached_object)
 //{
-
-//    //velocity and acceleration bounds, respectively
-//    ParabolicRamp::Vector vmax(m_num_joints),amax(m_num_joints);
-//    int joint_idx = 0;
-//    for (int k = 0 ; k < m_manipulator_chain.getNrOfSegments(); k++)
-//     {
-//         if(m_manipulator_chain.getSegment(k).getJoint().getTypeName() != "None")
-//         {
-//             //Bounds for prismatic joints
-//             if(m_manipulator_chain.getSegment(k).getJoint().getTypeName() != "RotAxis")
-//             {
-//                vmax[joint_idx] = 1.0; // m/s
-//                amax[joint_idx] = 0.5; // m/s^²
-//                //cout<<vmax[joint_idx]<<" "<<amax[joint_idx]<<endl;
-//             }
-//             else //Bounds for revolute joints
-//             {
-//                vmax[joint_idx] = 0.175; // rad/s
-//                amax[joint_idx] = 0.1; // rad/s^²
-//                //cout<<vmax[joint_idx]<<" "<<amax[joint_idx]<<endl;
-//             }
-
-//             //Next joint
-//             joint_idx++;
-//         }
-//    }
-
-//    //Provides the min, max and center value for all joint contained in a given kinematic chain
-//    vector<double> q_min(m_num_joints);
-//    vector<double> q_max(m_num_joints);
-//    vector<double> q_opt_pos(m_num_joints);
-//    m_KDLRobotModel->getJointRangeData(m_manipulator_chain , q_min, q_max, q_opt_pos);
-
-//    //a configuration/segment feasibility checker, subclassed from FeasibilityCheckerBase
-//    state_feasibility_checker::FeasibilityChecker feas(m_planning_group);
-
-//    //some number of shortcutting iterations
-//    int numIters=20; //before 1000
-//    //checks a piecewise linear path whose distance from the parabolic path is no more than the tolerance tol
-//    ParabolicRamp::Real tol=1e-4;
-
-//    //Checker
-//    ParabolicRamp::RampFeasibilityChecker checker(&feas,tol);
-//    //TODO: compute milestones, velocity and acceleration bounds
-
-//    ParabolicRamp::DynamicPath traj;
-//    traj.Init(vmax,amax);
-//    traj.SetJointLimits(q_min,q_max);
-//    //The sequence of milestones, i.e. the configurations of the solution path
-//    vector<ParabolicRamp::Vector> path = raw_joint_trajectory;
-//    //now the trajectory starts and stops at every milestone
-//    traj.SetMilestones(path);
-
-//    ParabolicRamp::DynamicPath traj_intermediate;
-//    traj_intermediate.Init(vmax,amax);
-//    traj_intermediate.SetJointLimits(q_min,q_max);
-
-//    printf("Initial path duration: %g\n",traj.GetTotalTime());
-//    printf("Initial number of path waypoints: %d\n",raw_joint_trajectory.size());
-//    int res=traj.Shortcut(numIters,checker, traj_intermediate);
-//    printf("After shortcutting: %d shortcuts taken, duration %g\n",res,traj.GetTotalTime());
-//    vector<ParabolicRamp::Vector> pos;
-//    vector<ParabolicRamp::Vector> vel;
-//    traj_intermediate.GetMilestones(pos,vel);
-//    printf("After shortcutting: Trajectory composed of %d waypoints\n",pos.size());
-
-//    for(int wp = 0 ; wp < pos.size() ; wp++)
-//        cout<<pos[wp][0]<<" "<<pos[wp][0]<<endl;
-
+//  //Store attached object (not used yet, but is probably required for attached object operations while planning)
+//  m_attached_object = attached_object;
+//
+//  //Attach the given object "attached_object" to the end-effector in the start pose m_start_tree.nodes[0].ee_pose
+//  m_planning_world->attachObjecttoEndeffector(attached_object, m_ee_start_pose);
+//
 //}
-
-// -------------------------------- TF Transforms when planning is performed on real robot (i.e. planning_frame = /map) ------------------------------------
+//
+////DeAttach Object to the End-effector
+//void BiRRTstarPlanner::detachObject(moveit_msgs::AttachedCollisionObject attached_object)
+//{
+//  //Dettach the given object "attached_object" from the end-effector in the goal pose m_goal_tree.nodes[0].ee_pose
+//  m_planning_world->detachObjectfromEndeffector(attached_object, m_ee_goal_pose);
+//}
 
 //Transform sample from base_link frame to map frame
 void BiRRTstarPlanner::transform_sample_to_map_frame(KDL::JntArray& sample_conf)
@@ -8308,7 +7303,7 @@ void BiRRTstarPlanner::transform_sample_to_map_frame(vector<double>& sample_conf
       listener.lookupTransform("/map", m_ns_prefix_robot + "base_link", ros::Time(0), transform_map_to_base);
       transform_map_to_base_available = true;
     }
-    catch (tf::TransformException ex)
+    catch (tf::TransformException &ex)
     {
       //ROS_ERROR("%s",ex.what());
       transform_map_to_base_available = false;
@@ -8368,7 +7363,7 @@ void BiRRTstarPlanner::transform_sample_to_base_link_frame(KDL::JntArray& sample
       listener.lookupTransform("/map", m_ns_prefix_robot + "base_link", ros::Time(0), transform_map_to_base);
       transform_map_to_base_available = true;
     }
-    catch (tf::TransformException ex)
+    catch (tf::TransformException &ex)
     {
       ROS_ERROR("%s", ex.what());
       transform_map_to_base_available = false;
@@ -8389,12 +7384,6 @@ void BiRRTstarPlanner::transform_sample_to_base_link_frame(KDL::JntArray& sample
       base_link_to_sample_conf[1] = base_link_to_sample_trans.y();
       double z_dir = transform_base_link_to_sample.getRotation().getAxis().z();
       base_link_to_sample_conf[2] = z_dir > 0.0 ? base_link_to_sample_rot.getAngle() : -base_link_to_sample_rot.getAngle();
-
-      //Convert goal_pose for base from vector to Eigen::Affine3d
-      //Eigen::Affine3d sample_pose_base;
-      //Eigen::Affine3d trans_base(Eigen::Translation3d(Eigen::Vector3d(base_link_to_sample_conf[0],base_link_to_sample_conf[1],0)));
-      //Eigen::Affine3d rot_base = Eigen::Affine3d(Eigen::AngleAxisd(base_link_to_sample_conf[2], Eigen::Vector3d(0, 0, 1)));
-      //sample_pose_base = trans_base * rot_base;
 
       //Express base config w.r.t map frame
       sample_conf(0) = base_link_to_sample_conf[0];
@@ -8427,7 +7416,7 @@ void BiRRTstarPlanner::transform_sample_to_base_link_frame(vector<double>& sampl
       listener.lookupTransform("/map", m_ns_prefix_robot + "base_link", ros::Time(0), transform_map_to_base);
       transform_map_to_base_available = true;
     }
-    catch (tf::TransformException ex)
+    catch (tf::TransformException &ex)
     {
       //ROS_ERROR("%s",ex.what());
       transform_map_to_base_available = false;
@@ -8452,12 +7441,6 @@ void BiRRTstarPlanner::transform_sample_to_base_link_frame(vector<double>& sampl
       base_link_to_sample_conf[1] = base_link_to_sample_trans.y();
       double z_dir = transform_base_link_to_sample.getRotation().getAxis().z();
       base_link_to_sample_conf[2] = z_dir > 0.0 ? base_link_to_sample_rot.getAngle() : -base_link_to_sample_rot.getAngle();
-
-      //Convert goal_pose for base from vector to Eigen::Affine3d
-      //Eigen::Affine3d sample_pose_base;
-      //Eigen::Affine3d trans_base(Eigen::Translation3d(Eigen::Vector3d(base_link_to_sample_conf[0],base_link_to_sample_conf[1],0)));
-      //Eigen::Affine3d rot_base = Eigen::Affine3d(Eigen::AngleAxisd(base_link_to_sample_conf[2], Eigen::Vector3d(0, 0, 1)));
-      //sample_pose_base = trans_base * rot_base;
 
       //Express base config w.r.t map frame
       sample_conf[0] = base_link_to_sample_conf[0];
@@ -8501,27 +7484,16 @@ int BiRRTstarPlanner::getNumRevoluteJointsPlanningGroup()
 // -------------------------------- Functions for consistency checks ------------------------------------
 void BiRRTstarPlanner::no_two_parents_check(Rrt_star_tree *tree)
 {
-
-  //
   for (int i = 0; i < tree->nodes.size(); i++)
   {
-    //int parent_id = tree->nodes[i].parent_id;
-    //cout<<"Incoming edges for node: "<<tree->nodes[i].node_id<<endl;
     int num_incoming_edges = 0;
 
     for (int j = 0; j < tree->nodes.size(); j++)
     {
       for (int e = 0; e < tree->nodes[j].outgoing_edges.size(); e++)
       {
-        //if(tree->nodes[j].node_id == 1)
-        //   cout<<"Start Node has an outgoing edge"<<endl;
-
         if (tree->nodes[j].outgoing_edges[e].child_node_id == tree->nodes[i].node_id)
         {
-          //if(tree->nodes[j].cost_reach.total > tree->nodes[i].cost_reach.total)
-          //   cout<<"Outgoing edges from node: "<<tree->nodes[j].cost_reach.total<<" to nodes: "<< tree->nodes[i].cost_reach.total<<endl;
-          //cout<<"Outgoing edges from node: "<<tree->nodes[j].node_id<<" to nodes: "<< tree->nodes[i].node_id<<endl;
-
           num_incoming_edges++;
           if (num_incoming_edges > 1)
           {
@@ -8532,24 +7504,9 @@ void BiRRTstarPlanner::no_two_parents_check(Rrt_star_tree *tree)
             int stop;
             cin >> stop;
           }
-//                    if(tree->nodes[i].node_id == 0)
-//                    {
-//                        cout<<"ERROR Start Node has an incoming edge"<<endl;
-//                        int stop;
-//                        cin>>stop;
-//                    }
         }
       }
-
     }
-
-//        if(num_incoming_edges == 0 && tree->nodes[i].node_id != 1 && tree->nodes[i].node_id != 0)
-//        {
-//            cout<<"ERROR Node: "<<tree->nodes[i].node_id<<" has NO incoming edge"<<endl;
-
-//            int stop;
-//            cin>>stop;
-//        }
   }
 }
 

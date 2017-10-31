@@ -11,13 +11,8 @@
 #include <kuka_motion_control/control_laws.h>
 #include <validity_checker/feasibility_checker.h>
 #include <planning_heuristics/distance_heuristics.h>
-#include <planning_world_builder/planning_world_builder.h>
+//#include <planning_world_builder/planning_world_builder.h>
 
-//Needed for planning with the real robot
-//#include <robot_interface_definition/robot_interface.h>
-
-//#include <rrt_star_algorithm/ProlateHyperspheroid.h>
-#include <omp.h>
 
 #ifndef BIRRT_STAR_H
 #define BIRRT_STAR_H
@@ -36,7 +31,7 @@ public:
 
   //Set the planning scene
   void setPlanningSceneInfo(vector<double> size_x, vector<double> size_y, string scene_name);
-  void setPlanningSceneInfo(planning_world::PlanningWorldBuilder world_builder);
+  //void setPlanningSceneInfo(planning_world::PlanningWorldBuilder world_builder);
 
   //Implementation of the virtual function "move" defined in Abstract Class robot_interface_definition
   //bool plan(const Eigen::Affine3d& goal);
@@ -61,9 +56,9 @@ public:
                     vector<pair<double, double> > coordinate_dev, int search_space);
 
   //Initialize RRT* Planner for plannig with the real robot
-  bool init_planner_real_robot_goal_pose(const Eigen::Affine3d& goal, const vector<int> constraint_vec_goal_pose,
-                                         const vector<pair<double, double> > target_coordinate_dev, const string planner_type);
-  bool init_planner_real_robot_goal_config(const vector<double> goal, const string planner_type);
+//  bool init_planner_real_robot_goal_pose(const Eigen::Affine3d& goal, const vector<int> constraint_vec_goal_pose,
+//                                         const vector<pair<double, double> > target_coordinate_dev, const string planner_type);
+//  bool init_planner_real_robot_goal_config(const vector<double> goal, const string planner_type);
 
   //Read / Write Start and Goal Config
   void writeStartGoalConfig(char *start_goal_config_file, vector<double> start_config, vector<double> goal_config);
@@ -75,8 +70,8 @@ public:
   vector<double> generate_config_from_ee_pose_with_reference_config(vector<double> ee_pose, vector<int> constraint_vec_ee_pose,
                                                                     vector<pair<double, double> > coordinate_dev, vector<double> mean_init_config,
                                                                     bool show_motion);
-  vector<vector<double> > generate_start_goal_config(vector<double> start_pose, vector<int> constraint_vec_start_pose, vector<double> goal_pose,
-                                                     vector<int> constraint_vec_goal_pose, vector<pair<double, double> > coordinate_dev, bool show_motion);
+//  vector<vector<double> > generate_start_goal_config(vector<double> start_pose, vector<int> constraint_vec_start_pose, vector<double> goal_pose,
+//                                                     vector<int> constraint_vec_goal_pose, vector<pair<double, double> > coordinate_dev, bool show_motion);
 
   //Compute IK for given endeffector pose
   vector<double> findIKSolution(vector<double> goal_ee_pose, vector<int> constraint_vec, vector<pair<double, double> > coordinate_dev, bool show_motion);
@@ -85,8 +80,8 @@ public:
                                 vector<double> mean_init_config, bool show_motion);
 
   //Attach/Detach an given Object to the End-effector
-  void attachObject(moveit_msgs::AttachedCollisionObject attached_object);
-  void detachObject(moveit_msgs::AttachedCollisionObject attached_object);
+//  void attachObject(moveit_msgs::AttachedCollisionObject attached_object);
+//  void detachObject(moveit_msgs::AttachedCollisionObject attached_object);
 
   //Function to set parameterized task frame
   void setParameterizedTaskFrame(vector<int> cv, vector<pair<double, double> > coordinate_dev, bool task_pos_global, bool task_orient_global);
@@ -128,6 +123,8 @@ public:
 
   // ----- Added for Squirrel -----
 
+  void setOctree( const octomap::OcTree* octree, const std::vector<double> &mapToBase);
+
   bool getFullPoseFromEEPose(const vector<double> &endEffectorPose, const vector<pair<double, double> > &endEffectorDeviations, const vector<double> &poseInit, vector<double> &poseSolution);
 
   vector<vector<double> > &getJointTrajectoryRef();
@@ -148,7 +145,7 @@ private:
   string m_terminal_configs_path;
 
   //Planning World and Environment Size
-  boost::shared_ptr<planning_world::PlanningWorldBuilder> m_planning_world;
+  //boost::shared_ptr<planning_world::PlanningWorldBuilder> m_planning_world;
   vector<double> m_env_size_x; //m_env_size_x[0] = size in negative x dir / m_env_size_x[1] = size in positive x dir
   vector<double> m_env_size_y; //m_env_size_y[0] = size in negative y dir / m_env_size_y[1] = size in positive y dir
 

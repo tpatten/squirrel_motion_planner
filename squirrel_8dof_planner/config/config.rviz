@@ -5,18 +5,12 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
+        - /RobotModel1
         - /RobotModel1/Links1
         - /TF1/Frames1
         - /Robot_Trajectory1
         - /InteractiveMarkers1
         - /OccupancyGrid1
-        - /MarkerArray1
-        - /MarkerArray2
-        - /MarkerArray3
-        - /Marker1
-        - /Marker2
-        - /Marker3
-        - /Marker4
       Splitter Ratio: 0.5
     Tree Height: 733
   - Class: rviz/Selection
@@ -67,7 +61,7 @@ Visualization Manager:
         map: true
       Queue Size: 100
       Value: true
-    - Alpha: 0.3
+    - Alpha: 1
       Class: rviz/RobotModel
       Collision Enabled: false
       Enabled: true
@@ -452,62 +446,6 @@ Visualization Manager:
       Value: false
       Voxel Coloring: Z-Axis
       Voxel Rendering: Occupied Voxels
-    - Class: rviz/MarkerArray
-      Enabled: true
-      Marker Topic: /squirrel_8dof_planning/tree_edges_marker
-      Name: MarkerArray
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: true
-    - Class: rviz/MarkerArray
-      Enabled: true
-      Marker Topic: /squirrel_8dof_planning/tree_edges_marker
-      Name: MarkerArray
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: true
-    - Class: rviz/MarkerArray
-      Enabled: true
-      Marker Topic: /squirrel_8dof_planning/tree_edges_marker2
-      Name: MarkerArray
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: true
-    - Class: rviz/Marker
-      Enabled: true
-      Marker Topic: /squirrel_8dof_planning/tree_nodes_marker
-      Name: Marker
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: true
-    - Class: rviz/Marker
-      Enabled: true
-      Marker Topic: /squirrel_8dof_planning/tree_nodes_marker2
-      Name: Marker
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: true
-    - Class: rviz/Marker
-      Enabled: true
-      Marker Topic: /squirrel_8dof_planning/ee_tree_solution_path
-      Name: Marker
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: true
-    - Class: rviz/Marker
-      Enabled: true
-      Marker Topic: /squirrel_8dof_planning/base_tree_solution_path
-      Name: Marker
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: true
   Enabled: true
   Global Options:
     Background Color: 220; 220; 220
@@ -532,22 +470,22 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 4.23676
+      Distance: 5.06128
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -2.72812
-        Y: -1.24357
-        Z: -1.12803
+        X: -1.23887
+        Y: -0.72807
+        Z: -0.110423
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.559797
+      Pitch: 0.324801
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.369049
+      Yaw: 0.269053
     Saved: ~
 Window Geometry:
   Displays:

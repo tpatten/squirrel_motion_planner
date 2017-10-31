@@ -27,13 +27,15 @@
 #include <geometric_shapes/mesh_operations.h>
 #include <fcl/shape/geometric_shape_to_BVH_model.h>
 
-#include <squirrel_8dof_planner/squirrel_8dof_planner_structures.hpp>
-
-namespace SquirrelMotionPlanner
+namespace state_feasibility_checker
 {
 
 class CollisionChecker
 {
+  typedef double Real;
+  typedef uint32_t UInt;
+  typedef int32_t Int;
+
   struct Link
   {
     KDL::Frame transform;
@@ -51,17 +53,6 @@ class CollisionChecker
     {
     }
   };
-
-  ros::NodeHandle nh;
-  bool initialized;
-
-  KDL::Tree kdlTree;
-  std::vector<Real> jointPositions;
-  std::vector<Link> links;
-
-  std::vector<std::pair<Link*, Link*> > selfCollisionPairs;
-
-  fcl::CollisionObject* octomapCollisionObject;
 
 public:
   /**
@@ -98,6 +89,7 @@ public:
 
     updateTransforms(jointPositions, basePosition);
 
+
     if (checkSelfCollision())
       return true;
 
@@ -108,6 +100,17 @@ public:
   }
 
 private:
+
+  ros::NodeHandle nh;
+  bool initialized;
+
+  KDL::Tree kdlTree;
+  std::vector<Real> jointPositions;
+  std::vector<Link> links;
+
+  std::vector<std::pair<Link*, Link*> > selfCollisionPairs;
+
+  fcl::CollisionObject* octomapCollisionObject;
 
   // ******************** INITIALIZATION ********************
 
@@ -416,15 +419,20 @@ private:
 
   bool checkSelfCollision()
   {
+    bool foundCollision = false;
     for (std::vector<std::pair<Link*, Link*> >::const_iterator it = selfCollisionPairs.begin(); it != selfCollisionPairs.end(); ++it)
     {
       fcl::CollisionRequest request;
       fcl::CollisionResult result;
       fcl::collide(it->first->collisionObject, it->second->collisionObject, request, result);
       if (result.isCollision())
+      {
         return true;
+        foundCollision = true;
+        std::cout << "Collision between '" << it->first->name << "' and '" << it->second->name << "'." << std::endl;
+      }
     }
-    return false;
+    return foundCollision;
   }
 
   bool checkMapCollision()
@@ -432,6 +440,7 @@ private:
     if (!octomapCollisionObject)
       return false;
 
+    bool foundCollision = false;
     for (std::vector<Link>::const_iterator it = links.begin(); it != links.end(); ++it)
     {
       if (!it->collisionObject)
@@ -440,13 +449,17 @@ private:
       fcl::CollisionResult result;
       fcl::collide(octomapCollisionObject, it->collisionObject, request, result);
       if (result.isCollision())
+      {
         return true;
+        foundCollision = true;
+        std::cout << "Collision between '" << it->name << "' and 'octomap'." << std::endl;
+      }
     }
-    return false;
+    return foundCollision;
   }
 };
 
-} //namespace SquirrelMotionPlanner
+} //namespace state_feasibility_checker
 
 #endif //SQUIRREL_MOTION_PLANNING_COLLISION_CHECKER_HPP_
 

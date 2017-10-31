@@ -17,9 +17,11 @@
 #include <planner_data_structures/data_structs.h>
 //#include <birrt_star_algorithm/data_structs.h>
 #include <kuka_motion_control/control_laws.h>
-#include <moveit/planning_scene_monitor/planning_scene_monitor.h>
+//#include <moveit/planning_scene_monitor/planning_scene_monitor.h>
 
-#include <moveit_msgs/GetPlanningScene.h>
+//#include <moveit_msgs/GetPlanningScene.h>
+
+#include <validity_checker/collision_checker.hpp>
 
 #ifndef FEASIBILITY_CHECKER_H
 #define FEASIBILITY_CHECKER_H
@@ -27,70 +29,77 @@
 // --Namespaces --
 using namespace std;
 
-namespace state_feasibility_checker{
+namespace state_feasibility_checker
+{
 
 class FeasibilityChecker
-{	
-	public:
-    FeasibilityChecker(string robot_desciption_param, string planning_group, string ns_prefix = "");
-	~FeasibilityChecker();
-	//~FeasibilityCheckerBase() {}
-	
-    //Set Planning Scene Service Name
-    void setPlanningSceneServiceName(string service_name);
+{
+public:
+  int checkCount;
 
-	//Set step width for collision checking along an tree edge (only used in "isEdgeValid(Edge tree_edge)") 
-	void setCollisionCheckingStepWidth(double step_width);
-	
-	//Checking an Edge of for collisions with obstacles
-    bool isEdgeValid(Edge tree_edge, bool print_contacts = true);
-    bool isEdgeValid(Edge tree_edge, int &last_valid_node_idx, bool print_contacts = true);
-    //Checking a Config for collisions with obstacles
-    bool isConfigValid(vector<double> config, bool print_contacts = true);
-    bool isConfigValid(KDL::JntArray config, bool print_contacts = true);
+  FeasibilityChecker(string robot_desciption_param, string planning_group, string ns_prefix = "");
+  ~FeasibilityChecker();
+  //~FeasibilityCheckerBase() {}
 
-    //Definition of virtual methods (used for solution path smoothing)
-    //bool ConfigFeasible(const ParabolicRamp::Vector& x);
-    //bool SegmentFeasible(const ParabolicRamp::Vector& a,const ParabolicRamp::Vector& b);
-	
-	private:
+  //Set Planning Scene Service Name
+  void setPlanningSceneServiceName(string service_name);
 
-    //Node handle
-    ros::NodeHandle m_nh;
-    
-	//Planning group
-	string m_planning_group;
+  //Set step width for collision checking along an tree edge (only used in "isEdgeValid(Edge tree_edge)")
+  void setCollisionCheckingStepWidth(double step_width);
 
-    //Planning frame (from virtual joint in srdf)
-    string m_planning_frame;
+  void setOctree(const octomap::OcTree* octree, const std::vector<double> &mapToBase);
 
-    //Namespace prefix for robot
-    string m_ns_prefix_robot;
+  //Checking an Edge of for collisions with obstacles
+  bool isEdgeValid(const Edge &tree_edge, bool print_contacts = true);
+  bool isEdgeValid(const Edge &tree_edge, int &last_valid_node_idx, bool print_contacts = true);
+  //Checking a Config for collisions with obstacles
+  bool isConfigValid(const vector<double> &config, bool print_contacts = true);
+  bool isConfigValid(const KDL::JntArray& config, bool print_contacts = true);
 
-    //Name of Planning Scene Service;
-    string m_planning_scene_service;
-	
-	//Kinematic Chain of robot
-    KDL::Chain m_manipulator_chain;
-    
-	//Joint names
-    vector<string> m_joint_names;
+  //Definition of virtual methods (used for solution path smoothing)
+  //bool ConfigFeasible(const ParabolicRamp::Vector& x);
+  //bool SegmentFeasible(const ParabolicRamp::Vector& a,const ParabolicRamp::Vector& b);
 
-    //Number of joints
-    int m_num_joints;
-    
-	//Generate KDL Tree from robot urdf
-    boost::shared_ptr<kuka_motion_controller::KDLRobotModel> m_KDLRobotModel;
-    
-    //Planning Scene Monitor (used for Collision Checking)
-    planning_scene_monitor::PlanningSceneMonitorPtr m_planning_scene_monitor;
-    
-    //Step width along an tree edge for collision checking
-    double m_collision_check_extend_step_factor;
-    
-    //Perform a step from a node towards another node
-    bool stepAlongEdge(Node start_node, Node &end_node, double extend_step_factor);
-		
+private:
+
+  //Node handle
+  ros::NodeHandle m_nh;
+
+  //Planning group
+  string m_planning_group;
+
+  //Planning frame (from virtual joint in srdf)
+  string m_planning_frame;
+
+  //Namespace prefix for robot
+  string m_ns_prefix_robot;
+
+  //Name of Planning Scene Service;
+  string m_planning_scene_service;
+
+  //Kinematic Chain of robot
+  //KDL::Chain m_manipulator_chain;
+
+  //Joint names
+  vector<string> m_joint_names;
+
+  //Number of joints
+  int m_num_joints;
+
+  //Generate KDL Tree from robot urdf
+  //boost::shared_ptr<kuka_motion_controller::KDLRobotModel> m_KDLRobotModel;
+
+  //Planning Scene Monitor (used for Collision Checking)
+  //planning_scene_monitor::PlanningSceneMonitorPtr m_planning_scene_monitor;
+
+  //Step width along an tree edge for collision checking
+  double m_collision_check_extend_step_factor;
+
+  CollisionChecker* collisionChecker;
+  std::vector<double> mapToBase;
+
+  //Perform a step from a node towards another node
+  //bool stepAlongEdge(Node start_node, Node &end_node, double extend_step_factor);
 
 };
 

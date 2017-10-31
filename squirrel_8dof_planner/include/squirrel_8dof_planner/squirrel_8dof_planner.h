@@ -24,15 +24,18 @@
 #include <trajectory_msgs/JointTrajectory.h>
 #include <std_msgs/Float64MultiArray.h>
 #include <std_srvs/Empty.h>
-#include <moveit_msgs/PlanningScene.h>
+//#include <moveit_msgs/PlanningScene.h>
 #include <interactive_markers/interactive_marker_server.h>
 #include <birrt_star_algorithm/birrt_star.h>
 
 #include <octomap/octomap.h>
 #include <octomap_msgs/conversions.h>
 #include <octomap_server/OctomapServer.h>
-#include <squirrel_8dof_planner/collision_checker.hpp>
+//#include <squirrel_8dof_planner/collision_checker.hpp>
 #include <squirrel_8dof_planner/squirrel_8dof_planner_structures.hpp>
+
+//#include <dynamic_reconfigure/server.h>
+//#include <squirrel_8dof_planner/DynamicRobotinoPoseConfig.h>
 
 namespace SquirrelMotionPlanner
 {
@@ -47,9 +50,9 @@ class Planner
   /*
    * ROS message handling
    */
+  ros::Publisher publisherPlanningScene;     ///< ROS publisher. Publishes the octree as a planning scene for moveit.
   ros::NodeHandle nh;     ///< ROS node handle with global namespace.
   ros::NodeHandle nhPrivate;     ///< ROS node handle with namespace relative to current node.
-  ros::Publisher publisherPlanningScene;     ///< ROS publisher. Publishes the octree as a planning scene for moveit.
   ros::Publisher publisherOctomap;
   ros::Publisher publisherOccupancyMap;     ///< ROS publisher. Publishes the occupancy map that was created using the most recent octree.
   ros::Publisher publisher2DPath;     ///< ROS publisher. Publishes the 2D projection of the 8D trajectory.
@@ -69,10 +72,12 @@ class Planner
   visualization_msgs::InteractiveMarker interactiveMarker;     ///< Interactive marker used by interactiveMarkerServer.
   Pose poseGoalMarker;     ///< Current pose of the interactive marker in RViz.
 
+  octomap::OcTree* octree;
+
   /*
    * Base Pose Finder
    */
-  CollisionChecker* collisionChecker;
+//  CollisionChecker* collisionChecker;
 
   /*
    * General search settings

@@ -6,7 +6,7 @@ namespace SquirrelMotionPlanner
 // ******************** PUBLIC MEMBERS ********************
 
 Planner::Planner() :
-    nhPrivate("~"), birrtStarPlanner("robotino_robot"), interactiveMarkerServer("endeffector_goal"), collisionChecker(NULL)
+    nhPrivate("~"), birrtStarPlanner("robotino_robot"), interactiveMarkerServer("endeffector_goal"), octree(NULL)
 {
   initializeParameters();
   if (posesFolding.size() == 0)
@@ -21,7 +21,6 @@ Planner::Planner() :
 
   initializeInteractiveMarker();
 
-  collisionChecker = new CollisionChecker;
 
 //  posesTrajectory.clear();
 //  posesTrajectory.push_back(Pose(8, 0.0));
@@ -342,11 +341,17 @@ void Planner::subscriberPoseHandler(const sensor_msgs::JointState &msg)
     else if (msg.name[i] == "arm_joint5")
       poseCurrent[7] = msg.position[i];
     else if (msg.name[i] == "base_jointx")
-      poseCurrent[0] = msg.position[i];
+    {
+      poseCurrent[0] = 1.0;//msg.position[i];
+    }
     else if (msg.name[i] == "base_jointy")
-      poseCurrent[1] = msg.position[i];
+    {
+      poseCurrent[1] = -2.0;//msg.position[i];
+    }
     else if (msg.name[i] == "base_jointz")
-      poseCurrent[2] = msg.position[i];
+    {
+      poseCurrent[2] = 1.0;//msg.position[i];
+    }
   }
 }
 
@@ -509,7 +514,10 @@ bool Planner::serviceCallGetOctomap()
     return false;
   }
 
-  octomap::OcTree* octree = dynamic_cast<octomap::OcTree*>(octomap_msgs::fullMsgToMap(res.map));
+  if(octree)
+    delete octree;
+
+  octree = dynamic_cast<octomap::OcTree*>(octomap_msgs::fullMsgToMap(res.map));
   if (octree == NULL)
   {
     ROS_ERROR("Received octomap is empty, planning will not be executed.");
@@ -536,25 +544,6 @@ bool Planner::serviceCallGetOctomap()
     }
 
   octree->prune();
-  collisionChecker->setOcTree(octree);
-
-//  moveit_msgs::PlanningScene msgScene;
-//  msgScene.name = "octomap_scene";
-//  msgScene.is_diff = true;
-//  msgScene.world.octomap.header.frame_id = "map";
-//  msgScene.world.octomap.header.stamp = ros::Time::now();
-//  msgScene.world.octomap.header.seq = 0;
-//  msgScene.world.octomap.octomap.header = msgScene.world.octomap.header;
-//  msgScene.world.octomap.origin.orientation.w = 1.0;
-//  msgScene.world.octomap.origin.orientation.x = 0.0;
-//  msgScene.world.octomap.origin.orientation.y = 0.0;
-//  msgScene.world.octomap.origin.orientation.z = 0.0;
-//  msgScene.world.octomap.origin.position.x = 0.0;
-//  msgScene.world.octomap.origin.position.y = 0.0;
-//  msgScene.world.octomap.origin.position.z = 0.0;
-//  msgScene.world.octomap.octomap = res.map;
-//
-//  publisherPlanningScene.publish(msgScene);
 
   if (publisherOctomap.getNumSubscribers() > 0)
   {
@@ -565,7 +554,11 @@ bool Planner::serviceCallGetOctomap()
     publisherOctomap.publish(msgOctomap);
   }
 
-  delete octree;
+  std::vector<Real> basePose(3);
+  basePose[0] = poseCurrent[0];
+  basePose[1] = poseCurrent[1];
+  basePose[2] = poseCurrent[2];
+  birrtStarPlanner.setOctree(octree, basePose);
   return true;
 }
 
@@ -893,10 +886,11 @@ bool Planner::findTrajectory8D(const Pose &poseStart, const Pose &poseGoal)
 
   birrtStarPlanner.setPlanningSceneInfo(dimX, dimY, "scenario");
 
+
   if (!birrtStarPlanner.init_planner(poseStart, poseGoal, 1))
     return false;
 
-  if (!birrtStarPlanner.run_planner(1, 1, 10.0, true, 0.0, birrtStarPlanningNumber))
+  if (!birrtStarPlanner.run_planner(1, 1, 2.0, true, 0.0, birrtStarPlanningNumber))
     return false;
 
   Trajectory &trajectoryBirrtStar = birrtStarPlanner.getJointTrajectoryRef();

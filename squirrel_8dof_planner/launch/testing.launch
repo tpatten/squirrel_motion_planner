@@ -31,5 +31,10 @@
   </group>
 
   <node name="octomap_server_node" pkg="octomap_server" type="octomap_server_node" args="$(find squirrel_8dof_planner)/config/$(arg world_name).ot"/>
+  <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_reconfigure"/>
+  
+  <group if="$(arg rviz)">
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find squirrel_8dof_planner)/config/config_testing.rviz" />
+  </group>
 
 </launch>

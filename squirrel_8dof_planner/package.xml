@@ -20,13 +20,14 @@
   <build_depend>tf</build_depend>
   <build_depend>sensor_msgs</build_depend>
   <build_depend>trajectory_msgs</build_depend>
-  <build_depend>moveit_ros_planning</build_depend>
+  <!-- build_depend>moveit_ros_planning</build_depend-->
   <build_depend>birrt_star_algorithm</build_depend>
-  <build_depend>moveit_msgs</build_depend>
+  <!--build_depend>moveit_msgs</build_depend-->
   <build_depend>interactive_markers</build_depend>
   <build_depend>kdl_parser</build_depend>
   <build_depend>orocos_kdl</build_depend>
   <build_depend>fcl</build_depend>
+  <build_depend>dynamic_reconfigure</build_depend>
   
   <run_depend>roscpp</run_depend>
   <run_depend>rospy</run_depend>
@@ -40,11 +41,12 @@
   <run_depend>tf</run_depend>
   <run_depend>sensor_msgs</run_depend>
   <run_depend>trajectory_msgs</run_depend>
-  <run_depend>moveit_ros_planning</run_depend>
+  <!--run_depend>moveit_ros_planning</run_depend-->
   <run_depend>birrt_star_algorithm</run_depend>
-  <run_depend>moveit_msgs</run_depend>
+  <!--run_depend>moveit_msgs</run_depend-->
   <run_depend>interactive_markers</run_depend>
   <run_depend>kdl_parser</run_depend>
   <run_depend>orocos_kdl</run_depend>
   <run_depend>fcl</run_depend>
+  <run_depend>dynamic_reconfigure</run_depend>
 </package>
