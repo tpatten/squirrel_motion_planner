@@ -21,7 +21,6 @@ Planner::Planner() :
 
   initializeInteractiveMarker();
 
-
 //  posesTrajectory.clear();
 //  posesTrajectory.push_back(Pose(8, 0.0));
 //
@@ -341,101 +340,231 @@ void Planner::subscriberPoseHandler(const sensor_msgs::JointState &msg)
     else if (msg.name[i] == "arm_joint5")
       poseCurrent[7] = msg.position[i];
     else if (msg.name[i] == "base_jointx")
-    {
-      poseCurrent[0] = 1.0;//msg.position[i];
-    }
+      poseCurrent[0] = msg.position[i];
     else if (msg.name[i] == "base_jointy")
-    {
-      poseCurrent[1] = -2.0;//msg.position[i];
-    }
+      poseCurrent[1] = msg.position[i];
     else if (msg.name[i] == "base_jointz")
-    {
-      poseCurrent[2] = 1.0;//msg.position[i];
-    }
+      poseCurrent[2] = msg.position[i];
   }
 }
 
 bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequest &req, squirrel_motion_planner_msgs::PlanPoseResponse &res)
 {
-  if (req.joints.size() == 8)
+  checkSelfCollision = req.check_self_collision;
+  checkMapCollision = req.check_octomap_collision;
+
+  if (req.joints.size() != 8)
   {
-    ROS_INFO("Start planning to pose: %f, %f, %f, %f, %f, %f, %f, %f", req.joints[0], req.joints[1], req.joints[2], req.joints[3], req.joints[4], req.joints[5],
-             req.joints[6], req.joints[7]);
-    if (!serviceCallGetOctomap())
-      return false;
+    res.result = squirrel_motion_planner_msgs::PlanPoseResponse::WRONG_JOINT_ARRAY_DIM;
+    return true;
+  }
 
-    poseGoal = req.joints;
+  if (checkMapCollision && !serviceCallGetOctomap())
+  {
+    res.result = squirrel_motion_planner_msgs::PlanPoseResponse::NO_OCTOMAP_AVAILABLE;
+    return true;
+  }
 
-    return findTrajectoryFull();
+  poseGoal = req.joints;
+  posesTrajectory.clear();
+
+  if (req.fold_arm && Tuple2D(poseGoal[0], poseGoal[1]).distance(Tuple2D(poseCurrent[0], poseCurrent[1])) > req.min_distance_before_folding)
+  {
+    ROS_ERROR("COMBINED 2DOF AND 8DOF PLANNING NOT IMPLEMENTED!");
+    return false;
+
+    createOccupancyMapFromOctomap();
+    inflateOccupancyMap();
+    createAStarNodesMap();
+
+    if (!findTrajectory2D())
+    {
+      res.result = squirrel_motion_planner_msgs::PlanPoseResponse::ERROR_2DOF_PLANNING;
+      return true;
+    }
+
+    if (!findTrajectory8D(posesTrajectory.back(), poseGoal))
+    {
+      res.result = squirrel_motion_planner_msgs::PlanPoseResponse::ERROR_8DOF_PLANNING;
+      return true;
+    }
   }
   else
   {
-    ROS_WARN("Could not start planning, because the provided pose has a wrong dimension. Provided dimension: %u, expected dimension: 8",
-             static_cast<UInt>(req.joints.size()));
-    return false;
+    if (!findTrajectory8D(poseCurrent, poseGoal))
+    {
+      res.result = squirrel_motion_planner_msgs::PlanPoseResponse::ERROR_8DOF_PLANNING;
+      return true;
+    }
+
+    normalizeTrajectory(posesTrajectory, posesTrajectoryNormalized, normalizedPoseDistances);
   }
+
+  res.result = squirrel_motion_planner_msgs::PlanPoseResponse::SUCCESS;
+  publish2DPath();
+  publishTrajectoryVisualizer();
+  return true;
 }
 
 bool Planner::serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanEndEffectorRequest &req,
                                              squirrel_motion_planner_msgs::PlanEndEffectorResponse &res)
 {
-  if (req.joints.size() == 6)
+  checkSelfCollision = req.check_self_collision;
+  checkMapCollision = req.check_octomap_collision;
+
+  if (req.positions.size() != 6)
   {
-    ROS_INFO("Start planning to pose: %f, %f, %f, %f, %f, %f, %f, %f", req.joints[0], req.joints[1], req.joints[2], req.joints[3], req.joints[4], req.joints[5],
-             req.joints[6], req.joints[7]);
-    if (!serviceCallGetOctomap())
-      return false;
+    res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::WRONG_ARRAY_DIMENSION;
+    return true;
+  }
 
-    if (!findGoalPose(req.joints))
-      return false;
+  if (checkMapCollision && !serviceCallGetOctomap())
+  {
+    res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::NO_OCTOMAP_AVAILABLE;
+    return true;
+  }
 
-    return findTrajectoryFull();
+  int goalPoseResult = findGoalPose(req.positions);
+  if(goalPoseResult == 1)
+  {
+    res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::COLLISION_GOAL_POSE;
+    return true;
+  }
+  else if(goalPoseResult == 2)
+  {
+    res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::INVALID_END_EFFECTOR_POSE;
+    return true;
+  }
+
+  posesTrajectory.clear();
+  if (req.fold_arm && Tuple2D(poseGoal[0], poseGoal[1]).distance(Tuple2D(poseCurrent[0], poseCurrent[1])) > req.min_distance_before_folding)
+  {
+    ROS_ERROR("COMBINED 2DOF AND 8DOF PLANNING NOT IMPLEMENTED!");
+    return false;
+
+    createOccupancyMapFromOctomap();
+    inflateOccupancyMap();
+    createAStarNodesMap();
+
+    if (!findTrajectory2D())
+    {
+      res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_2DOF_PLANNING;
+      return true;
+    }
+
+    if (!findTrajectory8D(posesTrajectory.back(), poseGoal))
+    {
+      res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_8DOF_PLANNING;
+      return true;
+    }
   }
   else
   {
-    ROS_WARN("Could not start planning, because the provided pose has a wrong dimension. Provided dimension: %u, expected dimension: 6",
-             static_cast<UInt>(req.joints.size()));
-    return false;
+    if (!findTrajectory8D(poseCurrent, poseGoal))
+    {
+      res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_8DOF_PLANNING;
+      return true;
+    }
+
+    normalizeTrajectory(posesTrajectory, posesTrajectoryNormalized, normalizedPoseDistances);
   }
-}
 
-bool Planner::serviceCallbackGoalMarker(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res)
-{
-  if (!serviceCallGetOctomap())
-    return false;
-
-  if (!findGoalPose(poseGoalMarker))
-    return false;
-
-  if (!findTrajectoryFull())
-    return false;
-
+  res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::SUCCESS;
+  publish2DPath();
+  publishTrajectoryVisualizer();
   return true;
 }
 
-bool Planner::serviceCallbackSendControlCommand(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res)
+bool Planner::serviceCallbackGoalMarker(squirrel_motion_planner_msgs::PlanEndEffectorRequest &req, squirrel_motion_planner_msgs::PlanEndEffectorResponse &res)
+{
+  checkSelfCollision = req.check_self_collision;
+  checkMapCollision = req.check_octomap_collision;
+
+  if (checkMapCollision && !serviceCallGetOctomap())
+  {
+    res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::NO_OCTOMAP_AVAILABLE;
+    return true;
+  }
+
+  int goalPoseResult = findGoalPose(poseGoalMarker);
+  if(goalPoseResult == 1)
+  {
+    res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::COLLISION_GOAL_POSE;
+    return true;
+  }
+  else if(goalPoseResult == 2)
+  {
+    res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::INVALID_END_EFFECTOR_POSE;
+    return true;
+  }
+
+  posesTrajectory.clear();
+  if (req.fold_arm && Tuple2D(poseGoal[0], poseGoal[1]).distance(Tuple2D(poseCurrent[0], poseCurrent[1])) > req.min_distance_before_folding)
+  {
+    ROS_ERROR("COMBINED 2DOF AND 8DOF PLANNING NOT IMPLEMENTED!");
+    return false;
+
+    createOccupancyMapFromOctomap();
+    inflateOccupancyMap();
+    createAStarNodesMap();
+
+    if (!findTrajectory2D())
+    {
+      res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_2DOF_PLANNING;
+      return true;
+    }
+
+    if (!findTrajectory8D(posesTrajectory.back(), poseGoal))
+    {
+      res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_8DOF_PLANNING;
+      return true;
+    }
+  }
+  else
+  {
+    if (!findTrajectory8D(poseCurrent, poseGoal))
+    {
+      res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_8DOF_PLANNING;
+      return true;
+    }
+
+    normalizeTrajectory(posesTrajectory, posesTrajectoryNormalized, normalizedPoseDistances);
+  }
+
+  res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::SUCCESS;
+  publish2DPath();
+  publishTrajectoryVisualizer();
+  return true;
+}
+
+bool Planner::serviceCallbackSendControlCommand(squirrel_motion_planner_msgs::SendControlCommandRequest &req,
+                                                squirrel_motion_planner_msgs::SendControlCommandResponse &res)
 {
   if (posesTrajectory.size() < 2)
   {
-    ROS_WARN("Current trajectory size is too short.");
-    return false;
+    res.result = squirrel_motion_planner_msgs::SendControlCommandResponse::NO_TRAJECTORY_AVAILABLE;
+    return true;
   }
 
   if (!isRobotAtTrajectoryStart())
   {
-    ROS_WARN("The robot is no longer at the start of the trajectory. Replanning is necessary.");
-    return false;
+    res.result = squirrel_motion_planner_msgs::SendControlCommandResponse::ROBOT_MOVED_AFTER_PLANNING;
+    return true;
   }
 
+  res.result = squirrel_motion_planner_msgs::SendControlCommandResponse::SUCCESS;
   publishTrajectoryController();
   return true;
 }
 
-bool Planner::serviceCallbackFoldArm(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res)
+bool Planner::serviceCallbackFoldArm(squirrel_motion_planner_msgs::FoldArmRequest &req, squirrel_motion_planner_msgs::FoldArmResponse &res)
 {
+  checkSelfCollision = req.check_self_collision;
+  checkMapCollision = req.check_octomap_collision;
+
   if (isArmFolded())
   {
-    ROS_INFO("The arm is already in the folding position.");
+    res.result = squirrel_motion_planner_msgs::FoldArmResponse::ARM_ALREADY_FOLDED;
     return true;
   }
 
@@ -443,62 +572,85 @@ bool Planner::serviceCallbackFoldArm(std_srvs::EmptyRequest &req, std_srvs::Empt
 
   if (!isArmStretched())
   {
-    if (!serviceCallGetOctomap())
-      return false;
+    if (checkMapCollision && !serviceCallGetOctomap())
+    {
+      res.result = squirrel_motion_planner_msgs::FoldArmResponse::NO_OCTOMAP_AVAILABLE;
+      return true;
+    }
 
-    Pose poseTmp(8);
-    poseTmp[0] = poseCurrent[0];
-    poseTmp[1] = poseCurrent[1];
-    poseTmp[2] = poseCurrent[2];
+    Pose poseTmp = poseCurrent;
     copyArmToRobotPose(posesFolding.back(), poseTmp);
     posesTrajectory.clear();
     if (!findTrajectory8D(poseCurrent, poseTmp))
     {
-      ROS_WARN("No 8D trajectory to the stretched arm position could be found.");
-      return false;
+      res.result = squirrel_motion_planner_msgs::FoldArmResponse::ERROR_8DOF_PLANNING;
+      return true;
     }
     normalizeTrajectory(posesTrajectory, posesTrajectoryNormalized, normalizedPoseDistances);
 
     for (Trajectory::reverse_iterator it = posesFolding.rbegin() + 1; it != posesFolding.rend(); ++it)
     {
       copyArmToRobotPose(*it, poseTmp);
+      if (!birrtStarPlanner.isConfigValid(poseTmp, checkSelfCollision, checkMapCollision))
+      {
+        res.result = squirrel_motion_planner_msgs::FoldArmResponse::COLLISION_FOLDING;
+        return true;
+      }
       posesTrajectoryNormalized.push_back(poseTmp);
     }
   }
   else
   {
-    Pose poseTmp(8);
-    poseTmp[0] = poseCurrent[0];
-    poseTmp[1] = poseCurrent[1];
-    poseTmp[2] = poseCurrent[2];
+    Pose poseTmp = poseCurrent;
     for (Trajectory::reverse_iterator it = posesFolding.rbegin(); it != posesFolding.rend(); ++it)
     {
       copyArmToRobotPose(*it, poseTmp);
+      if (!birrtStarPlanner.isConfigValid(poseTmp, checkSelfCollision, checkMapCollision))
+      {
+        res.result = squirrel_motion_planner_msgs::FoldArmResponse::COLLISION_FOLDING;
+        return true;
+      }
       posesTrajectoryNormalized.push_back(poseTmp);
     }
   }
+
+  res.result = squirrel_motion_planner_msgs::FoldArmResponse::SUCCESS;
 
   publishTrajectoryController();
   return true;
 }
 
-bool Planner::serviceCallbackUnfoldArm(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res)
+bool Planner::serviceCallbackUnfoldArm(squirrel_motion_planner_msgs::UnfoldArmRequest &req, squirrel_motion_planner_msgs::UnfoldArmResponse &res)
 {
+  checkSelfCollision = req.check_self_collision;
+  checkMapCollision = req.check_octomap_collision;
+
   if (!isArmFolded())
   {
-    ROS_WARN("The arm is not in the folding position.");
-    return false;
+    res.result = squirrel_motion_planner_msgs::UnfoldArmResponse::ARM_NOT_FOLDED;
+    return true;
+  }
+  if (checkMapCollision && !serviceCallGetOctomap())
+  {
+    res.result = squirrel_motion_planner_msgs::UnfoldArmResponse::NO_OCTOMAP_AVAILABLE;
+    return true;
   }
 
   posesTrajectoryNormalized.clear();
-
   Pose poseTmp = poseCurrent;
 
   for (Trajectory::iterator it = posesFolding.begin(); it != posesFolding.end(); ++it)
   {
     copyArmToRobotPose(*it, poseTmp);
+    if (!birrtStarPlanner.isConfigValid(poseTmp, checkSelfCollision, checkMapCollision))
+    {
+      res.result = squirrel_motion_planner_msgs::UnfoldArmResponse::COLLISION_UNFOLDING;
+      return true;
+    }
     posesTrajectoryNormalized.push_back(poseTmp);
   }
+
+  res.result = squirrel_motion_planner_msgs::UnfoldArmResponse::SUCCESS;
 
   publishTrajectoryController();
   return true;
@@ -514,7 +666,7 @@ bool Planner::serviceCallGetOctomap()
     return false;
   }
 
-  if(octree)
+  if (octree)
     delete octree;
 
   octree = dynamic_cast<octomap::OcTree*>(octomap_msgs::fullMsgToMap(res.map));
@@ -554,11 +706,7 @@ bool Planner::serviceCallGetOctomap()
     publisherOctomap.publish(msgOctomap);
   }
 
-  std::vector<Real> basePose(3);
-  basePose[0] = poseCurrent[0];
-  basePose[1] = poseCurrent[1];
-  basePose[2] = poseCurrent[2];
-  birrtStarPlanner.setOctree(octree, basePose);
+  birrtStarPlanner.setOctree(octree);
   return true;
 }
 
@@ -770,7 +918,7 @@ void Planner::createAStarNodesMap()
   }
 }
 
-bool Planner::findGoalPose(const Pose &poseEndEffector)
+int Planner::findGoalPose(const Pose &poseEndEffector)
 {
   std::vector<std::pair<Real, Real> > endEffectorDeviations(6);
   endEffectorDeviations[0] = std::make_pair<Real, Real>(-0.005, 0.005);
@@ -789,25 +937,31 @@ bool Planner::findGoalPose(const Pose &poseEndEffector)
   poseInitializer[7] = 0.0;
 
   Real angle = 0.0;
-  bool foundPose;
-  while (!foundPose)
+  bool foundSinglePose = false;
+  while (angle < 2 * M_PI)
   {
     poseInitializer[0] = poseEndEffector[0] - dist * cos(angle);
     poseInitializer[1] = poseEndEffector[1] - dist * sin(angle);
     poseInitializer[2] = angle + 1.0;
-    foundPose = birrtStarPlanner.getFullPoseFromEEPose(poseEndEffector, endEffectorDeviations, poseInitializer, poseGoal);
-    if (foundPose)
+    if(birrtStarPlanner.getFullPoseFromEEPose(poseEndEffector, endEffectorDeviations, poseInitializer, poseGoal))
     {
-      publishGoalPose();
-      return true;
+      foundSinglePose = true;
+
+      if (birrtStarPlanner.isConfigValid(poseGoal, checkSelfCollision, checkMapCollision))
+      {
+        publishGoalPose();
+        return 0;
+      }
     }
+
     angle += 0.5;
-    if (angle >= 2 * M_PI)
-      break;
   }
 
   poseGoal.clear();
-  return false;
+  if(foundSinglePose)
+    return 1;
+  else
+    return 2;
 }
 
 bool Planner::findTrajectoryFull()
@@ -886,14 +1040,13 @@ bool Planner::findTrajectory8D(const Pose &poseStart, const Pose &poseGoal)
 
   birrtStarPlanner.setPlanningSceneInfo(dimX, dimY, "scenario");
 
-
-  if (!birrtStarPlanner.init_planner(poseStart, poseGoal, 1))
+  if (!birrtStarPlanner.init_planner(poseStart, poseGoal, 1, checkSelfCollision, checkMapCollision))
     return false;
 
   if (!birrtStarPlanner.run_planner(1, 1, 2.0, true, 0.0, birrtStarPlanningNumber))
     return false;
 
-  Trajectory &trajectoryBirrtStar = birrtStarPlanner.getJointTrajectoryRef();
+  const Trajectory &trajectoryBirrtStar = birrtStarPlanner.getJointTrajectoryRef();
 
   for (UInt i = 0; i < trajectoryBirrtStar.size(); ++i)
     posesTrajectory.push_back(trajectoryBirrtStar[i]);

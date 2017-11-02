@@ -27,13 +27,15 @@
 #include <geometric_shapes/mesh_operations.h>
 #include <fcl/shape/geometric_shape_to_BVH_model.h>
 
-#include <squirrel_8dof_planner/squirrel_8dof_planner_structures.hpp>
-
-namespace SquirrelMotionPlanner
+namespace state_feasibility_checker
 {
 
 class CollisionChecker
 {
+  typedef double Real;
+  typedef uint32_t UInt;
+  typedef int32_t Int;
+
   struct Link
   {
     KDL::Frame transform;
@@ -51,17 +53,6 @@ class CollisionChecker
     {
     }
   };
-
-  ros::NodeHandle nh;
-  bool initialized;
-
-  KDL::Tree kdlTree;
-  std::vector<Real> jointPositions;
-  std::vector<Link> links;
-
-  std::vector<std::pair<Link*, Link*> > selfCollisionPairs;
-
-  fcl::CollisionObject* octomapCollisionObject;
 
 public:
   /**
@@ -89,14 +80,16 @@ public:
     if (octomapCollisionObject)
       delete octomapCollisionObject;
     octomapCollisionObject = new fcl::CollisionObject(octomapCollisionGeometry);
+    octomapCollisionObject->setTransform(fcl::Quaternion3f(1, 0, 0, 0), fcl::Vec3f(0, 0, -0.02));
   }
 
-  bool isInCollision(const std::vector<Real> &jointPositions, const std::vector<Real> &basePosition)
+  bool isInCollision(const std::vector<Real> &jointPositions)
   {
     if (!initialized)
       return true;
 
-    updateTransforms(jointPositions, basePosition);
+    updateTransforms(jointPositions);
+
 
     if (checkSelfCollision())
       return true;
@@ -108,6 +101,17 @@ public:
   }
 
 private:
+
+  ros::NodeHandle nh;
+  bool initialized;
+
+  KDL::Tree kdlTree;
+  std::vector<Real> jointPositions;
+  std::vector<Link> links;
+
+  std::vector<std::pair<Link*, Link*> > selfCollisionPairs;
+
+  fcl::CollisionObject* octomapCollisionObject;
 
   // ******************** INITIALIZATION ********************
 
@@ -380,7 +384,7 @@ private:
 
   // ******************** COLLISION CHECKING ********************
 
-  void updateTransforms(const std::vector<Real> &jointPositions, const std::vector<Real> &basePosition)
+  void updateTransforms(const std::vector<Real> &jointPositions)
   {
     for (UInt i = 0; i < this->jointPositions.size(); ++i)
       this->jointPositions[i] = jointPositions[i];
@@ -400,31 +404,24 @@ private:
                                             fcl::Vec3f(link->transform.p[0], link->transform.p[1], link->transform.p[2]));
       }
     }
-
-    if (octomapCollisionObject)
-    {
-      KDL::Frame baseToMap;
-      baseToMap.p[0] = basePosition[0];
-      baseToMap.p[1] = basePosition[1];
-      baseToMap.p[2] = 0.02;
-      baseToMap.M = KDL::Rotation::RPY(0.0, 0.0, basePosition[2]);
-      baseToMap = baseToMap.Inverse();
-      baseToMap.M.GetQuaternion(quatX, quatY, quatZ, quatW);
-      octomapCollisionObject->setTransform(fcl::Quaternion3f(quatW, quatX, quatY, quatZ), fcl::Vec3f(baseToMap.p[0], baseToMap.p[1], baseToMap.p[2]));
-    }
   }
 
   bool checkSelfCollision()
   {
+    bool foundCollision = false;
     for (std::vector<std::pair<Link*, Link*> >::const_iterator it = selfCollisionPairs.begin(); it != selfCollisionPairs.end(); ++it)
     {
       fcl::CollisionRequest request;
       fcl::CollisionResult result;
       fcl::collide(it->first->collisionObject, it->second->collisionObject, request, result);
       if (result.isCollision())
+      {
         return true;
+        foundCollision = true;
+        std::cout << "Collision between '" << it->first->name << "' and '" << it->second->name << "'." << std::endl;
+      }
     }
-    return false;
+    return foundCollision;
   }
 
   bool checkMapCollision()
@@ -432,6 +429,7 @@ private:
     if (!octomapCollisionObject)
       return false;
 
+    bool foundCollision = false;
     for (std::vector<Link>::const_iterator it = links.begin(); it != links.end(); ++it)
     {
       if (!it->collisionObject)
@@ -440,13 +438,17 @@ private:
       fcl::CollisionResult result;
       fcl::collide(octomapCollisionObject, it->collisionObject, request, result);
       if (result.isCollision())
+      {
         return true;
+        foundCollision = true;
+        std::cout << "Collision between '" << it->name << "' and 'octomap'." << std::endl;
+      }
     }
-    return false;
+    return foundCollision;
   }
 };
 
-} //namespace SquirrelMotionPlanner
+} //namespace state_feasibility_checker
 
 #endif //SQUIRREL_MOTION_PLANNING_COLLISION_CHECKER_HPP_
 

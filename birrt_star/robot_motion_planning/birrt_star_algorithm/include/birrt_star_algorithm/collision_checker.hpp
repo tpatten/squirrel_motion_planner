@@ -27,7 +27,7 @@
 #include <geometric_shapes/mesh_operations.h>
 #include <fcl/shape/geometric_shape_to_BVH_model.h>
 
-namespace state_feasibility_checker
+namespace birrt_star_motion_planning
 {
 
 class CollisionChecker
@@ -80,20 +80,23 @@ public:
     if (octomapCollisionObject)
       delete octomapCollisionObject;
     octomapCollisionObject = new fcl::CollisionObject(octomapCollisionGeometry);
+    octomapCollisionObject->setTransform(fcl::Quaternion3f(1, 0, 0, 0), fcl::Vec3f(0, 0, -0.02));
   }
 
-  bool isInCollision(const std::vector<Real> &jointPositions, const std::vector<Real> &basePosition)
+  bool isInCollision(const std::vector<Real> &jointPositions, const bool checkSelfCollision, const bool checkMapCollision)
   {
     if (!initialized)
       return true;
 
-    updateTransforms(jointPositions, basePosition);
+    if(!checkSelfCollision && !checkMapCollision)
+      return false;
 
+    updateTransforms(jointPositions);
 
-    if (checkSelfCollision())
+    if (checkSelfCollision && this->checkSelfCollision())
       return true;
 
-    if (checkMapCollision())
+    if (checkMapCollision && this->checkMapCollision())
       return true;
 
     return false;
@@ -383,7 +386,7 @@ private:
 
   // ******************** COLLISION CHECKING ********************
 
-  void updateTransforms(const std::vector<Real> &jointPositions, const std::vector<Real> &basePosition)
+  void updateTransforms(const std::vector<Real> &jointPositions)
   {
     for (UInt i = 0; i < this->jointPositions.size(); ++i)
       this->jointPositions[i] = jointPositions[i];
@@ -402,18 +405,6 @@ private:
         link->collisionObject->setTransform(fcl::Quaternion3f(quatW, quatX, quatY, quatZ),
                                             fcl::Vec3f(link->transform.p[0], link->transform.p[1], link->transform.p[2]));
       }
-    }
-
-    if (octomapCollisionObject)
-    {
-      KDL::Frame baseToMap;
-      baseToMap.p[0] = basePosition[0];
-      baseToMap.p[1] = basePosition[1];
-      baseToMap.p[2] = 0.02;
-      baseToMap.M = KDL::Rotation::RPY(0.0, 0.0, basePosition[2]);
-      baseToMap = baseToMap.Inverse();
-      baseToMap.M.GetQuaternion(quatX, quatY, quatZ, quatW);
-      octomapCollisionObject->setTransform(fcl::Quaternion3f(quatW, quatX, quatY, quatZ), fcl::Vec3f(baseToMap.p[0], baseToMap.p[1], baseToMap.p[2]));
     }
   }
 

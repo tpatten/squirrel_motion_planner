@@ -9,9 +9,9 @@
 #include <ros/ros.h>
 #include <planner_data_structures/data_structs.h>
 #include <kuka_motion_control/control_laws.h>
-#include <validity_checker/feasibility_checker.h>
 #include <planning_heuristics/distance_heuristics.h>
-//#include <planning_world_builder/planning_world_builder.h>
+
+#include <birrt_star_algorithm/collision_checker.hpp>
 
 
 #ifndef BIRRT_STAR_H
@@ -45,7 +45,7 @@ public:
   bool init_planner(char *start_goal_config_file, int search_space);
 
   //Initialize RRT* Planner (given start and goal config)
-  bool init_planner(vector<double> start_conf, vector<double> goal_conf, int search_space);
+  bool init_planner(vector<double> start_conf, vector<double> goal_conf, int search_space, bool check_self_collision, bool check_map_collision);
 
   //Initialize RRT* Planner (given start config and final endeffector pose)
   bool init_planner(vector<double> start_conf, vector<double> ee_goal_pose, vector<int> constraint_vec_goal_pose, vector<pair<double, double> > coordinate_dev,
@@ -123,13 +123,17 @@ public:
 
   // ----- Added for Squirrel -----
 
-  void setOctree( const octomap::OcTree* octree, const std::vector<double> &mapToBase);
+  void setOctree( const octomap::OcTree* octree);
 
   bool getFullPoseFromEEPose(const vector<double> &endEffectorPose, const vector<pair<double, double> > &endEffectorDeviations, const vector<double> &poseInit, vector<double> &poseSolution);
 
   vector<vector<double> > &getJointTrajectoryRef();
 
-  bool isConfigValid(const vector<double> config);
+  bool isEdgeValid(const Edge &tree_edge, bool check_self_collision, bool check_map_collision);
+  bool isEdgeValid(const Edge &tree_edge, int &last_valid_node_idx, bool check_self_collision, bool check_map_collision);
+
+  bool isConfigValid(const vector<double> &config, bool check_self_collision, bool check_map_collision);
+  bool isConfigValid(const KDL::JntArray& config, bool check_self_collision, bool check_map_collision);
 
 private:
 
@@ -161,7 +165,7 @@ private:
   boost::shared_ptr<kuka_motion_controller::RobotController> m_RobotMotionController;
 
   //FeasibilityChecker to check configurations/nodes and edges for collisions
-  boost::shared_ptr<state_feasibility_checker::FeasibilityChecker> m_FeasibilityChecker;
+  //boost::shared_ptr<state_feasibility_checker::FeasibilityChecker> m_FeasibilityChecker;
 
   //Heuristics for measuring distances between nodes
   heuristics_motion_planning::DistanceHeuristics m_Heuristic;
@@ -271,6 +275,10 @@ private:
 
   //Random number generator to generate a number between 0 and 1 for sampling the unit n-dimensional ball
   random_numbers::RandomNumberGenerator m_random_number_generator;
+
+  CollisionChecker* collisionChecker;
+  bool checkSelfCollision;
+  bool checkMapCollision;
 
   // ++ Class Functions ++
 

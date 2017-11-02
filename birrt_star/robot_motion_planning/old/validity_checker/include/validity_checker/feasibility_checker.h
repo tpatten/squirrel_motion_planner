@@ -47,7 +47,7 @@ public:
   //Set step width for collision checking along an tree edge (only used in "isEdgeValid(Edge tree_edge)")
   void setCollisionCheckingStepWidth(double step_width);
 
-  void setOctree(const octomap::OcTree* octree, const std::vector<double> &mapToBase);
+  void setOctree(const octomap::OcTree* octree);
 
   //Checking an Edge of for collisions with obstacles
   bool isEdgeValid(const Edge &tree_edge, bool print_contacts = true);
@@ -96,7 +96,6 @@ private:
   double m_collision_check_extend_step_factor;
 
   CollisionChecker* collisionChecker;
-  std::vector<double> mapToBase;
 
   //Perform a step from a node towards another node
   //bool stepAlongEdge(Node start_node, Node &end_node, double extend_step_factor);

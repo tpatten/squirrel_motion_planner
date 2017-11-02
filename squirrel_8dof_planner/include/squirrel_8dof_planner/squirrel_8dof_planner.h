@@ -17,6 +17,9 @@
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <squirrel_motion_planner_msgs/PlanEndEffector.h>
 #include <squirrel_motion_planner_msgs/PlanPose.h>
+#include <squirrel_motion_planner_msgs/UnfoldArm.h>
+#include <squirrel_motion_planner_msgs/FoldArm.h>
+#include <squirrel_motion_planner_msgs/SendControlCommand.h>
 #include <tf/transform_datatypes.h>
 #include <tf/transform_listener.h>
 #include <tf/tf.h>
@@ -24,18 +27,14 @@
 #include <trajectory_msgs/JointTrajectory.h>
 #include <std_msgs/Float64MultiArray.h>
 #include <std_srvs/Empty.h>
-//#include <moveit_msgs/PlanningScene.h>
 #include <interactive_markers/interactive_marker_server.h>
 #include <birrt_star_algorithm/birrt_star.h>
 
 #include <octomap/octomap.h>
 #include <octomap_msgs/conversions.h>
 #include <octomap_server/OctomapServer.h>
-//#include <squirrel_8dof_planner/collision_checker.hpp>
 #include <squirrel_8dof_planner/squirrel_8dof_planner_structures.hpp>
 
-//#include <dynamic_reconfigure/server.h>
-//#include <squirrel_8dof_planner/DynamicRobotinoPoseConfig.h>
 
 namespace SquirrelMotionPlanner
 {
@@ -87,6 +86,8 @@ class Planner
   Real timeBetweenPoses;
   Real distance8DofPlanning;     ///< Distance to the goal pose from where the 8D planning is performed.
   Real obstacleInflationRadius;     ///< Inflation radius around occupied cells in occupancyMap.
+  bool checkSelfCollision;
+  bool checkMapCollision;
 
   /*
    *  Current robot and planning poses
@@ -208,14 +209,14 @@ private:
    * @param req Empty service request, contains no data.
    * @param res Empty service response, contains no data.
    */
-  bool serviceCallbackGoalMarker(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res);
+  bool serviceCallbackGoalMarker(squirrel_motion_planner_msgs::PlanEndEffectorRequest &req, squirrel_motion_planner_msgs::PlanEndEffectorResponse &res);
 
   /**
    * @brief Service call that responds by sending the currently planned trajectory to the controller.
    * @param req Empty service request, contains no data.
    * @param res Empty service response, contains no data.
    */
-  bool serviceCallbackSendControlCommand(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res);
+  bool serviceCallbackSendControlCommand(squirrel_motion_planner_msgs::SendControlCommandRequest &req, squirrel_motion_planner_msgs::SendControlCommandResponse &res);
 
   /**
    * @brief Service call that responds by sending a full 8dof trajectory to the controller that folds the arm.
@@ -223,7 +224,7 @@ private:
    * @param req Empty service request, contains no data.
    * @param res Empty service response, contains no data.
    */
-  bool serviceCallbackFoldArm(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res);
+  bool serviceCallbackFoldArm(squirrel_motion_planner_msgs::FoldArmRequest &req, squirrel_motion_planner_msgs::FoldArmResponse &res);
 
   /**
    * @brief Service call that responds by sending a full 8dof trajectory to the controller that unfolds the arm.
@@ -231,7 +232,7 @@ private:
    * @param req Empty service request, contains no data.
    * @param res Empty service response, contains no data.
    */
-  bool serviceCallbackUnfoldArm(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res);
+  bool serviceCallbackUnfoldArm(squirrel_motion_planner_msgs::UnfoldArmRequest &req, squirrel_motion_planner_msgs::UnfoldArmResponse &res);
 
   /**
    * @brief Calls for and updates internal octomap from octomap_server_node.
@@ -266,7 +267,7 @@ private:
    * @param poseEndEffector The 6D pose, given in [x, y, z, R, P, Y], for which a free pose should be found.
    * @return Returns true if a free pose could be found and false otherwise.
    */
-  bool findGoalPose(const Pose &poseEndEffector);
+  int findGoalPose(const Pose &poseEndEffector);
 
   /**
    * @brief Finds a 2D and 8D trajectory to the goal pose saved in poseGoal.

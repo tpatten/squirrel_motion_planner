@@ -4,25 +4,19 @@ project(birrt_star_algorithm)
 find_package(catkin REQUIRED COMPONENTS
   planner_data_structures
   planning_heuristics
-  #planning_world_builder
-  validity_checker
   kuka_motion_control
   roscpp
   rospy
   std_msgs
+  octomap_msgs
+  octomap_server
+  kdl_parser
+  fcl
 )
 
-#Find OpenMP Package
-#find_package(OpenMP)
+find_package(octomap REQUIRED)
 
-#For including robot_interface_definition header files
-#find_package(robot_interface_definition REQUIRED)
-
-#if(validity_checker_FOUND)
-#  message (STATUS "Validity checker found")
-#else(validity_checker_FOUND)
-#  message (STATUS "Validity checker not found")
-#endif()
+find_package(orocos_kdl REQUIRED)
 
 #check for OpenMP
 find_package(OpenMP)
@@ -53,8 +47,8 @@ endif (MSVC)
 catkin_package(
    INCLUDE_DIRS include
    LIBRARIES birrt_star_algorithm
-   CATKIN_DEPENDS kuka_motion_control planner_data_structures validity_checker  planning_heuristics roscpp rospy std_msgs #planning_world_builder
-   DEPENDS system_lib
+   CATKIN_DEPENDS kuka_motion_control planner_data_structures planning_heuristics roscpp rospy std_msgs octomap_msgs octomap_server kdl_parser fcl
+   DEPENDS system_lib octomap orocos_kdl
 )
 
 ###################
@@ -78,35 +72,12 @@ ADD_DEFINITIONS(
 )
 
 include_directories(
-  include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} #${robot_interface_definition_INCLUDE_DIRS}
+  include
+  ${catkin_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
+  ${OCTOMAP_INCLUDE_DIRS}
+  ${orocos_kdl_INCLUDE_DIRS}
 )
 
 add_library(${PROJECT_NAME} ${birrt_star_algorithm_files})
-
-#Executable for running RRT-star Algorithm (Omnirob)
-#add_executable(birrt_star_omnirob_lbr_node src/run_birrt_star_algorithm_omnirob_lbr.cpp)
-#add_executable(birrt_star_lbr_only_node src/run_birrt_star_algorithm_lbr_only.cpp)
-#add_executable(birrt_star_omnirob_base_node src/run_birrt_star_algorithm_omnirob_base.cpp)
-
-#Executable for running RRT-star Algorithm (Robotino)
-#add_executable(birrt_star_robotino_node src/run_birrt_star_algorithm_robotino.cpp)
-
-#Executable for running RRT-star Algorithm (PR2)
-#add_executable(birrt_star_pr2_base_node src/run_birrt_star_algorithm_pr2_base.cpp)
-#add_executable(birrt_star_pr2_base_arm_node src/run_birrt_star_algorithm_pr2_base_arm.cpp)
-
-# add_dependencies(rrt_star_algorithm_node rrt_star_algorithm_generate_messages_cpp)
-
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
-#target_link_libraries(birrt_star_omnirob_lbr_node ${PROJECT_NAME} ${catkin_LIBRARIES})
-#target_link_libraries(birrt_star_lbr_only_node ${PROJECT_NAME} ${catkin_LIBRARIES})
-#target_link_libraries(birrt_star_omnirob_base_node ${PROJECT_NAME} ${catkin_LIBRARIES})
-
-#target_link_libraries(birrt_star_robotino_node ${PROJECT_NAME} ${catkin_LIBRARIES})
-
-#target_link_libraries(birrt_star_pr2_base_node ${PROJECT_NAME} ${catkin_LIBRARIES})
-#target_link_libraries(birrt_star_pr2_base_arm_node ${PROJECT_NAME} ${catkin_LIBRARIES})
-
-#install(TARGETS birrt_star_omnirob_lbr_node birrt_star_lbr_only_node birrt_star_omnirob_base_node birrt_star_robotino_node birrt_star_pr2_base_node birrt_star_pr2_base_arm_node RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-#install(TARGETS ${PROJECT_NAME} ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION} LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION} RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION})
-#install(DIRECTORY include/${PROJECT_NAME}/ DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${OCTOMAP_LIBRARIES} ${orocos_kdl_LIBRARIES})

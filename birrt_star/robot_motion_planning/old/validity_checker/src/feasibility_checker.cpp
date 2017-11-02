@@ -101,10 +101,9 @@ void FeasibilityChecker::setPlanningSceneServiceName(string service_name)
   m_planning_scene_service = service_name;
 }
 
-void FeasibilityChecker::setOctree(const octomap::OcTree* octree, const std::vector<double> &mapToBase)
+void FeasibilityChecker::setOctree(const octomap::OcTree* octree)
 {
   collisionChecker->setOcTree(octree);
-  this->mapToBase = mapToBase;
 }
 
 //OLD METHODS USING MOVEIT
@@ -913,7 +912,7 @@ void FeasibilityChecker::setOctree(const octomap::OcTree* octree, const std::vec
 bool FeasibilityChecker::isConfigValid(const vector<double> &config, bool print_contacts)
 {
   ++checkCount;
-  return !collisionChecker->isInCollision(config, mapToBase);
+  return !collisionChecker->isInCollision(config);
 }
 
 //Check whether an tree node config is valid (i.e. whether it is Collision-Free)
@@ -924,7 +923,7 @@ bool FeasibilityChecker::isConfigValid(const KDL::JntArray &config, bool print_c
   for (int i = 0; i < 8; ++i)
     configStd[i] = config.data[i];
 
-  return !collisionChecker->isInCollision(configStd, mapToBase);
+  return !collisionChecker->isInCollision(configStd);
 }
 
 //Check whether an tree edge is valid (i.e. whether all of it Configuration are Collision-Free)
@@ -958,7 +957,7 @@ bool FeasibilityChecker::isEdgeValid(const Edge &tree_edge, bool print_contacts)
 //        config[7] = tree_edge.joint_trajectory[edp][i];
 //    }
 
-    if (collisionChecker->isInCollision(config, mapToBase))
+    if (collisionChecker->isInCollision(config))
       return false;
   }
 
@@ -999,7 +998,7 @@ bool FeasibilityChecker::isEdgeValid(const Edge &tree_edge, int &last_valid_node
 //        config[7] = tree_edge.joint_trajectory[edp][i];
 //    }
 
-    if (collisionChecker->isInCollision(config, mapToBase))
+    if (collisionChecker->isInCollision(config))
       return false;
 
     last_valid_node_idx = edp;
