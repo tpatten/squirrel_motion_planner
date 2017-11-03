@@ -328,6 +328,225 @@ BiRRTstarPlanner::~BiRRTstarPlanner()
   //Nothing to do yet
 }
 
+//Initialize RRT* Planner (reading start and goal config from file)
+bool BiRRTstarPlanner::init_planner(char *start_goal_config_file, int search_space)
+{
+  //Read Start and Goal Configuration from File
+  vector<double> start_conf, goal_conf;
+  bool read_ok = readStartGoalConfig(start_goal_config_file, start_conf, goal_conf);
+  if (read_ok == false)
+  {
+    ROS_ERROR("File path to start and goal config is invalid!!!");
+    ros::shutdown();
+  }
+  else
+  {
+    ROS_INFO("Start and goal config successfully read from file!!!");
+  }
+
+  //Check dimension of config
+  if (start_conf.size() != m_num_joints || goal_conf.size() != m_num_joints)
+  {
+    ROS_ERROR("Dimension of configuration vector does not match the number of joints in the planning group!");
+    return false;
+  }
+
+  //Convert start and goal configuration into KDL Joint Array
+  KDL::JntArray start_configuration = m_RobotMotionController->Vector_to_JntArray(start_conf);
+  KDL::JntArray goal_configuration = m_RobotMotionController->Vector_to_JntArray(goal_conf);
+
+  //Check start and goal config for validity
+  bool start_conf_valid = isConfigValid(start_configuration, true, true);
+  bool goal_conf_valid = isConfigValid(goal_configuration, true, true);
+  if (start_conf_valid == false)
+  {
+    ROS_ERROR("Start configuration is invalid!!!");
+    return false;
+  }
+  else if (goal_conf_valid == false)
+  {
+    ROS_ERROR("Goal configuration is invalid!!!");
+    return false;
+  }
+  else
+  {
+    //Nothing to do
+  }
+
+  //Find endeffector pose for start and goal configuration
+  vector<double> ee_start_pose = computeEEPose(start_configuration);
+  vector<double> ee_goal_pose = computeEEPose(goal_configuration);
+
+  //Set pose of task frame to start ee pos
+  if (m_constraint_active)
+  {
+    //Set Task frame to pose of endeffector frame at start config
+    m_task_frame = m_KDLRobotModel->compute_FK_frame(m_manipulator_chain, start_configuration);
+  }
+
+  //Compute Heuristic for root node (either distance between start and goal config or between start and goal endeffector pose)
+  //m_cost_theoretical_solution_path[0] -> total
+  //m_cost_theoretical_solution_path[1] -> revolute distance norm
+  //m_cost_theoretical_solution_path[2] -> prismatic distance norm
+  if (search_space == 0) //Planning in Control Space
+    m_cost_theoretical_solution_path[0] = m_Heuristic.euclidean_pose_distance(ee_start_pose, ee_goal_pose);
+  else if (search_space == 1) //Planning in Joint Space
+    m_cost_theoretical_solution_path = m_Heuristic.euclidean_joint_space_distance(m_manipulator_chain, start_conf, goal_conf);
+  else
+    ROS_ERROR("Requested planner search space does not exist!!!");
+
+  //---Create Goal Node for RRT* Tree
+  Node goal_node;
+  goal_node.node_id = 0; //negative index to avoid using goal node as nearest neighbour (goal node only considered in REWIRE function)
+  goal_node.parent_id = 0; //No parent yet
+  //Find collision free configuration for goal node
+  goal_node.config = goal_conf;
+  goal_node.ee_pose = ee_goal_pose;
+  goal_node.cost_reach.total = 0.0;
+  goal_node.cost_reach.revolute = 0.0;
+  goal_node.cost_reach.prismatic = 0.0;
+  goal_node.cost_h.total = m_cost_theoretical_solution_path[0];    // goal node has same heuristic cost as the start node
+  goal_node.cost_h.revolute = m_cost_theoretical_solution_path[1];   //distance for revolute joints
+  goal_node.cost_h.prismatic = m_cost_theoretical_solution_path[2];  //distance for prismatic joints
+  //Add goal Node to the tree
+  m_goal_tree.nodes.push_back(goal_node);
+  m_goal_tree.num_nodes++;
+
+  //Add sphere to visualize goal node
+  visualization_msgs::Marker goal_node_marker_; //terminal nodes
+  goal_node_marker_.id = 0;
+  goal_node_marker_.header.stamp = ros::Time::now();
+  //Set up properties for terminal nodes marker
+  goal_node_marker_.header.frame_id = m_base_link_name;
+  goal_node_marker_.ns = "terminal_nodes";
+  goal_node_marker_.action = visualization_msgs::Marker::ADD;
+  //Set Marker Type
+  goal_node_marker_.type = visualization_msgs::Marker::SPHERE;
+  //Nodes markers
+  goal_node_marker_.scale.x = m_terminal_nodes_marker_scale;
+  goal_node_marker_.scale.y = m_terminal_nodes_marker_scale;
+  goal_node_marker_.scale.z = m_terminal_nodes_marker_scale;
+  goal_node_marker_.pose.orientation.w = 1.0;
+  //Set colour for terminal tree nodes
+  goal_node_marker_.color.r = 0.0;
+  goal_node_marker_.color.g = 1.0;
+  goal_node_marker_.color.b = 0.0;
+  goal_node_marker_.color.a = 1.0;
+  //Set Marker Position for goal node marker
+  goal_node_marker_.pose.position.x = goal_node.ee_pose[0];
+  goal_node_marker_.pose.position.y = goal_node.ee_pose[1];
+  goal_node_marker_.pose.position.z = goal_node.ee_pose[2];
+  //Add start node to marker
+  m_terminal_nodes_marker_array_msg.markers.push_back(goal_node_marker_);
+
+  //--- Create Start Node for RRT* Tree
+  Node start_node;
+  start_node.node_id = 0;
+  start_node.parent_id = 0;
+  start_node.config = start_conf;
+  start_node.ee_pose = ee_start_pose;
+  start_node.cost_reach.total = 0.0;
+  start_node.cost_reach.revolute = 0.0;
+  start_node.cost_reach.prismatic = 0.0;
+  start_node.cost_h.total = m_cost_theoretical_solution_path[0];
+  start_node.cost_h.revolute = m_cost_theoretical_solution_path[1];
+  start_node.cost_h.prismatic = m_cost_theoretical_solution_path[2];
+  //Add start Node to the tree
+  m_start_tree.nodes.push_back(start_node);
+  m_start_tree.num_nodes++;
+
+  //Add sphere to visualize goal node
+  visualization_msgs::Marker start_node_marker_; //terminal nodes
+  start_node_marker_.id = 1;
+  start_node_marker_.header.stamp = ros::Time::now();
+  //Set up properties for terminal nodes marker
+  start_node_marker_.header.frame_id = m_base_link_name;
+  start_node_marker_.ns = "terminal_nodes";
+  start_node_marker_.action = visualization_msgs::Marker::ADD;
+  //Set Marker Type
+  start_node_marker_.type = visualization_msgs::Marker::SPHERE;
+  //Nodes markers
+  start_node_marker_.scale.x = m_terminal_nodes_marker_scale;
+  start_node_marker_.scale.y = m_terminal_nodes_marker_scale;
+  start_node_marker_.scale.z = m_terminal_nodes_marker_scale;
+  start_node_marker_.pose.orientation.w = 1.0;
+  //Set colour for terminal tree nodes
+  start_node_marker_.color.r = 1.0;
+  start_node_marker_.color.g = 0.0;
+  start_node_marker_.color.b = 0.0;
+  start_node_marker_.color.a = 1.0;
+  //Set Marker Position for goal node marker
+  start_node_marker_.pose.position.x = start_node.ee_pose[0];
+  start_node_marker_.pose.position.y = start_node.ee_pose[1];
+  start_node_marker_.pose.position.z = start_node.ee_pose[2];
+  //Add start node to marke
+  m_terminal_nodes_marker_array_msg.markers.push_back(start_node_marker_);
+
+  //Publish start and goal node
+  m_tree_terminal_nodes_pub.publish(m_terminal_nodes_marker_array_msg);
+
+  //Save start and goal ee_pose
+  m_ee_start_pose = ee_start_pose;
+  m_ee_goal_pose = ee_goal_pose;
+
+  //Save start and goal config
+  m_config_start_pose = start_conf;
+  m_config_goal_pose = goal_node.config;
+
+  //Empty array of nodes
+  m_start_tree_add_nodes_marker.points.empty();
+  m_start_tree_node_pub.publish(m_start_tree_add_nodes_marker);
+  m_goal_tree_add_nodes_marker.points.empty();
+  m_goal_tree_node_pub.publish(m_goal_tree_add_nodes_marker);
+
+  //Empty array of edges
+  //m_start_tree_add_edge_marker_array_msg.markers.empty();
+  m_start_tree_add_edge_marker_array_msg.markers.clear();
+  m_start_tree_edge_pub.publish(m_start_tree_add_edge_marker_array_msg);
+  m_goal_tree_add_edge_marker_array_msg.markers.clear();
+  m_goal_tree_edge_pub.publish(m_goal_tree_add_edge_marker_array_msg);
+
+  //Delete solution path
+  visualization_msgs::Marker empty_solution_path_marker;
+  empty_solution_path_marker.id = 1;
+  empty_solution_path_marker.header.stamp = ros::Time::now();
+  empty_solution_path_marker.header.frame_id = m_base_link_name;
+  empty_solution_path_marker.ns = "solution";
+  empty_solution_path_marker.action = visualization_msgs::Marker::DELETE;
+  empty_solution_path_marker.type = visualization_msgs::Marker::LINE_STRIP;
+  empty_solution_path_marker.scale.x = m_solution_path_ee_marker_scale;
+  empty_solution_path_marker.pose.orientation.w = 1.0;
+  empty_solution_path_marker.color.r = 1.0;
+  empty_solution_path_marker.color.g = 1.0;
+  empty_solution_path_marker.color.b = 1.0;
+  empty_solution_path_marker.color.a = 1.0;
+  m_ee_solution_path_pub.publish(empty_solution_path_marker);
+
+  //Initialization of Variables required for Ellipse Sampling
+  if (search_space == 0) //Planning in Control Space
+  {
+    //TODO Ellipse Sampling Initialization
+  }
+  else if (search_space == 1) //Planning in Joint Space
+    jointConfigEllipseInitialization();
+  else
+    ROS_ERROR("Requested planner search space does not exist!!!");
+
+  //Iteration and time when first and last solution is found
+  m_first_solution_iter = 10000;
+  m_last_solution_iter = 10000;
+  m_time_first_solution = 10000.0;
+  m_time_last_solution = 10000.0;
+
+  //Time when planning started and ended
+  m_time_planning_start = 0.0;
+  m_time_planning_end = 0.0;
+
+  //Everything went fine
+  return true;
+
+}
+
 //Initialize RRT* Planner (given start and config)
 bool BiRRTstarPlanner::init_planner(vector<double> start_conf, vector<double> goal_conf, int search_space, bool check_self_collision, bool check_map_collision)
 {
@@ -530,6 +749,456 @@ bool BiRRTstarPlanner::init_planner(vector<double> start_conf, vector<double> go
   //Everything went fine
   return true;
 
+}
+
+//Initialize RRT* Planner (given start config and final endeffector pose)
+bool BiRRTstarPlanner::init_planner(vector<double> start_conf, vector<double> ee_goal_pose, vector<int> constraint_vec_goal_pose,
+                                    vector<pair<double, double> > coordinate_dev, int search_space)
+{
+
+  //Check dimension of config
+  if (start_conf.size() != m_num_joints)
+  {
+    ROS_ERROR("Dimension of configuration vector does not match the number of joints in the planning group!");
+    return false;
+  }
+
+  //Note: ee_goal_pose represents the end-effector goal pose with respect to the "base_link"
+
+  //Convert XYZ euler orientation of goal pose to quaternion
+  vector<double> quat_goal_pose = m_RobotMotionController->convertEulertoQuat(ee_goal_pose[3], ee_goal_pose[4], ee_goal_pose[5]);
+
+  //Set up goal pose with orientation expressed by quaternion
+  vector<double> goal_ee_pose_quat_orient(7);
+  goal_ee_pose_quat_orient[0] = ee_goal_pose[0]; //x
+  goal_ee_pose_quat_orient[1] = ee_goal_pose[1]; //y
+  goal_ee_pose_quat_orient[2] = ee_goal_pose[2]; //z
+  goal_ee_pose_quat_orient[3] = quat_goal_pose[0];  //quat_x
+  goal_ee_pose_quat_orient[4] = quat_goal_pose[1];  //quat_y
+  goal_ee_pose_quat_orient[5] = quat_goal_pose[2];  //quat_z
+  goal_ee_pose_quat_orient[6] = quat_goal_pose[3];  //quat_w
+
+  //Find configuration for endeffector goal pose (using start_config as mean config for init_config sampling)
+  vector<double> ik_sol_ee_goal_pose = findIKSolution(goal_ee_pose_quat_orient, constraint_vec_goal_pose, coordinate_dev, start_conf, false);
+
+  //Convert start configuration into KDL Joint Array
+  KDL::JntArray start_configuration = m_RobotMotionController->Vector_to_JntArray(start_conf);
+
+  //Find endeffector pose for start configuration
+  vector<double> ee_start_pose = computeEEPose(start_configuration);
+
+  //Check start and goal config for validity
+  bool start_conf_valid = isConfigValid(start_configuration, true, true);
+  bool goal_conf_valid = isConfigValid(ik_sol_ee_goal_pose, true, true);
+  if (start_conf_valid == false)
+  {
+    ROS_ERROR("Start configuration is invalid!!!");
+    return false;
+  }
+  else if (goal_conf_valid == false)
+  {
+    ROS_ERROR("Goal configuration is invalid!!!");
+    return false;
+  }
+  else
+  {
+    //Nothing to do
+  }
+
+  //Store orientation of start ee pose as orientation of task frame (i.e. task frame orientation set globally)
+  if (m_constraint_active)
+  {
+    //Set Task frame to pose of endeffector frame at start config
+    m_task_frame = m_KDLRobotModel->compute_FK_frame(m_manipulator_chain, start_configuration);
+  }
+
+  //Compute Heuristic for root node (either distance between start and goal config or between start and goal endeffector pose)
+  //m_cost_theoretical_solution_path[0] -> total
+  //m_cost_theoretical_solution_path[1] -> revolute distance norm
+  //m_cost_theoretical_solution_path[2] -> prismatic distance norm
+  if (search_space == 0) //Planning in Control Space
+    m_cost_theoretical_solution_path[0] = m_Heuristic.euclidean_pose_distance(ee_start_pose, ee_goal_pose);
+  else if (search_space == 1) //Planning in Joint Space
+    m_cost_theoretical_solution_path = m_Heuristic.euclidean_joint_space_distance(m_manipulator_chain, start_conf, ik_sol_ee_goal_pose);
+  else
+    ROS_ERROR("Requested planner search space does not exist!!!");
+
+  //---Create Goal Node for RRT* Tree
+  Node goal_node;
+  goal_node.node_id = 0; //negative index to avoid using goal node as nearest neighbour (goal node only considered in REWIRE function)
+  goal_node.parent_id = 0; //No parent yet
+  //Find collision free configuration for goal node
+  goal_node.config = ik_sol_ee_goal_pose;
+  goal_node.ee_pose = ee_goal_pose;
+  goal_node.cost_reach.total = 0.0;
+  goal_node.cost_reach.revolute = 0.0;
+  goal_node.cost_reach.prismatic = 0.0;
+  goal_node.cost_h.total = m_cost_theoretical_solution_path[0];    // goal node has same heuristic cost as the start node
+  goal_node.cost_h.revolute = m_cost_theoretical_solution_path[1];   //distance for revolute joints
+  goal_node.cost_h.prismatic = m_cost_theoretical_solution_path[2];  //distance for prismatic joints
+  //Add goal Node to the tree
+  m_goal_tree.nodes.push_back(goal_node);
+  m_goal_tree.num_nodes++;
+
+  //Add sphere to visualize goal node
+  visualization_msgs::Marker goal_node_marker_; //terminal nodes
+  goal_node_marker_.id = 0;
+  goal_node_marker_.header.stamp = ros::Time::now();
+  //Set up properties for terminal nodes marker
+  goal_node_marker_.header.frame_id = m_base_link_name;
+  goal_node_marker_.ns = "terminal_nodes";
+  goal_node_marker_.action = visualization_msgs::Marker::ADD;
+  //Set Marker Type
+  goal_node_marker_.type = visualization_msgs::Marker::SPHERE;
+  //Nodes markers
+  goal_node_marker_.scale.x = m_terminal_nodes_marker_scale;
+  goal_node_marker_.scale.y = m_terminal_nodes_marker_scale;
+  goal_node_marker_.scale.z = m_terminal_nodes_marker_scale;
+  goal_node_marker_.pose.orientation.w = 1.0;
+  //Set colour for terminal tree nodes
+  goal_node_marker_.color.r = 0.0;
+  goal_node_marker_.color.g = 1.0;
+  goal_node_marker_.color.b = 0.0;
+  goal_node_marker_.color.a = 1.0;
+  //Set Marker Position for goal node marker
+  goal_node_marker_.pose.position.x = goal_node.ee_pose[0];
+  goal_node_marker_.pose.position.y = goal_node.ee_pose[1];
+  goal_node_marker_.pose.position.z = goal_node.ee_pose[2];
+  //Add start node to marker
+  m_terminal_nodes_marker_array_msg.markers.push_back(goal_node_marker_);
+
+  //--- Create Start Node for RRT* Tree
+  Node start_node;
+  start_node.node_id = 0;
+  start_node.parent_id = 0;
+  start_node.config = start_conf;
+  start_node.ee_pose = ee_start_pose;
+  start_node.cost_reach.total = 0.0;
+  start_node.cost_reach.revolute = 0.0;
+  start_node.cost_reach.prismatic = 0.0;
+  start_node.cost_h.total = m_cost_theoretical_solution_path[0];
+  start_node.cost_h.revolute = m_cost_theoretical_solution_path[1];
+  start_node.cost_h.prismatic = m_cost_theoretical_solution_path[2];
+  //Add start Node to the tree
+  m_start_tree.nodes.push_back(start_node);
+  m_start_tree.num_nodes++;
+
+  //Add sphere to visualize goal node
+  visualization_msgs::Marker start_node_marker_; //terminal nodes
+  start_node_marker_.id = 1;
+  start_node_marker_.header.stamp = ros::Time::now();
+  //Set up properties for terminal nodes marker
+  start_node_marker_.header.frame_id = m_base_link_name;
+  start_node_marker_.ns = "terminal_nodes";
+  start_node_marker_.action = visualization_msgs::Marker::ADD;
+  //Set Marker Type
+  start_node_marker_.type = visualization_msgs::Marker::SPHERE;
+  //Nodes markers
+  start_node_marker_.scale.x = m_terminal_nodes_marker_scale;
+  start_node_marker_.scale.y = m_terminal_nodes_marker_scale;
+  start_node_marker_.scale.z = m_terminal_nodes_marker_scale;
+  start_node_marker_.pose.orientation.w = 1.0;
+  //Set colour for terminal tree nodes
+  start_node_marker_.color.r = 1.0;
+  start_node_marker_.color.g = 0.0;
+  start_node_marker_.color.b = 0.0;
+  start_node_marker_.color.a = 1.0;
+  //Set Marker Position for goal node marker
+  start_node_marker_.pose.position.x = start_node.ee_pose[0];
+  start_node_marker_.pose.position.y = start_node.ee_pose[1];
+  start_node_marker_.pose.position.z = start_node.ee_pose[2];
+  //Add start node to marke
+  m_terminal_nodes_marker_array_msg.markers.push_back(start_node_marker_);
+
+  //Publish start and goal node
+  m_tree_terminal_nodes_pub.publish(m_terminal_nodes_marker_array_msg);
+
+  //Save start and goal ee_pose
+  m_ee_start_pose = ee_start_pose;
+  m_ee_goal_pose = ee_goal_pose;
+
+  //Save start and goal config
+  m_config_start_pose = start_conf;
+  m_config_goal_pose = goal_node.config;
+
+  //Empty array of nodes
+  m_start_tree_add_nodes_marker.points.empty();
+  m_start_tree_node_pub.publish(m_start_tree_add_nodes_marker);
+  m_goal_tree_add_nodes_marker.points.empty();
+  m_goal_tree_node_pub.publish(m_goal_tree_add_nodes_marker);
+
+  //Empty array of edges
+  //m_start_tree_add_edge_marker_array_msg.markers.empty();
+  m_start_tree_add_edge_marker_array_msg.markers.clear();
+  m_start_tree_edge_pub.publish(m_start_tree_add_edge_marker_array_msg);
+  m_goal_tree_add_edge_marker_array_msg.markers.clear();
+  m_goal_tree_edge_pub.publish(m_goal_tree_add_edge_marker_array_msg);
+
+  //Delete solution path
+  visualization_msgs::Marker empty_solution_path_marker;
+  empty_solution_path_marker.id = 1;
+  empty_solution_path_marker.header.stamp = ros::Time::now();
+  empty_solution_path_marker.header.frame_id = m_base_link_name;
+  empty_solution_path_marker.ns = "solution";
+  empty_solution_path_marker.action = visualization_msgs::Marker::DELETE;
+  empty_solution_path_marker.type = visualization_msgs::Marker::LINE_STRIP;
+  empty_solution_path_marker.scale.x = m_solution_path_ee_marker_scale;
+  empty_solution_path_marker.pose.orientation.w = 1.0;
+  empty_solution_path_marker.color.r = 1.0;
+  empty_solution_path_marker.color.g = 1.0;
+  empty_solution_path_marker.color.b = 1.0;
+  empty_solution_path_marker.color.a = 1.0;
+  m_ee_solution_path_pub.publish(empty_solution_path_marker);
+
+  //Initialization of Variables required for Ellipse Sampling
+  if (search_space == 0) //Planning in Control Space
+  {
+    //TODO Ellipse Sampling Initialization
+  }
+  else if (search_space == 1) //Planning in Joint Space
+    jointConfigEllipseInitialization();
+  else
+    ROS_ERROR("Requested planner search space does not exist!!!");
+
+  //Iteration and time when first and last solution is found
+  m_first_solution_iter = 10000;
+  m_last_solution_iter = 10000;
+  m_time_first_solution = 10000.0;
+  m_time_last_solution = 10000.0;
+
+  //Time when planning started and ended
+  m_time_planning_start = 0.0;
+  m_time_planning_end = 0.0;
+
+  //Everything went fine
+  return true;
+
+}
+
+//Initialize RRT* Planner (given start and final endeffector pose)
+bool BiRRTstarPlanner::init_planner(vector<double> ee_start_pose, vector<int> constraint_vec_start_pose, vector<double> ee_goal_pose,
+                                    vector<int> constraint_vec_goal_pose, vector<pair<double, double> > coordinate_dev, int search_space)
+{
+
+  //Note: ee_start_pose and ee_goal_pose represents the end-effector pose with respect to the "base_link"
+
+  //Generate start and goal config
+  //vector<vector<double> > start_goal_config = generate_start_goal_config(ee_start_pose,constraint_vec_start_pose, ee_goal_pose, constraint_vec_goal_pose, coordinate_dev, true);
+
+  //Store start and goal config
+  //vector<double> ik_sol_ee_start_pose = start_goal_config[0];
+  //vector<double> ik_sol_ee_goal_pose = start_goal_config[1];
+
+  //Convert XYZ euler orientation of start pose to quaternion
+  vector<double> quat_start_pose = m_RobotMotionController->convertEulertoQuat(ee_start_pose[3], ee_start_pose[4], ee_start_pose[5]);
+
+  //Convert XYZ euler orientation of goal pose to quaternion
+  vector<double> quat_goal_pose = m_RobotMotionController->convertEulertoQuat(ee_goal_pose[3], ee_goal_pose[4], ee_goal_pose[5]);
+
+  //Set up poses with orientation expressed by quaternion
+  vector<double> start_ee_pose_quat_orient(7);
+  start_ee_pose_quat_orient[0] = ee_start_pose[0]; //x
+  start_ee_pose_quat_orient[1] = ee_start_pose[1]; //y
+  start_ee_pose_quat_orient[2] = ee_start_pose[2]; //z
+  start_ee_pose_quat_orient[3] = quat_start_pose[0];  //quat_x
+  start_ee_pose_quat_orient[4] = quat_start_pose[1];  //quat_y
+  start_ee_pose_quat_orient[5] = quat_start_pose[2];  //quat_z
+  start_ee_pose_quat_orient[6] = quat_start_pose[3];  //quat_w
+  vector<double> goal_ee_pose_quat_orient(7);
+  goal_ee_pose_quat_orient[0] = ee_goal_pose[0]; //x
+  goal_ee_pose_quat_orient[1] = ee_goal_pose[1]; //y
+  goal_ee_pose_quat_orient[2] = ee_goal_pose[2]; //z
+  goal_ee_pose_quat_orient[3] = quat_goal_pose[0];  //quat_x
+  goal_ee_pose_quat_orient[4] = quat_goal_pose[1];  //quat_y
+  goal_ee_pose_quat_orient[5] = quat_goal_pose[2];  //quat_z
+  goal_ee_pose_quat_orient[6] = quat_goal_pose[3];  //quat_w
+
+  //Find configuration for endeffector goal pose (using ik_sol_ee_start_pose as mean config for init_config sampling)
+  //Note: -> Gaussian sampling for initial config is only performed for revolute joints
+  //      -> Initial values for prismatic joint are sampled uniformly from their respective joint range)
+  vector<double> ik_sol_ee_goal_pose = findIKSolution(goal_ee_pose_quat_orient, constraint_vec_goal_pose, coordinate_dev, true);
+
+  //Find configuration for endeffector start pose
+  vector<double> ik_sol_ee_start_pose = findIKSolution(start_ee_pose_quat_orient, constraint_vec_start_pose, coordinate_dev, ik_sol_ee_goal_pose, true);
+
+  //Check start and goal config for validity
+  bool start_conf_valid = isConfigValid(ik_sol_ee_start_pose, true, true);
+  bool goal_conf_valid = isConfigValid(ik_sol_ee_goal_pose, true, true);
+  if (start_conf_valid == false)
+  {
+    ROS_ERROR("Start configuration is invalid!!!");
+    return false;
+  }
+  else if (goal_conf_valid == false)
+  {
+    ROS_ERROR("Goal configuration is invalid!!!");
+    return false;
+  }
+  else
+  {
+    //Nothing to do
+  }
+
+  //Compute Heuristic for root node (either distance between start and goal config or between start and goal endeffector pose)
+  //m_cost_theoretical_solution_path[0] -> total
+  //m_cost_theoretical_solution_path[1] -> revolute distance norm
+  //m_cost_theoretical_solution_path[2] -> prismatic distance norm
+  if (search_space == 0) //Planning in Control Space
+    m_cost_theoretical_solution_path[0] = m_Heuristic.euclidean_pose_distance(start_ee_pose_quat_orient, goal_ee_pose_quat_orient);
+  else if (search_space == 1) //Planning in Joint Space
+    m_cost_theoretical_solution_path = m_Heuristic.euclidean_joint_space_distance(m_manipulator_chain, ik_sol_ee_start_pose, ik_sol_ee_goal_pose);
+  else
+    ROS_ERROR("Requested planner search space does not exist!!!");
+
+  //---Create Goal Node for RRT* Tree
+  Node goal_node;
+  goal_node.node_id = 0; //negative index to avoid using goal node as nearest neighbour (goal node only considered in REWIRE function)
+  goal_node.parent_id = 0; //No parent yet
+  //Find collision free configuration for goal node
+  goal_node.config = ik_sol_ee_goal_pose;
+  goal_node.ee_pose = goal_ee_pose_quat_orient;
+  goal_node.cost_reach.total = 0.0;
+  goal_node.cost_reach.revolute = 0.0;
+  goal_node.cost_reach.prismatic = 0.0;
+  goal_node.cost_h.total = m_cost_theoretical_solution_path[0];    // goal node has same heuristic cost as the start node
+  goal_node.cost_h.revolute = m_cost_theoretical_solution_path[1];   //distance for revolute joints
+  goal_node.cost_h.prismatic = m_cost_theoretical_solution_path[2];  //distance for prismatic joints
+  //Add goal Node to the tree
+  m_goal_tree.nodes.push_back(goal_node);
+  m_goal_tree.num_nodes++;
+
+  //Add sphere to visualize goal node
+  visualization_msgs::Marker goal_node_marker_; //terminal nodes
+  goal_node_marker_.id = 0;
+  goal_node_marker_.header.stamp = ros::Time::now();
+  //Set up properties for terminal nodes marker
+  goal_node_marker_.header.frame_id = m_base_link_name;
+  goal_node_marker_.ns = "terminal_nodes";
+  goal_node_marker_.action = visualization_msgs::Marker::ADD;
+  //Set Marker Type
+  goal_node_marker_.type = visualization_msgs::Marker::SPHERE;
+  //Nodes markers
+  goal_node_marker_.scale.x = m_terminal_nodes_marker_scale;
+  goal_node_marker_.scale.y = m_terminal_nodes_marker_scale;
+  goal_node_marker_.scale.z = m_terminal_nodes_marker_scale;
+  goal_node_marker_.pose.orientation.w = 1.0;
+  //Set colour for terminal tree nodes
+  goal_node_marker_.color.r = 0.0;
+  goal_node_marker_.color.g = 1.0;
+  goal_node_marker_.color.b = 0.0;
+  goal_node_marker_.color.a = 1.0;
+  //Set Marker Position for goal node marker
+  goal_node_marker_.pose.position.x = goal_node.ee_pose[0];
+  goal_node_marker_.pose.position.y = goal_node.ee_pose[1];
+  goal_node_marker_.pose.position.z = goal_node.ee_pose[2];
+  //Add start node to marker
+  m_terminal_nodes_marker_array_msg.markers.push_back(goal_node_marker_);
+
+  //--- Create Start Node for RRT* Tree
+  Node start_node;
+  start_node.node_id = 0;
+  start_node.parent_id = 0;
+  start_node.config = ik_sol_ee_start_pose;
+  start_node.ee_pose = start_ee_pose_quat_orient;
+  start_node.cost_reach.total = 0.0;
+  start_node.cost_reach.revolute = 0.0;
+  start_node.cost_reach.prismatic = 0.0;
+  start_node.cost_h.total = m_cost_theoretical_solution_path[0];
+  start_node.cost_h.revolute = m_cost_theoretical_solution_path[1];
+  start_node.cost_h.prismatic = m_cost_theoretical_solution_path[2];
+  //Add start Node to the tree
+  m_start_tree.nodes.push_back(start_node);
+  m_start_tree.num_nodes++;
+
+  //Add sphere to visualize goal node
+  visualization_msgs::Marker start_node_marker_; //terminal nodes
+  start_node_marker_.id = 1;
+  start_node_marker_.header.stamp = ros::Time::now();
+  //Set up properties for terminal nodes marker
+  start_node_marker_.header.frame_id = m_base_link_name;
+  start_node_marker_.ns = "terminal_nodes";
+  start_node_marker_.action = visualization_msgs::Marker::ADD;
+  //Set Marker Type
+  start_node_marker_.type = visualization_msgs::Marker::SPHERE;
+  //Nodes markers
+  start_node_marker_.scale.x = m_terminal_nodes_marker_scale;
+  start_node_marker_.scale.y = m_terminal_nodes_marker_scale;
+  start_node_marker_.scale.z = m_terminal_nodes_marker_scale;
+  start_node_marker_.pose.orientation.w = 1.0;
+  //Set colour for terminal tree nodes
+  start_node_marker_.color.r = 1.0;
+  start_node_marker_.color.g = 0.0;
+  start_node_marker_.color.b = 0.0;
+  start_node_marker_.color.a = 1.0;
+  //Set Marker Position for goal node marker
+  start_node_marker_.pose.position.x = start_node.ee_pose[0];
+  start_node_marker_.pose.position.y = start_node.ee_pose[1];
+  start_node_marker_.pose.position.z = start_node.ee_pose[2];
+  //Add start node to marke
+  m_terminal_nodes_marker_array_msg.markers.push_back(start_node_marker_);
+
+  //Publish start and goal node
+  m_tree_terminal_nodes_pub.publish(m_terminal_nodes_marker_array_msg);
+
+  //Save start and goal ee_pose
+  m_ee_start_pose = start_ee_pose_quat_orient;
+  m_ee_goal_pose = goal_ee_pose_quat_orient;
+
+  //Save start and goal config
+  m_config_start_pose = start_node.config;
+  m_config_goal_pose = goal_node.config;
+
+  //Empty array of nodes
+  m_start_tree_add_nodes_marker.points.empty();
+  m_start_tree_node_pub.publish(m_start_tree_add_nodes_marker);
+  m_goal_tree_add_nodes_marker.points.empty();
+  m_goal_tree_node_pub.publish(m_goal_tree_add_nodes_marker);
+
+  //Empty array of edges
+  //m_start_tree_add_edge_marker_array_msg.markers.empty();
+  m_start_tree_add_edge_marker_array_msg.markers.clear();
+  m_start_tree_edge_pub.publish(m_start_tree_add_edge_marker_array_msg);
+  m_goal_tree_add_edge_marker_array_msg.markers.clear();
+  m_goal_tree_edge_pub.publish(m_goal_tree_add_edge_marker_array_msg);
+
+  //Delete solution path
+  visualization_msgs::Marker empty_solution_path_marker;
+  empty_solution_path_marker.id = 1;
+  empty_solution_path_marker.header.stamp = ros::Time::now();
+  empty_solution_path_marker.header.frame_id = m_base_link_name;
+  empty_solution_path_marker.ns = "solution";
+  empty_solution_path_marker.action = visualization_msgs::Marker::DELETE;
+  empty_solution_path_marker.type = visualization_msgs::Marker::LINE_STRIP;
+  empty_solution_path_marker.scale.x = m_solution_path_ee_marker_scale;
+  empty_solution_path_marker.pose.orientation.w = 1.0;
+  empty_solution_path_marker.color.r = 1.0;
+  empty_solution_path_marker.color.g = 1.0;
+  empty_solution_path_marker.color.b = 1.0;
+  empty_solution_path_marker.color.a = 1.0;
+  m_ee_solution_path_pub.publish(empty_solution_path_marker);
+
+  //Initialization of Variables required for Ellipse Sampling
+  if (search_space == 0) //Planning in Control Space
+  {
+    //TODO Ellipse Sampling Initialization
+  }
+  else if (search_space == 1) //Planning in Joint Space
+    jointConfigEllipseInitialization();
+  else
+    ROS_ERROR("Requested planner search space does not exist!!!");
+
+  //Iteration and time when first and last solution is found
+  m_first_solution_iter = 10000;
+  m_last_solution_iter = 10000;
+  m_time_first_solution = 10000.0;
+  m_time_last_solution = 10000.0;
+
+  //Time when planning started and ended
+  m_time_planning_start = 0.0;
+  m_time_planning_end = 0.0;
+
+  //Everything went fine
+  return true;
 }
 
 //Run RRT* Planner given a target pose for the endeffector (last link along planning chain) w.r.t the /map frame

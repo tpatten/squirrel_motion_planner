@@ -10,16 +10,18 @@
 #include <planner_data_structures/data_structs.h>
 #include <kuka_motion_control/control_laws.h>
 #include <planning_heuristics/distance_heuristics.h>
+
 #include <birrt_star_algorithm/collision_checker.hpp>
+
 
 #ifndef BIRRT_STAR_H
 #define BIRRT_STAR_H
 
 // --Namespaces --
+using namespace std;
+
 namespace birrt_star_motion_planning
 {
-
-using namespace std;
 
 class BiRRTstarPlanner //: public robot_interface_definition::RobotInterface
 {
@@ -29,9 +31,34 @@ public:
 
   //Set the planning scene
   void setPlanningSceneInfo(vector<double> size_x, vector<double> size_y, string scene_name);
+  //void setPlanningSceneInfo(planning_world::PlanningWorldBuilder world_builder);
+
+  //Implementation of the virtual function "move" defined in Abstract Class robot_interface_definition
+  //bool plan(const Eigen::Affine3d& goal);
+
+  //Move function for base, base+endeffector and endeffector only
+  //bool move_base(const Eigen::Affine3d& goal);
+  //bool move_base_endeffector(const Eigen::Affine3d& goal);
+  //bool move_endeffector(const Eigen::Affine3d& goal);
+
+  //Initialize RRT* Planner (reading start and goal config from file)
+  bool init_planner(char *start_goal_config_file, int search_space);
 
   //Initialize RRT* Planner (given start and goal config)
   bool init_planner(vector<double> start_conf, vector<double> goal_conf, int search_space, bool check_self_collision, bool check_map_collision);
+
+  //Initialize RRT* Planner (given start config and final endeffector pose)
+  bool init_planner(vector<double> start_conf, vector<double> ee_goal_pose, vector<int> constraint_vec_goal_pose, vector<pair<double, double> > coordinate_dev,
+                    int search_space);
+
+  //Initialize RRT* Planner (given start and final endeffector pose)
+  bool init_planner(vector<double> ee_start_pose, vector<int> constraint_vec_start_pose, vector<double> ee_goal_pose, vector<int> constraint_vec_goal_pose,
+                    vector<pair<double, double> > coordinate_dev, int search_space);
+
+  //Initialize RRT* Planner for plannig with the real robot
+//  bool init_planner_real_robot_goal_pose(const Eigen::Affine3d& goal, const vector<int> constraint_vec_goal_pose,
+//                                         const vector<pair<double, double> > target_coordinate_dev, const string planner_type);
+//  bool init_planner_real_robot_goal_config(const vector<double> goal, const string planner_type);
 
   //Read / Write Start and Goal Config
   void writeStartGoalConfig(char *start_goal_config_file, vector<double> start_config, vector<double> goal_config);
@@ -43,12 +70,18 @@ public:
   vector<double> generate_config_from_ee_pose_with_reference_config(vector<double> ee_pose, vector<int> constraint_vec_ee_pose,
                                                                     vector<pair<double, double> > coordinate_dev, vector<double> mean_init_config,
                                                                     bool show_motion);
+//  vector<vector<double> > generate_start_goal_config(vector<double> start_pose, vector<int> constraint_vec_start_pose, vector<double> goal_pose,
+//                                                     vector<int> constraint_vec_goal_pose, vector<pair<double, double> > coordinate_dev, bool show_motion);
 
   //Compute IK for given endeffector pose
   vector<double> findIKSolution(vector<double> goal_ee_pose, vector<int> constraint_vec, vector<pair<double, double> > coordinate_dev, bool show_motion);
   //Compute IK for given endeffector goal pose (given a specific initial config)
   vector<double> findIKSolution(vector<double> goal_ee_pose, vector<int> constraint_vec, vector<pair<double, double> > coordinate_dev,
                                 vector<double> mean_init_config, bool show_motion);
+
+  //Attach/Detach an given Object to the End-effector
+//  void attachObject(moveit_msgs::AttachedCollisionObject attached_object);
+//  void detachObject(moveit_msgs::AttachedCollisionObject attached_object);
 
   //Function to set parameterized task frame
   void setParameterizedTaskFrame(vector<int> cv, vector<pair<double, double> > coordinate_dev, bool task_pos_global, bool task_orient_global);
@@ -57,6 +90,9 @@ public:
 
   //Function to set edge cost weights (to punish certain joint motions)
   void setEdgeCostWeights(vector<double> ecw);
+
+  //Function to set the configuration projection error threshold (used in constraint satisfaction function)
+  //void setConfigProjectionErrorThreshold(double threshold);
 
   //Activate/Deactivate Tree Optimization Features
   void activateTreeOptimization();
@@ -112,8 +148,13 @@ private:
   //Path to start goal config files
   string m_terminal_configs_path;
 
+  //Planning World and Environment Size
+  //boost::shared_ptr<planning_world::PlanningWorldBuilder> m_planning_world;
   vector<double> m_env_size_x; //m_env_size_x[0] = size in negative x dir / m_env_size_x[1] = size in positive x dir
   vector<double> m_env_size_y; //m_env_size_y[0] = size in negative y dir / m_env_size_y[1] = size in positive y dir
+
+  //Planning Scene Monitor (used for Collision Checking)
+  //planning_scene_monitor::PlanningSceneMonitorPtr m_planning_scene_monitor;
 
   //Generate KDL Tree from Kuka LBR urdf
   // -> used to generate samples for the kinematic chain of the robot
@@ -122,6 +163,9 @@ private:
   //Create RobotController Object for Motion Control of the robot
   // -> used to connect samples of the RRT* planner
   boost::shared_ptr<kuka_motion_controller::RobotController> m_RobotMotionController;
+
+  //FeasibilityChecker to check configurations/nodes and edges for collisions
+  //boost::shared_ptr<state_feasibility_checker::FeasibilityChecker> m_FeasibilityChecker;
 
   //Heuristics for measuring distances between nodes
   heuristics_motion_planning::DistanceHeuristics m_Heuristic;

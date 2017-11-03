@@ -52,7 +52,7 @@ class Planner
   ros::Publisher publisherPlanningScene;     ///< ROS publisher. Publishes the octree as a planning scene for moveit.
   ros::NodeHandle nh;     ///< ROS node handle with global namespace.
   ros::NodeHandle nhPrivate;     ///< ROS node handle with namespace relative to current node.
-  ros::Publisher publisherOctomap;
+  ros::Publisher publisherOctomap;     ///< ROS publisher. Publishes the octomap overlayed with a floor around the robot.
   ros::Publisher publisherOccupancyMap;     ///< ROS publisher. Publishes the occupancy map that was created using the most recent octree.
   ros::Publisher publisher2DPath;     ///< ROS publisher. Publishes the 2D projection of the 8D trajectory.
   ros::Publisher publisherTrajectoryVisualizer;     ///< ROS publisher. Publishes the full 8D trajectory as a multi float array.
@@ -66,28 +66,21 @@ class Planner
   ros::ServiceServer serviceServerSendControlCommand;     //<< ROS service server. When called, sends the latest trajectory to the controller.
   ros::ServiceServer serviceServerUnfoldArm;     ///< ROS service server. When called, sends a trajectory to the controller to unfold the arm.
   ros::ServiceClient serviceClientOctomap;     ///< ROS service client. Receives a full octomap from octomap_server_node.
-  tf::TransformListener transformListener;
+  tf::TransformListener transformListener;     ///< tf transform listener. Finds transforms between any two given frames.
   interactive_markers::InteractiveMarkerServer interactiveMarkerServer;     ///< Server that commuincates with Rviz to receive 6D end effector poses.
   visualization_msgs::InteractiveMarker interactiveMarker;     ///< Interactive marker used by interactiveMarkerServer.
   Pose poseGoalMarker;     ///< Current pose of the interactive marker in RViz.
-
-  octomap::OcTree* octree;
-
-  /*
-   * Base Pose Finder
-   */
-//  CollisionChecker* collisionChecker;
 
   /*
    * General search settings
    */
   Trajectory posesFolding;     ///< 5D arm poses that allows the robot to fold into the case. First pose is folded, last unfolded.
   Pose normalizedPoseDistances;     ///< 8D vector of pose values to which the final trajectory is normalized.
-  Real timeBetweenPoses;
-  Real distance8DofPlanning;     ///< Distance to the goal pose from where the 8D planning is performed.
+  Real timeBetweenPoses;     ///< Time that is set between trajectory poses, determines how long the controller has to reach each pose.
   Real obstacleInflationRadius;     ///< Inflation radius around occupied cells in occupancyMap.
-  bool checkSelfCollision;
-  bool checkMapCollision;
+  Real distance8DofPlanning;     ///< Distance along 2D path from the goal from where the 8dof planning should start.
+  bool checkSelfCollision;     ///< Is set on a service call request and determines if self collisions are considered during planning.
+  bool checkMapCollision;     ///< Is set on a service call request and determines if octomap collisions are considered during planning.
 
   /*
    *  Current robot and planning poses
@@ -96,12 +89,12 @@ class Planner
   Pose poseGoal;      ///< 8D vector with the goal pose for the robot, given as [x, y, theta, arm1, arm2, arm3, arm4, arm5].
   Trajectory posesTrajectory;  ///< Vector of 8D poses that contains the last succesfully computed trajectory from poseCurrent to poseGoal.
   Trajectory posesTrajectoryNormalized;     ///< Same trajectory as posesTrajectory, but normalized to a specific maximum pose distance.
-  UInt indexLastFolding;
 
   /*
    * Octomap
    */
-  Real floorCollisionDistance;
+  octomap::OcTree* octree;     ///< Pointer to an octree, points to the latest octomap that is used for collisions checks during planning.
+  Real floorCollisionDistance;     ///< Distance up to what point a floor is added around the robot to the octomap to avoid planning the arm into the floor.
 
   /*
    * AStar
@@ -436,10 +429,18 @@ private:
    */
   void copyArmToRobotPose(const Pose &poseArm, Pose &poseRobot);
 
-  void getAxes(const string &frameParent, const string &frameChild) const;
+  /**
+   * @brief Finds a 3D vector of the y-axis of one frame with respect to another.
+   * @param frameParent The frame relative to which the y-axis is given.
+   * @param frameChild The frame of which the y-axis is defined.
+   * @return 3D vector of the y-axis of frameChild in frameParent.
+   */
+  Tuple3D getYAxis(const string &frameParent, const string &frameChild) const;
 
-  void convertPose(const Pose &posePrev, Pose &poseTarget, const string &frameTarget, const string &frameOrigin) const;
-
+  /**
+   * @brief Starts a loop with a frequency of 10Hz and spins once every iteration.
+   * @param seconds The amount of seconds the loop should run for.
+   */
   void waitAndSpin(const Real seconds);
 };
 

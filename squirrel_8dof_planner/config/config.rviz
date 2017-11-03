@@ -5,12 +5,10 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
-        - /RobotModel1
         - /RobotModel1/Links1
         - /TF1/Frames1
         - /Robot_Trajectory1
         - /InteractiveMarkers1
-        - /OccupancyGrid1
       Splitter Ratio: 0.5
     Tree Height: 733
   - Class: rviz/Selection
@@ -425,7 +423,7 @@ Visualization Manager:
       Marker Topic: /squirrel_8dof_planning/robot_trajectory_visualization
       Name: Robot_Trajectory
       Namespaces:
-        {}
+        robot_1: true
       Queue Size: 100
       Value: true
     - Class: rviz/InteractiveMarkers
@@ -437,15 +435,6 @@ Visualization Manager:
       Show Visual Aids: false
       Update Topic: /squirrel_8dof_planning/endeffector_goal/update
       Value: true
-    - Class: octomap_rviz_plugin/OccupancyGrid
-      Enabled: false
-      Max. Octree Depth: 16
-      Name: OccupancyGrid
-      Octomap Topic: /squirrel_8dof_planning/octomap_planning
-      Queue Size: 5
-      Value: false
-      Voxel Coloring: Z-Axis
-      Voxel Rendering: Occupied Voxels
   Enabled: true
   Global Options:
     Background Color: 220; 220; 220
@@ -470,22 +459,22 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 5.06128
+      Distance: 4.9588
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -1.23887
-        Y: -0.72807
-        Z: -0.110423
+        X: -2.48258
+        Y: 5.6099
+        Z: 0.376626
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.324801
+      Pitch: 0.539797
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.269053
+      Yaw: 1.24905
     Saved: ~
 Window Geometry:
   Displays:

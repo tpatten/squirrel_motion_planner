@@ -3,7 +3,9 @@
 namespace SquirrelMotionPlanner
 {
 
+// ********************************************************
 // ******************** PUBLIC MEMBERS ********************
+// ********************************************************
 
 Planner::Planner() :
     nhPrivate("~"), birrtStarPlanner("robotino_robot"), interactiveMarkerServer("endeffector_goal"), octree(NULL)
@@ -56,7 +58,9 @@ Planner::Planner() :
 
 }
 
+// *********************************************************
 // ******************** PRIVATE MEMBERS ********************
+// *********************************************************
 
 void Planner::initializeParameters()
 {
@@ -93,7 +97,6 @@ void Planner::initializeParameters()
   loadParameter("astar_smoothing_factor", AStarPathSmoothingFactor, 2.0);
   loadParameter("astar_smoothing_distance", AStarPathSmoothingDistance, 0.2);
   loadParameter("astar_final_smoothed_point_distance", AStarPathSmoothedPointDistance, 0.02);
-  loadParameter("distance_birrt_star_planning", distance8DofPlanning, 1.2);
 }
 
 void Planner::initializeMessageHandling()
@@ -928,13 +931,31 @@ int Planner::findGoalPose(const Pose &poseEndEffector)
   endEffectorDeviations[4] = std::make_pair<Real, Real>(-0.025, 0.025);
   endEffectorDeviations[5] = std::make_pair<Real, Real>(-0.025, 0.025);
 
-  Real dist = 0.45;
+  Real dist;
+  Tuple3D handDirection = getYAxis("map", "hand_wrist_link");
   Pose poseInitializer(8);
-  poseInitializer[3] = -0.8;
-  poseInitializer[4] = 0.8;
-  poseInitializer[5] = 0.0;
-  poseInitializer[6] = -1.5;
-  poseInitializer[7] = 0.0;
+
+  // this checks if the hand  direction is approximately 30 deg with the xy-plane
+  if(fabs(Tuple3D(0.0, 0.0, 1.0) * handDirection) < 0.9)
+  {
+    dist = 0.4;
+
+    poseInitializer[3] = -1.2;
+    poseInitializer[4] = 1.26;
+    poseInitializer[5] = 0.12;
+    poseInitializer[6] = 0.9;
+    poseInitializer[7] = -1.6;
+  }
+  else
+  {
+    dist = 0.45;
+
+    poseInitializer[3] = -0.8;
+    poseInitializer[4] = 0.8;
+    poseInitializer[5] = 0.0;
+    poseInitializer[6] = -1.5;
+    poseInitializer[7] = 0.0;
+  }
 
   Real angle = 0.0;
   bool foundSinglePose = false;
@@ -1482,38 +1503,15 @@ inline void Planner::copyArmToRobotPose(const Pose &poseArm, Pose &poseRobot)
   poseRobot[7] = poseArm[4];
 }
 
-inline void Planner::getAxes(const string &frameParent, const string &frameChild) const
+inline Tuple3D Planner::getYAxis(const string &frameParent, const string &frameChild) const
 {
   tf::StampedTransform transform;
   transformListener.lookupTransform(frameChild, frameParent, ros::Time(0.0), transform);
-
-  tf::Vector3 axisX(1.0, 0.0, 0.0), axisY(0.0, 1.0, 0.0), axisZ(0.0, 0.0, 1.0);
+  tf::Vector3 axis(0.0, 1.0, 0.0);
   tf::Matrix3x3 basis = transform.getBasis();
+  axis = basis * axis;
 
-  axisX = basis * axisX;
-  axisY = basis * axisY;
-  axisZ = basis * axisZ;
-
-  std::cout << "x-axis: " << axisX.x() << ", " << axisX.y() << ", " << axisX.z() << std::endl;
-  std::cout << "y-axis: " << axisY.x() << ", " << axisY.y() << ", " << axisY.z() << std::endl;
-  std::cout << "z-axis: " << axisZ.x() << ", " << axisZ.y() << ", " << axisZ.z() << std::endl << std::endl;
-}
-
-inline void Planner::convertPose(const Pose &posePrev, Pose &poseTarget, const string &frameTarget, const string &frameOrigin) const
-{
-  poseTarget = posePrev;
-  geometry_msgs::PoseStamped poseBasePrev, poseBaseTarget;
-  poseBasePrev.pose.position.x = posePrev[0];
-  poseBasePrev.pose.position.y = posePrev[1];
-  poseBasePrev.pose.position.z = 0.0;
-  poseBasePrev.pose.orientation = tf::createQuaternionMsgFromYaw(posePrev[2]);
-  poseBasePrev.header.frame_id = frameOrigin;
-
-  transformListener.transformPose(frameTarget, poseBasePrev, poseBaseTarget);
-
-  poseTarget[0] = poseBaseTarget.pose.position.x;
-  poseTarget[1] = poseBaseTarget.pose.position.y;
-  poseTarget[2] = tf::getYaw(poseBaseTarget.pose.orientation);
+  return Tuple3D(axis[0], axis[1], axis[2]);
 }
 
 inline void Planner::waitAndSpin(const Real seconds)
