@@ -270,13 +270,6 @@ private:
   int findGoalPose(const Pose &poseEndEffector);
 
   /**
-   * @brief Finds a 2D and 8D trajectory to the goal pose saved in poseGoal.
-   * The trajectory is composed of folding the arm, driving close to poseGoal, and then move the arm to the final position.
-   * @return True if a free trajectory could be found, returns false if either the 2D or the 8D search fails.
-   */
-  bool findTrajectoryFull();
-
-  /**
    * @brief Finds an 8D path using birrt star from the current arm pose to a folded position.
    * @return True if a path could be found, false if the planner could not be initialized or no plan could be found.
    */
@@ -298,7 +291,7 @@ private:
    * @brief Finds an 8D path using birrt star from poseStart to poseGoal and adds the trajectory to poses.
    * @return True if a path could be found, false if the planner could not be initialized or no plan could be found.
    */
-  bool findTrajectory8D(const Pose &poseStart, const Pose &poseGoal);
+  bool findTrajectory8D(const Pose &poseStart, const Pose &poseGoal, const Real maxPlanningTime);
 
   /**
    * @brief Finds an A* actual path between two points and saves it to AStarPath.

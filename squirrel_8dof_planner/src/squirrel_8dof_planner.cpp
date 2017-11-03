@@ -383,7 +383,7 @@ bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequ
       return true;
     }
 
-    if (!findTrajectory8D(posesTrajectory.back(), poseGoal))
+    if (!findTrajectory8D(posesTrajectory.back(), poseGoal, req.max_planning_time))
     {
       res.result = squirrel_motion_planner_msgs::PlanPoseResponse::ERROR_8DOF_PLANNING;
       return true;
@@ -391,7 +391,7 @@ bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequ
   }
   else
   {
-    if (!findTrajectory8D(poseCurrent, poseGoal))
+    if (!findTrajectory8D(poseCurrent, poseGoal, req.max_planning_time))
     {
       res.result = squirrel_motion_planner_msgs::PlanPoseResponse::ERROR_8DOF_PLANNING;
       return true;
@@ -452,7 +452,7 @@ bool Planner::serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanE
       return true;
     }
 
-    if (!findTrajectory8D(posesTrajectory.back(), poseGoal))
+    if (!findTrajectory8D(posesTrajectory.back(), poseGoal, req.max_planning_time))
     {
       res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_8DOF_PLANNING;
       return true;
@@ -460,7 +460,7 @@ bool Planner::serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanE
   }
   else
   {
-    if (!findTrajectory8D(poseCurrent, poseGoal))
+    if (!findTrajectory8D(poseCurrent, poseGoal, req.max_planning_time))
     {
       res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_8DOF_PLANNING;
       return true;
@@ -514,7 +514,7 @@ bool Planner::serviceCallbackGoalMarker(squirrel_motion_planner_msgs::PlanEndEff
       return true;
     }
 
-    if (!findTrajectory8D(posesTrajectory.back(), poseGoal))
+    if (!findTrajectory8D(posesTrajectory.back(), poseGoal, req.max_planning_time))
     {
       res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_8DOF_PLANNING;
       return true;
@@ -522,7 +522,7 @@ bool Planner::serviceCallbackGoalMarker(squirrel_motion_planner_msgs::PlanEndEff
   }
   else
   {
-    if (!findTrajectory8D(poseCurrent, poseGoal))
+    if (!findTrajectory8D(poseCurrent, poseGoal, req.max_planning_time))
     {
       res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_8DOF_PLANNING;
       return true;
@@ -581,7 +581,7 @@ bool Planner::serviceCallbackFoldArm(squirrel_motion_planner_msgs::FoldArmReques
     Pose poseTmp = poseCurrent;
     copyArmToRobotPose(posesFolding.back(), poseTmp);
     posesTrajectory.clear();
-    if (!findTrajectory8D(poseCurrent, poseTmp))
+    if (!findTrajectory8D(poseCurrent, poseTmp, 2.0))
     {
       res.result = squirrel_motion_planner_msgs::FoldArmResponse::ERROR_8DOF_PLANNING;
       return true;
@@ -964,51 +964,6 @@ int Planner::findGoalPose(const Pose &poseEndEffector)
     return 2;
 }
 
-bool Planner::findTrajectoryFull()
-{
-//  const Cell2D goalCell = getCellFromPoint(Tuple2D(poseGoal[0], poseGoal[1]));
-//  if (occupancyMap[goalCell.x][goalCell.y])
-//  {
-//    ROS_WARN("The requested goal configuration is occupied. No plan could be found.");
-//    return false;
-//  }
-
-  posesTrajectory.clear();
-
-  if (true) //Tuple2D(poseGoal[0], poseGoal[1]).distance(Tuple2D(poseCurrent[0], poseCurrent[1])) < distance8DofPlanning)
-  {
-    if (!findTrajectory8D(poseCurrent, poseGoal))
-    {
-      ROS_WARN("No 8D path could be found to the requested goal pose.");
-      return false;
-    }
-
-    normalizeTrajectory(posesTrajectory, posesTrajectoryNormalized, normalizedPoseDistances);
-  }
-  else
-  {
-    createOccupancyMapFromOctomap();
-    inflateOccupancyMap();
-    createAStarNodesMap();
-
-    if (!findTrajectory2D())
-    {
-      ROS_WARN("No 2D path could be found to the requested goal pose.");
-      return false;
-    }
-
-    if (!findTrajectory8D(posesTrajectory.back(), poseGoal))
-    {
-      ROS_WARN("No 8D path could be found to the requested goal pose.");
-      return false;
-    }
-  }
-
-  publish2DPath();
-  publishTrajectoryVisualizer();
-  return true;
-}
-
 bool Planner::findTrajectory2D()
 {
   findAStarPath(Tuple2D(poseCurrent[0], poseCurrent[1]), Tuple2D(poseGoal[0], poseGoal[1]));
@@ -1027,7 +982,7 @@ bool Planner::findTrajectory2D()
   return true;
 }
 
-bool Planner::findTrajectory8D(const Pose &poseStart, const Pose &poseGoal)
+bool Planner::findTrajectory8D(const Pose &poseStart, const Pose &poseGoal, const Real maxPlanningTime)
 {
   if (birrtStarPlanningNumber > 0)
     birrtStarPlanner.reset_planner_and_config();
@@ -1043,7 +998,7 @@ bool Planner::findTrajectory8D(const Pose &poseStart, const Pose &poseGoal)
   if (!birrtStarPlanner.init_planner(poseStart, poseGoal, 1, checkSelfCollision, checkMapCollision))
     return false;
 
-  if (!birrtStarPlanner.run_planner(1, 1, 2.0, true, 0.0, birrtStarPlanningNumber))
+  if (!birrtStarPlanner.run_planner(1, 1, maxPlanningTime, false, 0.0, birrtStarPlanningNumber))
     return false;
 
   const Trajectory &trajectoryBirrtStar = birrtStarPlanner.getJointTrajectoryRef();
