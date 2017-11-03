@@ -1,5 +1,5 @@
-#ifndef SQUIRREL_8DOF_VISUALIZER_H_
-#define SQUIRREL_8DOF_VISUALIZER_H_
+#ifndef SQUIRREL_8DOF_VISUALIZER_SQUIRREL_8DOF_VISUALIZER_H_
+#define SQUIRREL_8DOF_VISUALIZER_SQUIRREL_8DOF_VISUALIZER_H_
 
 #include <ros/ros.h>
 #include <ros/package.h>
@@ -94,5 +94,5 @@ private:
 
 } //namespace SquirrelMotionPlanning
 
-#endif //SQUIRREL_8DOF_VISUALIZER_H_
+#endif // SQUIRREL_8DOF_VISUALIZER_SQUIRREL_8DOF_VISUALIZER_H_
 

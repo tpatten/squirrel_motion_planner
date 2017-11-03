@@ -1,5 +1,5 @@
-#ifndef SQUIRREL_8DOF_PLANNER_H_
-#define SQUIRREL_8DOF_PLANNER_H_
+#ifndef SQUIRREL_8DOF_PLANNER_SQUIRREL_8DOF_PLANNER_H_
+#define SQUIRREL_8DOF_PLANNER_SQUIRREL_8DOF_PLANNER_H_
 
 #include <string>
 #include <vector>
@@ -446,4 +446,4 @@ private:
 
 } //namespace SquirrelMotionPlanner
 
-#endif /* SQUIRREL_8DOF_PLANNER_PLANNER_H_ */
+#endif // SQUIRREL_8DOF_PLANNER_SQUIRREL_8DOF_PLANNER_H_

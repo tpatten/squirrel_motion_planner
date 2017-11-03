@@ -5,17 +5,15 @@
  *      Author: Felix Burget
  */
 
-// --- Includes -- 
+#ifndef BIRRT_STAR_ALGORITHM_BIRRT_STAR_H_
+#define BIRRT_STAR_ALGORITHM_BIRRT_STAR_H_
+
 #include <ros/ros.h>
 #include <planner_data_structures/data_structs.h>
 #include <kuka_motion_control/control_laws.h>
 #include <planning_heuristics/distance_heuristics.h>
 #include <birrt_star_algorithm/collision_checker.hpp>
 
-#ifndef BIRRT_STAR_H
-#define BIRRT_STAR_H
-
-// --Namespaces --
 namespace birrt_star_motion_planning
 {
 
@@ -495,7 +493,7 @@ private:
   void cost_consistency_check(Rrt_star_tree *tree);
 };
 
-}    //end of namespace
+} // namespace birrt_star_motion_planning
 
-#endif // BiRRT_STAR_H
+#endif // BIRRT_STAR_ALGORITHM_BIRRT_STAR_H_
 

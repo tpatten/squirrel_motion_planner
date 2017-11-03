@@ -1,5 +1,5 @@
-#ifndef SQUIRREL_MOTION_PLANNING_COLLISION_CHECKER_HPP_
-#define SQUIRREL_MOTION_PLANNING_COLLISION_CHECKER_HPP_
+#ifndef BIRRT_STAR_ALGORITHM_COLLISION_CHECKER_HPP_
+#define BIRRT_STAR_ALGORITHM_COLLISION_CHECKER_HPP_
 
 #include <iostream>
 #include <fstream>
@@ -450,7 +450,7 @@ private:
   }
 };
 
-} //namespace state_feasibility_checker
+} // namespace birrt_star_motion_planning
 
-#endif //SQUIRREL_MOTION_PLANNING_COLLISION_CHECKER_HPP_
+#endif // BIRRT_STAR_ALGORITHM_COLLISION_CHECKER_HPP_
 
