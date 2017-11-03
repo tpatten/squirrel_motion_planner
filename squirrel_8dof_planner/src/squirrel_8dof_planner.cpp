@@ -428,12 +428,12 @@ bool Planner::serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanE
   }
 
   int goalPoseResult = findGoalPose(req.positions);
-  if(goalPoseResult == 1)
+  if (goalPoseResult == 1)
   {
     res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::COLLISION_GOAL_POSE;
     return true;
   }
-  else if(goalPoseResult == 2)
+  else if (goalPoseResult == 2)
   {
     res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::INVALID_END_EFFECTOR_POSE;
     return true;
@@ -490,12 +490,12 @@ bool Planner::serviceCallbackGoalMarker(squirrel_motion_planner_msgs::PlanEndEff
   }
 
   int goalPoseResult = findGoalPose(poseGoalMarker);
-  if(goalPoseResult == 1)
+  if (goalPoseResult == 1)
   {
     res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::COLLISION_GOAL_POSE;
     return true;
   }
-  else if(goalPoseResult == 2)
+  else if (goalPoseResult == 2)
   {
     res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::INVALID_END_EFFECTOR_POSE;
     return true;
@@ -724,6 +724,7 @@ void Planner::interactiveMarkerHandler(const visualization_msgs::InteractiveMark
   poseGoalMarker[3] = r;
   poseGoalMarker[4] = p;
   poseGoalMarker[5] = y;
+
 }
 
 void Planner::createOccupancyMapFromOctomap()
@@ -936,19 +937,19 @@ int Planner::findGoalPose(const Pose &poseEndEffector)
   Pose poseInitializer(8);
 
   // this checks if the hand  direction is approximately 30 deg with the xy-plane
-  if(fabs(Tuple3D(0.0, 0.0, 1.0) * handDirection) < 0.9)
+  if (fabs(Tuple3D(0.0, 0.0, 1.0) * handDirection) < 0.9)
   {
-    dist = 0.4;
+    dist = 0.48;
 
     poseInitializer[3] = -1.2;
-    poseInitializer[4] = 1.26;
-    poseInitializer[5] = 0.12;
-    poseInitializer[6] = 0.9;
-    poseInitializer[7] = -1.6;
+    poseInitializer[4] = 1.1;
+    poseInitializer[5] = 0.0;
+    poseInitializer[6] = 0.7;
+    poseInitializer[7] = -1.5;
   }
   else
   {
-    dist = 0.45;
+    dist = 0.30;
 
     poseInitializer[3] = -0.8;
     poseInitializer[4] = 0.8;
@@ -964,7 +965,7 @@ int Planner::findGoalPose(const Pose &poseEndEffector)
     poseInitializer[0] = poseEndEffector[0] - dist * cos(angle);
     poseInitializer[1] = poseEndEffector[1] - dist * sin(angle);
     poseInitializer[2] = angle + 1.0;
-    if(birrtStarPlanner.getFullPoseFromEEPose(poseEndEffector, endEffectorDeviations, poseInitializer, poseGoal))
+    if (birrtStarPlanner.getFullPoseFromEEPose(poseEndEffector, endEffectorDeviations, poseInitializer, poseGoal))
     {
       foundSinglePose = true;
 
@@ -979,7 +980,7 @@ int Planner::findGoalPose(const Pose &poseEndEffector)
   }
 
   poseGoal.clear();
-  if(foundSinglePose)
+  if (foundSinglePose)
     return 1;
   else
     return 2;
@@ -1506,10 +1507,21 @@ inline void Planner::copyArmToRobotPose(const Pose &poseArm, Pose &poseRobot)
 inline Tuple3D Planner::getYAxis(const string &frameParent, const string &frameChild) const
 {
   tf::StampedTransform transform;
-  transformListener.lookupTransform(frameChild, frameParent, ros::Time(0.0), transform);
-  tf::Vector3 axis(0.0, 1.0, 0.0);
-  tf::Matrix3x3 basis = transform.getBasis();
-  axis = basis * axis;
+  tf::Stamped<tf::Vector3> axisOrig, axis;
+  axisOrig[0] = 0.0;
+  axisOrig[1] = 1.0;
+  axisOrig[2] = 0.0;
+  axisOrig.frame_id_ = frameChild;
+  axisOrig.stamp_ = ros::Time(0.0);
+  axis.stamp_=ros::Time(0.0);
+  try
+  {
+    transformListener.transformVector(frameParent, axisOrig, axis);
+  }
+  catch (tf::TransformException &ex)
+  {
+    return Tuple3D();
+  }
 
   return Tuple3D(axis[0], axis[1], axis[2]);
 }
