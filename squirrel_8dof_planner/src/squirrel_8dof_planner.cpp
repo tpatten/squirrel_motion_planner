@@ -121,12 +121,6 @@ void Planner::initializeMessageHandling()
   publisherTrajectoryController = nh.advertise<trajectory_msgs::JointTrajectory>("/arm_controller/joint_trajectory_controller/command", 10);
 }
 
-void Planner::initializeAStarPlanning()
-{
-  createOccupancyMapFromOctomap();
-  inflateOccupancyMap();
-}
-
 void Planner::initializeInteractiveMarker()
 {
   interactiveMarker.header.frame_id = "hand_wrist_link";
@@ -1389,6 +1383,30 @@ void Planner::normalizeTrajectory(const Trajectory &trajectory, Trajectory &traj
   }
 }
 
+Tuple3D Planner::getEndEffectorDirection(const Pose &poseEndEffector)
+{
+ tf::StampedTransform transform;
+ transform.frame_id_ = "zero";
+ transform.child_frame_id_ = "pose_goal_end_effector";
+ transform.stamp_ = ros::Time::now();
+ transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
+ tf::Quaternion quaternion;
+ quaternion.setRPY(poseEndEffector[3], poseEndEffector[4], poseEndEffector[5]);
+ transform.setRotation(quaternion);
+ transformer.setTransform(transform);
+
+ tf::Stamped<tf::Vector3> axisOrig, axis;
+ axisOrig[0] = 0.0;
+ axisOrig[1] = 1.0;
+ axisOrig[2] = 0.0;
+ axisOrig.frame_id_ = "pose_goal_end_effector";
+ axisOrig.stamp_ = ros::Time(0.0);
+ axis.stamp_ = ros::Time(0.0);
+ transformer.transformVector("zero", axisOrig, axis);
+
+ return Tuple3D(axis[0], axis[1], axis[2]);
+}
+
 // ******************** INLINES ********************
 
 inline void Planner::loadParameter(const string &name, Real &member, const Real &defaultValue)
@@ -1501,30 +1519,6 @@ inline void Planner::copyArmToRobotPose(const Pose &poseArm, Pose &poseRobot)
   poseRobot[5] = poseArm[2];
   poseRobot[6] = poseArm[3];
   poseRobot[7] = poseArm[4];
-}
-
-inline Tuple3D Planner::getEndEffectorDirection(const Pose &poseEndEffector)
-{
-  tf::StampedTransform transform;
-  transform.frame_id_ = "zero";
-  transform.child_frame_id_ = "pose_goal_end_effector";
-  transform.stamp_ = ros::Time::now();
-  transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
-  tf::Quaternion quaternion;
-  quaternion.setRPY(poseEndEffector[3], poseEndEffector[4], poseEndEffector[5]);
-  transform.setRotation(quaternion);
-  transformer.setTransform(transform);
-
-  tf::Stamped<tf::Vector3> axisOrig, axis;
-  axisOrig[0] = 0.0;
-  axisOrig[1] = 1.0;
-  axisOrig[2] = 0.0;
-  axisOrig.frame_id_ = "pose_goal_end_effector";
-  axisOrig.stamp_ = ros::Time(0.0);
-  axis.stamp_ = ros::Time(0.0);
-  transformer.transformVector("zero", axisOrig, axis);
-
-  return Tuple3D(axis[0], axis[1], axis[2]);
 }
 
 inline void Planner::waitAndSpin(const Real seconds)

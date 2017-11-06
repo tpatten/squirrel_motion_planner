@@ -66,8 +66,7 @@ class Planner
   ros::ServiceServer serviceServerSendControlCommand;     //<< ROS service server. When called, sends the latest trajectory to the controller.
   ros::ServiceServer serviceServerUnfoldArm;     ///< ROS service server. When called, sends a trajectory to the controller to unfold the arm.
   ros::ServiceClient serviceClientOctomap;     ///< ROS service client. Receives a full octomap from octomap_server_node.
-  tf::TransformListener transformListener;     ///< tf transform listener. Finds transforms between any two given frames.
-  tf::Transformer transformer;
+  tf::Transformer transformer;     ///< tf transformer. Finds transforms between any two given frames.
   interactive_markers::InteractiveMarkerServer interactiveMarkerServer;     ///< Server that commuincates with Rviz to receive 6D end effector poses.
   visualization_msgs::InteractiveMarker interactiveMarker;     ///< Interactive marker used by interactiveMarkerServer.
   Pose poseInteractiveMarker;     ///< Current 6D pose of endeffector set by the interactive marker in RViz.
@@ -142,11 +141,6 @@ private:
    * @brief Advertises and subscribes to all topics used for getting the current robot pose and handle planning requests.
    */
   void initializeMessageHandling();
-
-  /**
-   * @brief Initializeses the map used for the 2D astar planning.
-   */
-  void initializeAStarPlanning();
 
   /**
    * @brief Initializses and interactive marker that can be used for planning to specific end effector poses in rviz.
@@ -341,6 +335,13 @@ private:
    */
   void normalizeTrajectory(const Trajectory &trajectory, Trajectory &trajectoryNormalized, const Pose &normalizedPose);
 
+  /**
+   * @brief Finds a 3D vector of the y-axis of one frame with respect to another.
+   * @param poseEndEffector The 6D pose of the end effector.
+   * @return 3D vector of the y-axis of frameChild in frameParent.
+   */
+  Tuple3D getEndEffectorDirection(const Pose &poseEndEffector);
+
   // ******************** INLINES ********************
 
   /**
@@ -429,14 +430,6 @@ private:
    * @param poseRobot 8D vector to which the arm joint angles should be copied.
    */
   void copyArmToRobotPose(const Pose &poseArm, Pose &poseRobot);
-
-  /**
-   * @brief Finds a 3D vector of the y-axis of one frame with respect to another.
-   * @param frameParent The frame relative to which the y-axis is given.
-   * @param frameChild The frame of which the y-axis is defined.
-   * @return 3D vector of the y-axis of frameChild in frameParent.
-   */
-  Tuple3D getEndEffectorDirection(const Pose &poseEndEffector);
 
   /**
    * @brief Starts a loop with a frequency of 10Hz and spins once every iteration.
