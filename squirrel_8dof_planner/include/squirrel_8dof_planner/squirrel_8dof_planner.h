@@ -67,9 +67,10 @@ class Planner
   ros::ServiceServer serviceServerUnfoldArm;     ///< ROS service server. When called, sends a trajectory to the controller to unfold the arm.
   ros::ServiceClient serviceClientOctomap;     ///< ROS service client. Receives a full octomap from octomap_server_node.
   tf::TransformListener transformListener;     ///< tf transform listener. Finds transforms between any two given frames.
+  tf::Transformer transformer;
   interactive_markers::InteractiveMarkerServer interactiveMarkerServer;     ///< Server that commuincates with Rviz to receive 6D end effector poses.
   visualization_msgs::InteractiveMarker interactiveMarker;     ///< Interactive marker used by interactiveMarkerServer.
-  Pose poseGoalMarker;     ///< Current pose of the interactive marker in RViz.
+  Pose poseInteractiveMarker;     ///< Current 6D pose of endeffector set by the interactive marker in RViz.
 
   /*
    * General search settings
@@ -435,7 +436,7 @@ private:
    * @param frameChild The frame of which the y-axis is defined.
    * @return 3D vector of the y-axis of frameChild in frameParent.
    */
-  Tuple3D getYAxis(const string &frameParent, const string &frameChild) const;
+  Tuple3D getEndEffectorDirection(const Pose &poseEndEffector);
 
   /**
    * @brief Starts a loop with a frequency of 10Hz and spins once every iteration.

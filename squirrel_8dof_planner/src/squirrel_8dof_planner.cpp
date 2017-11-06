@@ -66,7 +66,7 @@ void Planner::initializeParameters()
 {
   poseCurrent.resize(8, 0.0);
   poseGoal.resize(8, 0.0);
-  poseGoalMarker.resize(6, 0.0);
+  poseInteractiveMarker.resize(6, 0.0);
   birrtStarPlanningNumber = 0;
 
   Pose vectorTmp;
@@ -489,7 +489,7 @@ bool Planner::serviceCallbackGoalMarker(squirrel_motion_planner_msgs::PlanEndEff
     return true;
   }
 
-  int goalPoseResult = findGoalPose(poseGoalMarker);
+  int goalPoseResult = findGoalPose(poseInteractiveMarker);
   if (goalPoseResult == 1)
   {
     res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::COLLISION_GOAL_POSE;
@@ -715,16 +715,15 @@ bool Planner::serviceCallGetOctomap()
 
 void Planner::interactiveMarkerHandler(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &msg)
 {
-  poseGoalMarker[0] = msg->pose.position.x;
-  poseGoalMarker[1] = msg->pose.position.y;
-  poseGoalMarker[2] = msg->pose.position.z;
+  poseInteractiveMarker[0] = msg->pose.position.x;
+  poseInteractiveMarker[1] = msg->pose.position.y;
+  poseInteractiveMarker[2] = msg->pose.position.z;
   tf::Matrix3x3 mat(tf::Quaternion(msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z, msg->pose.orientation.w));
   double r, p, y;
   mat.getRPY(r, p, y);
-  poseGoalMarker[3] = r;
-  poseGoalMarker[4] = p;
-  poseGoalMarker[5] = y;
-
+  poseInteractiveMarker[3] = r;
+  poseInteractiveMarker[4] = p;
+  poseInteractiveMarker[5] = y;
 }
 
 void Planner::createOccupancyMapFromOctomap()
@@ -933,29 +932,29 @@ int Planner::findGoalPose(const Pose &poseEndEffector)
   endEffectorDeviations[5] = std::make_pair<Real, Real>(-0.025, 0.025);
 
   Real dist;
-  Tuple3D handDirection = getYAxis("map", "hand_wrist_link");
+  bool isDownward = fabs(Tuple3D(0.0, 0.0, 1.0) * getEndEffectorDirection(poseEndEffector)) < 0.9 ? false : true;
   Pose poseInitializer(8);
 
   // this checks if the hand  direction is approximately 30 deg with the xy-plane
-  if (fabs(Tuple3D(0.0, 0.0, 1.0) * handDirection) < 0.9)
+  if (isDownward)
   {
-    dist = 0.48;
+    dist = 0.44;
+
+      poseInitializer[3] = -0.8;
+      poseInitializer[4] = 0.8;
+      poseInitializer[5] = 0.0;
+      poseInitializer[6] = -1.5;
+      poseInitializer[7] = 0.0;
+  }
+  else
+  {
+    dist = 0.47;
 
     poseInitializer[3] = -1.2;
     poseInitializer[4] = 1.1;
     poseInitializer[5] = 0.0;
     poseInitializer[6] = 0.7;
     poseInitializer[7] = -1.5;
-  }
-  else
-  {
-    dist = 0.30;
-
-    poseInitializer[3] = -0.8;
-    poseInitializer[4] = 0.8;
-    poseInitializer[5] = 0.0;
-    poseInitializer[6] = -1.5;
-    poseInitializer[7] = 0.0;
   }
 
   Real angle = 0.0;
@@ -964,7 +963,7 @@ int Planner::findGoalPose(const Pose &poseEndEffector)
   {
     poseInitializer[0] = poseEndEffector[0] - dist * cos(angle);
     poseInitializer[1] = poseEndEffector[1] - dist * sin(angle);
-    poseInitializer[2] = angle + 1.0;
+    poseInitializer[2] = isDownward ? angle + 0.99 : angle + 0.99;
     if (birrtStarPlanner.getFullPoseFromEEPose(poseEndEffector, endEffectorDeviations, poseInitializer, poseGoal))
     {
       foundSinglePose = true;
@@ -1486,10 +1485,10 @@ inline bool Planner::isArmStretched() const
 
 inline bool Planner::isRobotAtTrajectoryStart() const
 {
-  if (fabs(poseCurrent[0] - posesTrajectory.front()[0] > 0.02) || fabs(poseCurrent[1] - posesTrajectory.front()[1] > 0.02)
-      || fabs(poseCurrent[2] - posesTrajectory.front()[2] > 0.05236) || fabs(poseCurrent[3] - posesTrajectory.front()[3] > 0.05236)
-      || fabs(poseCurrent[4] - posesTrajectory.front()[4] > 0.05236) || fabs(poseCurrent[5] - posesTrajectory.front()[5] > 0.05236)
-      || fabs(poseCurrent[6] - posesTrajectory.front()[6] > 0.05236) || fabs(poseCurrent[7] - posesTrajectory.front()[7] > 0.05236))
+  if (fabs(poseCurrent[0] - posesTrajectoryNormalized.front()[0] > 0.02) || fabs(poseCurrent[1] - posesTrajectoryNormalized.front()[1] > 0.02)
+      || fabs(poseCurrent[2] - posesTrajectoryNormalized.front()[2] > 0.05236) || fabs(poseCurrent[3] - posesTrajectoryNormalized.front()[3] > 0.05236)
+      || fabs(poseCurrent[4] - posesTrajectoryNormalized.front()[4] > 0.05236) || fabs(poseCurrent[5] - posesTrajectoryNormalized.front()[5] > 0.05236)
+      || fabs(poseCurrent[6] - posesTrajectoryNormalized.front()[6] > 0.05236) || fabs(poseCurrent[7] - posesTrajectoryNormalized.front()[7] > 0.05236))
     return false;
 
   return true;
@@ -1504,24 +1503,26 @@ inline void Planner::copyArmToRobotPose(const Pose &poseArm, Pose &poseRobot)
   poseRobot[7] = poseArm[4];
 }
 
-inline Tuple3D Planner::getYAxis(const string &frameParent, const string &frameChild) const
+inline Tuple3D Planner::getEndEffectorDirection(const Pose &poseEndEffector)
 {
   tf::StampedTransform transform;
+  transform.frame_id_ = "zero";
+  transform.child_frame_id_ = "pose_goal_end_effector";
+  transform.stamp_ = ros::Time::now();
+  transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
+  tf::Quaternion quaternion;
+  quaternion.setRPY(poseEndEffector[3], poseEndEffector[4], poseEndEffector[5]);
+  transform.setRotation(quaternion);
+  transformer.setTransform(transform);
+
   tf::Stamped<tf::Vector3> axisOrig, axis;
   axisOrig[0] = 0.0;
   axisOrig[1] = 1.0;
   axisOrig[2] = 0.0;
-  axisOrig.frame_id_ = frameChild;
+  axisOrig.frame_id_ = "pose_goal_end_effector";
   axisOrig.stamp_ = ros::Time(0.0);
-  axis.stamp_=ros::Time(0.0);
-  try
-  {
-    transformListener.transformVector(frameParent, axisOrig, axis);
-  }
-  catch (tf::TransformException &ex)
-  {
-    return Tuple3D();
-  }
+  axis.stamp_ = ros::Time(0.0);
+  transformer.transformVector("zero", axisOrig, axis);
 
   return Tuple3D(axis[0], axis[1], axis[2]);
 }
