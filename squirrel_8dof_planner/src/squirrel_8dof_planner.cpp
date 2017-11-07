@@ -69,25 +69,38 @@ void Planner::initializeParameters()
   poseInteractiveMarker.resize(6, 0.0);
   birrtStarPlanningNumber = 0;
 
+  loadParameter("normalized_pose_distances", normalizedPoseDistances, Pose());
+  if (normalizedPoseDistances.size() != 8)
+    ROS_ERROR("Parameter 'normalized_pose_distances' is not of size 8. Trajectories will not be normalized.");
+
   Pose vectorTmp;
   loadParameter("trajectory_folding_arm", vectorTmp, Pose());
   UInt counter = 0;
+  std::vector<Pose> posesFoldingKeyFrames;
   if (vectorTmp.size() % 5 == 0)
   {
-    posesFolding.resize(vectorTmp.size() / 5, Pose(5));
-    for (UInt i = 0; i < posesFolding.size(); ++i)
+    posesFoldingKeyFrames.resize(vectorTmp.size() / 5, Pose(5));
+    for (UInt i = 0; i < posesFoldingKeyFrames.size(); ++i)
       for (UInt j = 0; j < 5; ++j)
       {
-        posesFolding[i][j] = vectorTmp[counter];
+        posesFoldingKeyFrames[i][j] = vectorTmp[counter];
         ++counter;
       }
+
+    std::vector<Real> normalizedPoseDistancesArm(5);
+    normalizedPoseDistancesArm[0] = normalizedPoseDistances[3];
+    normalizedPoseDistancesArm[1] = normalizedPoseDistances[4];
+    normalizedPoseDistancesArm[2] = normalizedPoseDistances[5];
+    normalizedPoseDistancesArm[3] = normalizedPoseDistances[6];
+    normalizedPoseDistancesArm[4] = normalizedPoseDistances[7];
+
+    normalizeTrajectory(posesFoldingKeyFrames, posesFolding, normalizedPoseDistancesArm);
   }
   else
     ROS_ERROR("Parameter list 'trajectory_folding_arm' is not divisible by 5. Folding arm trajectory has not been loaded.");
 
-  loadParameter("normalized_pose_distances", normalizedPoseDistances, Pose());
-  if (normalizedPoseDistances.size() != 8)
-    ROS_ERROR("Parameter 'normalized_pose_distances' is not of size 8. Trajectories will not be normalized.");
+
+
 
   loadParameter("time_between_poses", timeBetweenPoses, 1.0);
   loadParameter("occupancy_height_min", mapMinZ, 0.0);
