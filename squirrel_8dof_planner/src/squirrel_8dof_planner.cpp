@@ -107,8 +107,8 @@ void Planner::initializeMessageHandling()
   serviceServerSendControlCommand = nh.advertiseService("send_trajectory_controller", &Planner::serviceCallbackSendControlCommand, this);
   serviceServerFoldArm = nh.advertiseService("fold_arm", &Planner::serviceCallbackFoldArm, this);
   serviceServerUnfoldArm = nh.advertiseService("unfold_arm", &Planner::serviceCallbackUnfoldArm, this);
-  serviceServerGoalPose = nh.advertiseService("find_plan_pose", &Planner::serviceCallbackFoldArm, this);
-  serviceServerGoalEndEffector = nh.advertiseService("find_plan_end_effector", &Planner::serviceCallbackUnfoldArm, this);
+  serviceServerGoalPose = nh.advertiseService("find_plan_pose", &Planner::serviceCallbackGoalPose, this);
+  serviceServerGoalEndEffector = nh.advertiseService("find_plan_end_effector", &Planner::serviceCallbackGoalEndEffector, this);
 
   serviceClientOctomap = nh.serviceClient<octomap_msgs::GetOctomap>("/octomap_full");
 
