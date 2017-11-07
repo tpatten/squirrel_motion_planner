@@ -22,40 +22,6 @@ Planner::Planner() :
   waitAndSpin(3.0);
 
   initializeInteractiveMarker();
-
-//  posesTrajectory.clear();
-//  posesTrajectory.push_back(Pose(8, 0.0));
-//
-//  posesTrajectory.back()[3] = 0.2;
-//  posesTrajectory.back()[4] = 2.6;
-//  posesTrajectory.back()[5] = -0.06;
-//  posesTrajectory.back()[6] = 2.4;
-//  posesTrajectory.back()[7] = -1.18;
-//
-//  posesTrajectory.push_back(Pose(8, 0.0));
-//
-//  posesTrajectory.back()[3] = -0.2;
-//  posesTrajectory.back()[4] = 2.6;
-//  posesTrajectory.back()[5] = -0.06;
-//  posesTrajectory.back()[6] = 2.4;
-//  posesTrajectory.back()[7] = -1.18;
-//
-//  posesTrajectory.push_back(Pose(8, 0.0));
-//
-//  posesTrajectory.back()[3] = -0.6;
-//  posesTrajectory.back()[4] = 0.6;
-//  posesTrajectory.back()[5] = 0.0;
-//  posesTrajectory.back()[6] = -0.7;
-//  posesTrajectory.back()[7] = 0.0;
-//
-//  normalizeTrajectory(posesTrajectory, posesTrajectoryNormalized, normalizedPoseDistances);
-//
-//  for (UInt i = 0; i < posesTrajectoryNormalized.size(); ++i)
-//  {
-//    std::cout << posesTrajectoryNormalized[i][3] << ", " << posesTrajectoryNormalized[i][4] << ", " << posesTrajectoryNormalized[i][5] << ", "
-//        << posesTrajectoryNormalized[i][6] << ", " << posesTrajectoryNormalized[i][7] << ", " << std::endl;
-//  }
-
 }
 
 // *********************************************************
