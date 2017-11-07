@@ -6,6 +6,12 @@
  */
 
 #include <ros/ros.h>
+#include <ros/package.h>
+
+#include <random_numbers/random_numbers.h>
+#include <string>
+#include <vector>
+#include <map>
 
 #include <kdl/frames.hpp>
 #include <kdl/segment.hpp>
@@ -17,8 +23,9 @@
 #include <kdl/chainfksolverpos_recursive.hpp>
 
 #include <Eigen/SVD>
+#include <Eigen/Dense>
 
-#include <moveit/planning_scene_monitor/planning_scene_monitor.h>  // for some reason there are problems with Eigen library if this header is not included
+//#include <moveit/planning_scene_monitor/planning_scene_monitor.h>  // for some reason there are problems with Eigen library if this header is not included
 
 #include <kuka_motion_control/kdl_kuka_model.h>
 
@@ -44,8 +51,8 @@ enum Status { ADVANCED, REACHED, TRAPPED};
 class RobotController
 {
     public:
-    RobotController(string robot_desciption_param, string kinematic_chain, string ns_prefix = "");
-    RobotController(boost::shared_ptr<kuka_motion_controller::KDLRobotModel> kdl_robot_model, string robot_desciption_param, string kinematic_chain, string ns_prefix= "");
+    RobotController(std::string robot_desciption_param, std::string kinematic_chain, std::string ns_prefix = "");
+    RobotController(boost::shared_ptr<kuka_motion_controller::KDLRobotModel> kdl_robot_model, std::string robot_desciption_param, std::string kinematic_chain, std::string ns_prefix= "");
     ~RobotController();
 
     //Compute the forward kinematics for a kinematic chain
@@ -55,38 +62,38 @@ class RobotController
     void init(char* start_conf_filename, char* ee_traj_filename, char* ee_vel_traj_filename);
 
     //Set Planning Scene Service Name
-    void setPlanningSceneServiceName(string service_name);
+    void setPlanningSceneServiceName(std::string service_name);
 
     //Get random EE pose
-    vector<double> getRandEEPose();
+    std::vector<double> getRandEEPose();
 
     //Set Random Start Configuration
     void setRandomStartConf();
 
     //Get Random Configuration (by uniform sampling in the joint range)
     KDL::JntArray getRandomConf(double env_size_x, double env_size_y);
-    KDL::JntArray getRandomConf(vector<double> env_size_x, vector<double> env_size_y);
+    KDL::JntArray getRandomConf(std::vector<double> env_size_x, std::vector<double> env_size_y);
 
-    //Get Random Configuration (by gaussian sampling around a mean configuration vector)
-    KDL::JntArray getRandomConf(vector<double> mean_config, double std_dev, double env_size_x, double env_size_y);
-    KDL::JntArray getRandomConf(vector<double> mean_config, double std_dev, vector<double> env_size_x, vector<double> env_size_y);
+    //Get Random Configuration (by gaussian sampling around a mean configuration std::vector)
+    KDL::JntArray getRandomConf(std::vector<double> mean_config, double std_dev, double env_size_x, double env_size_y);
+    KDL::JntArray getRandomConf(std::vector<double> mean_config, double std_dev, std::vector<double> env_size_x, std::vector<double> env_size_y);
 
 
     //Set a specific Start Configuration as map
-    void setStartConf(map<string, double> start_config);
+    void setStartConf(std::map<std::string, double> start_config);
 
-    //Set a specific Start Configuration as double vector
-    void setStartConf(vector<double> start_config);
+    //Set a specific Start Configuration as double std::vector
+    void setStartConf(std::vector<double> start_config);
 
-    //Set Variable Constraint Vector (constraint variables and don't care variables)
+    //Set Variable Constraint std::vector (constraint variables and don't care variables)
     // -> Considered in error computation of control loop
-    void setVariableConstraints(vector<int> var_constraint_vec, vector<pair<double, double> > var_coordinate_dev);
+    void setVariableConstraints(std::vector<int> var_constraint_vec, std::vector<pair<double, double> > var_coordinate_dev);
 
     //Read first config of the motion segments joint trajectory (of the subject)
-    map<string, double>  readStartConfig(char* joint_traj_filename);
+    std::map<std::string, double>  readStartConfig(char* joint_traj_filename);
 
     //Read joint trajectory (of the human subject and motion segment or the control based generated trajectory)
-    map<string, vector<double> > readJointTrajectory(char* joint_traj_filename);
+    std::map<std::string, std::vector<double> > readJointTrajectory(char* joint_traj_filename);
 
     //Read endeffector trajectory of the motion segments (of the human subject)
     void readEEposTrajectory(char* ee_traj_filename);
@@ -134,32 +141,32 @@ class RobotController
     //Compute Adjugate of a Matrix
     double** compute_adjugate(double **matrix, int num_rows, int num_cols);
 
-    //Convert JntArray to std::Vector
-    vector<double> JntArray_to_Vector(KDL::JntArray jnt_array);
+    //Convert JntArray to std::vector
+    std::vector<double> JntArray_to_Vector(KDL::JntArray jnt_array);
 
-    //Convert std::Vector to JntArray
-    KDL::JntArray Vector_to_JntArray(vector<double> vec);
+    //Convert std::vector to JntArray
+    KDL::JntArray Vector_to_JntArray(std::vector<double> vec);
 
-    //Compute norm of a vector
-    double getVectorNorm(vector<double> vec);
+    //Compute norm of a std::vector
+    double getVectorNorm(std::vector<double> vec);
 
-    //Compute largest value stored in a vector
-    double getLargestValueFromVector(vector<double> vec);
+    //Compute largest value stored in a std::vector
+    double getLargestValueFromVector(std::vector<double> vec);
 
     //Three axis rotation
-    vector<double> three_axis_rot(double r11, double r12, double r21, double r31, double r32);
+    std::vector<double> three_axis_rot(double r11, double r12, double r21, double r31, double r32);
 
     //Compute euclidean distance between two configurations
-    double compute_euclidean_config_distance(vector<double> conf_start, vector<double> conf_end);
+    double compute_euclidean_config_distance(std::vector<double> conf_start, std::vector<double> conf_end);
 
     //Convert  ZYX (Yaw-Pitch-Roll) Euler angles to Quaternion
-    vector<double> convertEulertoQuat(double rotX, double rotY, double rotZ);
+    std::vector<double> convertEulertoQuat(double rotX, double rotY, double rotZ);
 
     //Compute quaternion hamilton product
-    vector<double> compute_QuatHProd(vector<double> q1, vector<double> q2);
+    std::vector<double> compute_QuatHProd(std::vector<double> q1, std::vector<double> q2);
 
     //Compute inverse of quaternion
-    vector<double> compute_QuadInv(vector<double> quat);
+    std::vector<double> compute_QuadInv(std::vector<double> quat);
 
     //Function to select the best control strategy for the current configuration
     int control_strategy_selection(KDL::Jacobian current_jacobian);
@@ -167,10 +174,10 @@ class RobotController
     //--------------- Control Approaches ------------
 
     //Set endeffector goal pose with file path to store trajectory data
-    void set_EE_goal_pose(vector<double> ee_pose, char *traj_file_name);
+    void set_EE_goal_pose(std::vector<double> ee_pose, char *traj_file_name);
 
     //Set endeffector goal pose
-    void set_EE_goal_pose(vector<double> ee_pose);
+    void set_EE_goal_pose(std::vector<double> ee_pose);
 
     //Set Motor Control Strategy
     void set_motion_strategy(int strategy_index);
@@ -180,13 +187,13 @@ class RobotController
     //void adapt_joint_weights();
 
     //Show intermediate configuration of IK loop
-    void show_ik_intermediate_config(double sleep_duration);
+    //void show_ik_intermediate_config(double sleep_duration);
 
     //Set of different control approaches (using the current joint weights)
     bool run_J_pinv_Controller(int max_iter, int show_motion, bool show_ee_trace, bool store_traj_data);
     bool run_J_dls_Controller(int max_iter, int show_motion, bool show_ee_trace, bool store_traj_data);
     bool run_J_vdls_Controller(int max_iter, int show_motion, bool show_ee_trace, bool store_traj_data);
-    Status run_VDLS_Control_Connector(int max_iter, vector<vector<double> > &joint_traj, vector<vector<double> > &ee_traj, bool show_motion, bool show_ee_trace);
+    Status run_VDLS_Control_Connector(int max_iter, std::vector<std::vector<double> > &joint_traj, std::vector<std::vector<double> > &ee_traj, bool show_motion, bool show_ee_trace);
     bool run_J_wvdls_Controller(int max_iter, int show_motion, bool show_ee_trace, bool store_traj_data);
     bool run_J_wln_Controller(int max_iter, int show_motion, bool show_ee_trace, bool store_traj_data);
     bool run_J_trans_Controller(int max_iter, int show_motion, bool show_ee_trace, bool store_traj_data);
@@ -195,20 +202,20 @@ class RobotController
     bool run_J_vdls_Target_Tracking(bool show_motion);
 
     //First Order Retraction
-    bool run_config_retraction(vector<double> &retract_conf, KDL::Frame task_frame, KDL::Frame grasp_transform, vector<int> constraint_vector, vector<pair<double,double> > coordinate_dev, int max_iter);
-    vector<double> compute_task_error(vector<double> retract_conf, KDL::Frame task_frame, KDL::Frame grasp_transform, vector<int> constraint_vector, vector<pair<double,double> > coordinate_dev);
+    bool run_config_retraction(std::vector<double> &retract_conf, KDL::Frame task_frame, KDL::Frame grasp_transform, std::vector<int> constraint_vector, std::vector<pair<double,double> > coordinate_dev, int max_iter);
+    std::vector<double> compute_task_error(std::vector<double> retract_conf, KDL::Frame task_frame, KDL::Frame grasp_transform, std::vector<int> constraint_vector, std::vector<pair<double,double> > coordinate_dev);
     //Error within bounds check (with bounds fixed or given as input)
-    bool is_error_within_bounds(vector<double> task_space_error);
-    Eigen::MatrixXf getTaskFrameJacobian(KDL::Chain kin_chain, vector<double> retract_conf, KDL::Frame task_frame);
+    bool is_error_within_bounds(std::vector<double> task_space_error);
+    Eigen::MatrixXf getTaskFrameJacobian(KDL::Chain kin_chain, std::vector<double> retract_conf, KDL::Frame task_frame);
 
     //Learn human joint trajectory by adapting the joint weights used in the controller
     bool learn_joint_trajectory(int control_strategy, int max_ik_iter, int max_learning_iter, double mean_joint_traj_error_threshold, int show_motion, bool show_ee_trace, bool store_traj_data);
 
 
     //Update the error and its norm(pos+orientation)
-    void update_error_norm(vector<double> curr_ee_pose, vector<double> des_ee_pose, bool error_clamping);
-    //Update the error vector(pos+orientation)
-    void update_error_vec(vector<double> curr_ee_pose, vector<double> des_ee_pose);
+    void update_error_norm(std::vector<double> curr_ee_pose, std::vector<double> des_ee_pose, bool error_clamping);
+    //Update the error std::vector(pos+orientation)
+    void update_error_vec(std::vector<double> curr_ee_pose, std::vector<double> des_ee_pose);
 
 
     //Update Joint weights based on error between human and control joint trajectory (used for learning)
@@ -225,36 +232,36 @@ class RobotController
 
 
     //Functions to get Joint and Endeffector Trajectory generated by the controller
-    vector< map<string, double> > getJointTrajectory();
-    vector< vector<double> > getEETrajectory();
+    std::vector< std::map<std::string, double> > getJointTrajectory();
+    std::vector< std::vector<double> > getEETrajectory();
 
 
     //--------------- Collision Avoidance Computation ------------
 
     //Select control points at the following joints
-    vector<int> joint_indices_for_CA_;
+    std::vector<int> joint_indices_for_CA_;
 
     //Compute Control Points (Position of Spheres located alon the endeffector chain, subsequently used for collision avoidance)
-    vector<vector<double> > compute_CA_ControlPoints(vector<int> joint_indices);
+    std::vector<std::vector<double> > compute_CA_ControlPoints(std::vector<int> joint_indices);
 
-    //Compute Repulsive vector (for obstacle avoidance)
-    vector<double> compute_EE_RepulsiveVector(vector<double> ee_position);
+    //Compute Repulsive std::vector (for obstacle avoidance)
+    std::vector<double> compute_EE_RepulsiveVector(std::vector<double> ee_position);
 
     //Distance from control points to obstacle
-    vector<double> compute_Dist_to_Obs(vector<double> pos_control_point,vector<double> obstacle_pos);
+    std::vector<double> compute_Dist_to_Obs(std::vector<double> pos_control_point,std::vector<double> obstacle_pos);
 
-    //Compute Magnitude of repulsive vector
+    //Compute Magnitude of repulsive std::vector
     double compute_Pot_Field_Magnitude(double cp_obs_dist_norm);
 
     //Add an obstacle to be considered for collision avoidance
-    void add_Collision_Obstacle(vector<double> object_data);
+    void add_Collision_Obstacle(std::vector<double> object_data);
 
     //Add base platform as obstacle to be considered for collision avoidance
     void add_Base_Platform_Obstacle();
 
 
-    //Compute risk of collision function vector(for robot body collision avoidance)
-    vector<vector<double> > compute_risk_func_vector(vector<vector<double> > control_points_pos, Eigen::MatrixXf jacobian);
+    //Compute risk of collision function std::vector(for robot body collision avoidance)
+    std::vector<std::vector<double> > compute_risk_func_vector(std::vector<std::vector<double> > control_points_pos, Eigen::MatrixXf jacobian);
 
 
 
@@ -268,7 +275,7 @@ class RobotController
     std::string package_path_;
 
     //Name of Planning Scene Service;
-    string m_planning_scene_service;
+    std::string m_planning_scene_service;
 
     //Generate KDL tree from Kuka urdf
     boost::shared_ptr<KDLRobotModel> RobotModel;
@@ -278,25 +285,25 @@ class RobotController
     int pd_motion_strategy_;
 
     //Name of the kinematic chain
-    string kinematic_goup_;
+    std::string kinematic_goup_;
 
     //Data for a custom kinematic chain
     KDL::Chain kin_chain_;
-    vector<string> joint_names_;
+    std::vector<std::string> joint_names_;
     int num_joints_;                         //Num Joints of the chain
-    vector<double> q_min_, q_max_, opt_pos_; //Joint range data
+    std::vector<double> q_min_, q_max_, opt_pos_; //Joint range data
 
 
     //Current target pose for endeffector
-    vector<double> current_goal_ee_pose_;
+    std::vector<double> current_goal_ee_pose_;
 
     //Current target velocity for endeffector
-    vector<double> current_goal_ee_vel_;
+    std::vector<double> current_goal_ee_vel_;
 
 
     //File containing start Configuration of Robot
     char* file_path_start_config_;
-    map<string, vector<double> > human_joint_trajectory_;
+    std::map<std::string, std::vector<double> > human_joint_trajectory_;
     int num_configs_; //number of configurations in the human joint trajectory = number of control based generated configs
 
     //Cartesian Pose Trajectory to be tracked by the endeffector
@@ -321,7 +328,7 @@ class RobotController
     //Control Parameters (for all control approaches)
     KDL::JntArray joint_weights_;   //Joint weights (depend on PD Strategy)
     double min_change_rate_;        //Threshold (i.e. minimal joint value change rate) used for joint activation or switching (for PD_MOTION_STRATEGY)
-    int index_last_joint_activated_; //Index (in config vector) of last joint activated
+    int index_last_joint_activated_; //Index (in config std::vector) of last joint activated
     double delta_t_;                //Time Step (time to apply the computed velocity q_dot)
     float gain_sec_task_;           //Choose gain for secondary task (here joint limit avoidance)
     bool jl_ok_;                    //Flag indicating whether joint values are within their admissible range
@@ -337,21 +344,21 @@ class RobotController
     //Threshold (i.e. minimal joint value change rate) used for joint activation or switching (for PD_MOTION_STRATEGY = 2 or 3)
     //double min_change_rate =   0.008;//0.0175;//0.0349; //in rad per time step  0.0349 = 2 degrees
 
-    //Index (in config vector) of last joint activated
+    //Index (in config std::vector) of last joint activated
     //int index_last_joint_activated = 0;
 
 
     //Error and its norm
-    vector<double> error_;      //cartesian error of ee pose
+    std::vector<double> error_;      //cartesian error of ee pose
     double error_norm_;         //Error norm
 
     //Permitted devation from target frame
     //Permitted deviation for constrained coordinates
     // -> specifies an lower and upper deviation boundary
-    vector<pair<double,double> > coordinate_dev_;
+    std::vector<pair<double,double> > coordinate_dev_;
 
-    //Variables Constraint Vector (defines constraint variables of pose vector)
-    vector<int> var_constraint_vec_;
+    //Variables Constraint std::vector (defines constraint variables of pose std::vector)
+    std::vector<int> var_constraint_vec_;
 
 
     //Current joint velocity
@@ -363,26 +370,26 @@ class RobotController
 
     //Map containing joint names and values. Used for visualization in Planning Scene
     //boost::shared_ptr<planning_scene_monitor::PlanningSceneMonitor> psm_;
-    planning_scene_monitor::PlanningSceneMonitorPtr psm_;
+    //planning_scene_monitor::PlanningSceneMonitorPtr psm_;
 
     ros::Publisher scene_pub_;
-    map<string, double> nvalues_;
+    std::map<std::string, double> nvalues_;
     double sleep_duration_between_confs_; //Sleep duration between showing configs
 
     //Maximum number of points for the endeffector trajectory trace
     int max_ee_trace_points_;
 
 
-    //Vectors storing joint trajectory data to be written to a file
-    vector< map<string, double> > configurations_;
-    map<string, double> conf_;
-    map<string, double> w_joints_;
+    //std::vectors storing joint trajectory data to be written to a file
+    std::vector< std::map<std::string, double> > configurations_;
+    std::map<std::string, double> conf_;
+    std::map<std::string, double> w_joints_;
     char* file_path_joint_trajectory_;
 
 
-    //Vectors storing endeffector trajectory data to be written to a file
-    vector< vector<double> > ee_poses_;
-    vector<double> color_rgb_; //color of ee trace (if shown)
+    //std::vectors storing endeffector trajectory data to be written to a file
+    std::vector< std::vector<double> > ee_poses_;
+    std::vector<double> color_rgb_; //color of ee trace (if shown)
     char* file_path_endeffector_trajectory_;
 
     //Marker for obstacle representation
@@ -393,7 +400,7 @@ class RobotController
     int joint_weight_gradient_direction_; //0->joint_weight_increased, 1->joint_weight_decreased, 2->init
 
     //Maximum value for joint weight change
-    vector<double> max_joint_weight_modification_;
+    std::vector<double> max_joint_weight_modification_;
 
     //Store mean trajectory error using the joint weights of the previous iteration
     double previous_mean_joint_trajectory_error_;
@@ -406,13 +413,13 @@ class RobotController
     //----------------------- Collision Avoidance --------------------
     //Radius of spheres used as safety margin around control points and to compute potential field
     double ca_sphere_radius_;
-    //Shape factor to influence behavior of repulsive vector magnitude
+    //Shape factor to influence behavior of repulsive std::vector magnitude
     double ca_alpha_shape_fac_;
-    //Maximum magnitude of repulsive vector
+    //Maximum magnitude of repulsive std::vector
     double max_mag_rep_vec_;
 
     //Data of obstacles in the scene (pos + size)
-    vector< vector<double> > scene_obstacles_;
+    std::vector< std::vector<double> > scene_obstacles_;
 
     //Obstacle Marker array
     visualization_msgs::Marker obstacle_array_;

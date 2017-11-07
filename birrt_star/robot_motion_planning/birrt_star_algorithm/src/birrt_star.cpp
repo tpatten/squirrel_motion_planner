@@ -243,7 +243,7 @@ BiRRTstarPlanner::BiRRTstarPlanner(string planning_group)
   // ----- Attached Object Settings -----------
 
   //Init ID of attached object to default
-  m_attached_object.object.id = "none";
+  // m_attached_object.object.id = "none";
 
   // ----- Tree Visualization Settings -----------
 

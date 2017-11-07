@@ -49,7 +49,6 @@ class Planner
   /*
    * ROS message handling
    */
-  ros::Publisher publisherPlanningScene;     ///< ROS publisher. Publishes the octree as a planning scene for moveit.
   ros::NodeHandle nh;     ///< ROS node handle with global namespace.
   ros::NodeHandle nhPrivate;     ///< ROS node handle with namespace relative to current node.
   ros::Publisher publisherOctomap;     ///< ROS publisher. Publishes the octomap overlayed with a floor around the robot.

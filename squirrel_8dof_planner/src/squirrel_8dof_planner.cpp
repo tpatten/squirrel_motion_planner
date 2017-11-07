@@ -112,7 +112,6 @@ void Planner::initializeMessageHandling()
 
   serviceClientOctomap = nh.serviceClient<octomap_msgs::GetOctomap>("/octomap_full");
 
-  publisherPlanningScene = nh.advertise<moveit_msgs::PlanningScene>("planning_scene", 1);
   publisherOctomap = nh.advertise<octomap_msgs::Octomap>("octomap_planning", 1);
   publisherOccupancyMap = nhPrivate.advertise<nav_msgs::OccupancyGrid>("occupancy_map", 1);
   publisher2DPath = nhPrivate.advertise<nav_msgs::Path>("path_2d", 10);

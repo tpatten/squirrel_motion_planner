@@ -12,6 +12,10 @@ find_package(catkin REQUIRED COMPONENTS
   octomap_server
   kdl_parser
   fcl
+  visualization_msgs
+  sensor_msgs
+  moveit_core
+  tf
 )
 
 find_package(octomap REQUIRED)
@@ -47,7 +51,7 @@ endif (MSVC)
 catkin_package(
    INCLUDE_DIRS include
    LIBRARIES birrt_star_algorithm
-   CATKIN_DEPENDS kuka_motion_control planner_data_structures planning_heuristics roscpp rospy std_msgs octomap_msgs octomap_server kdl_parser fcl
+   CATKIN_DEPENDS kuka_motion_control planner_data_structures planning_heuristics roscpp rospy std_msgs octomap_msgs octomap_server kdl_parser fcl visualization_msgs sensor_msgs tf moveit_core
    DEPENDS system_lib octomap orocos_kdl
 )
 

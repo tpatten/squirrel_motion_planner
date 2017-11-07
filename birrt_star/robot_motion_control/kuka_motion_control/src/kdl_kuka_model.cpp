@@ -85,7 +85,7 @@ KDLRobotModel::KDLRobotModel(string robot_desciption_param, string planning_scen
     //robot_state_ = boost::shared_ptr<robot_state::RobotState>(new robot_state::RobotState(psm_->getRobotModel()));
 
     //Scene publisher
-    scene_pub_ = nh_.advertise<moveit_msgs::PlanningScene>(planning_scene_topic, 10);
+    //scene_pub_ = nh_.advertise<moveit_msgs::PlanningScene>(planning_scene_topic, 10);
 
     //Init joint limits map
     //Get the urdf from the robot model loader
@@ -726,190 +726,190 @@ double KDLRobotModel::getDistanceToJointLimits(string joint_name, double q_val)
 
 
 //Publish the configuration of arbitrary kinematic chains onto the Planning Scene
-bool KDLRobotModel::showConfig(vector<KDL::Chain> kin_chains, vector<KDL::JntArray> config_chains, double sleep_duration = 0.02)
-{
-
-//  cout<<"Num chains: "<<kin_chains.size()<<endl;
-//  cout<<"Num config vectors: "<<config_chains.size()<<endl;
-//  cout<<"Length of config vector 1 is:"<<config_chains[0].rows()<<endl;
-//  cout<<"Length of config vector 2 is:"<<config_chains[1].rows()<<endl;
-//  cout<<"Length of config vector 3 is:"<<config_chains[2].rows()<<endl;
-//  cout<<"Length of config vector 4 is:"<<config_chains[3].rows()<<endl;
-
-//  cout<<"Length of config in total:"<<config_chains[0].rows() + config_chains[1].rows() +config_chains[2].rows() + config_chains[3].rows()<<endl;
-
-  //Map containing joint names and values
-  map<string, double> nvalues;
-
-  //Check if there's a configuration vector for each chain
-  if (kin_chains.size() != config_chains.size())
-  {
-      ROS_ERROR("The number of kinematic chains does not match the number of configuration vectors");
-      return false;
-  }
-
-  //Total number of joints (for all kinematic chains in the input vector)
-  int num_joints_total = 0;
-
-  for (int i = 0; i < kin_chains.size(); i++)
-  {
-      //Check if there's a value for each joint of the respective kinematic chain
-      if (kin_chains[i].getNrOfJoints() != config_chains[i].rows())
-      {
-          ROS_ERROR("The number of joints of this chain does not match the number of entries in the configuration vectors");
-          return false;
-      }
-      else
-      {
-          num_joints_total += kin_chains[i].getNrOfJoints();
-      }
-  }
-
-
-  //Configuration to show in the planning scene
-  KDL::JntArray show_config = KDL::JntArray(num_joints_total);
-
-  //Stack configurations in a single vector
-  int joint_pos_offset = 0;
-  for (int i = 0; i < kin_chains.size(); i++)
-  {
-      if(i > 0)
-      joint_pos_offset += kin_chains[i-1].getNrOfJoints();
-
-      //Check if there's a value for each joint of the respective kinematic chain
-      for (int j = 0; j < kin_chains[i].getNrOfJoints(); j++)
-      {
-          show_config(j+joint_pos_offset) = config_chains[i](j);
-          //cout<<show_config(j+joint_pos_offset)<<endl;
-
-      }
-  }
-
-
-  //cout<<endl;
-
-
-  //Initialize Index of current configuration element
-  int current_config_element = 0;
-  int start_config_element = 0;
-
-
-  //Invert the angles of joints which are part of an inverted chain (only required when custom chains are build involving chain inversion)
-  for (int i = 0; i < kin_chains.size(); i++)
-  {
-      //The the start index for the configuration vector (storing the configuration of all chains in a single vector)
-      int start_index_next_chain = 0;
-      if(i > 0)
-      {
-          //cout<<"Curr conf: "<<current_config_element<<endl;
-          //cout<<"chain dofs: "<<kin_chains[i-1].getNrOfJoints()<<endl;
-          for (int chains = i ; chains > 0 ; chains--)
-                start_index_next_chain = start_index_next_chain + kin_chains[chains-1].getNrOfJoints();
-
-          current_config_element = start_index_next_chain;
-          start_config_element = current_config_element;
-      }
-
-      for (int o = 0 ; o < kin_chains[i].getNrOfSegments(); o++)
-      {
-        //Search for "_inv" extension within segment name (indicating that this segment has been inverted in the custom chain build process)
-        unsigned found_inv = kin_chains[i].getSegment(o).getName().find_last_of("_");
-
-        //Search for "_inv" extension within segment name (indicating that this segment has been inverted in the custom chain build process)
-        unsigned found_virtual = kin_chains[i].getSegment(o).getName().find_first_of("_");
-
-        //Invert the value of this angle (to be coherent with the kinematic of the robot model, which does not know about the inversion of the kinematic chain)
-        // Segment needs to have "inv" ending in it's name and corresponding joint must be a rotational one (not fixed)
-        if(kin_chains[i].getSegment(o).getName().substr(found_inv+1) == "inv" && kin_chains[i].getSegment(o).getJoint().getTypeName() != "None")
-        {
-           //invert angle value to get correct rotation of joint in robot model
-           show_config(current_config_element) = -show_config(current_config_element);
-
-           //Store name and value of joint in a map (later used to set the robot state)
-           nvalues[kin_chains[i].getSegment(o).getJoint().getName()] = show_config(current_config_element);
-
-           //Check if joint is within joint limits
-           checkJointLimits(kin_chains[i].getSegment(o).getJoint().getName(),show_config(current_config_element),false);
-
-           //Show minimal distance to joint limit
-           //double min_dist = getDistanceToJointLimits(kin_chains[i].getSegment(o).getJoint().getName(), show_config(current_config_element));
-           //cout<<"Min. Dist. to JL: "<<min_dist<<endl;
-
-
-           //cout<<"Angle value for joint: "<<kin_chains[i].getSegment(o).getJoint().getName()<<" inverted"<<", New Value is : " <<show_config(current_config_element)<<endl;
-           current_config_element++;
-        }
-
-        //Configuration element index must be incremented when a rotational joint without the "inv" ending is encountered
-        if(kin_chains[i].getSegment(o).getName().substr(found_inv+1) != "inv" && kin_chains[i].getSegment(o).getName().substr(0,found_virtual) != "virtual" && kin_chains[i].getSegment(o).getJoint().getTypeName() != "None")
-        {
-           //Store name and value of joint in a map (later used to set the robot state)
-           nvalues[kin_chains[i].getSegment(o).getJoint().getName()] = show_config(current_config_element);
-
-           //Check if joint is within joint limits
-           checkJointLimits(kin_chains[i].getSegment(o).getJoint().getName(),show_config(current_config_element),false);
-
-           //Show minimal distance to joint limit
-           //double min_dist = getDistanceToJointLimits(kin_chains[i].getSegment(o).getJoint().getName(), show_config(current_config_element));
-           //cout<<"Min. Dist. to JL: "<<min_dist<<endl;
-
-
-           //cout<<"Angle value for joint: "<<kin_chains[i].getSegment(o).getJoint().getName()<<" is : " <<show_config(current_config_element)<<endl;
-
-           current_config_element++;
-        }
-
-        //If the current segment is a virtual base segment it is not part of the robot configuration, thus not included in the map published to the planning scene
-        if (kin_chains[i].getSegment(o).getName().substr(0,found_virtual) == "virtual")
-        {
-            //Check if joint is within joint limits
-            checkJointLimits(kin_chains[i].getSegment(o).getJoint().getName(),show_config(current_config_element),false);
-
-
-            //Just increment the configuration index
-            current_config_element++;
-        }
-      }
-
-  }
-
-
-//  //Add some fixed values
-//  nvalues["HeadYaw"] = 0.0;
-//  nvalues["HeadPitch"] = 0.0;
-
-//  nvalues["LShoulderPitch"] = 0.0; 	//Left shoulder joint front and back (Y) 	-119.5 to 119.5 	-2.0857 to 2.0857
-//  nvalues["LShoulderRoll"] = 0.0; 	//Left shoulder joint right and left (Z) 	   -18 to 76 	    -0.3142 to 1.3265
-//  nvalues["LElbowYaw"] = 0.0; 	    //Left shoulder joint twist (X) 	        -119.5 to 119.5 	-2.0857 to 2.0857
-//  nvalues["LElbowRoll"] = -0.5; 	    //Left elbow joint (Z) 	                 -88.5 to -2 	    -1.5446 to -0.0349
-//  nvalues["LWristYaw"] = 0.0; 	    //Left wrist joint (X) 	                    -104.5 to 104.5 	-1.8238 to 1.8238
-
-
-  //------------- Publish configuration onto Planning Scene ------------------------
-  //RobotState is the current configuration of the robot
-  robot_state::RobotState robot_state(p_s_->getRobotModel());
-  //Set all joint values to the default values
-  robot_state.setToDefaultValues();
-
-  //Set current robot state
-  robot_state.setVariablePositions(nvalues);
-
-  //Apply robot state to planning scene
-  p_s_->setCurrentState(robot_state);
-
-  //Publish state on planning scene
-  moveit_msgs::PlanningScene psmsg;
-  p_s_->getPlanningSceneMsg(psmsg);
-  //psmsg.robot_model_root = "r_sole";
-  scene_pub_.publish(psmsg);
-  //sleep(1);
-  ros::Duration(sleep_duration).sleep();
-
-  //Return true when everything succeeds
-  return true;
-
-}
-
+//bool KDLRobotModel::showConfig(vector<KDL::Chain> kin_chains, vector<KDL::JntArray> config_chains, double sleep_duration = 0.02)
+//{
+//
+////  cout<<"Num chains: "<<kin_chains.size()<<endl;
+////  cout<<"Num config vectors: "<<config_chains.size()<<endl;
+////  cout<<"Length of config vector 1 is:"<<config_chains[0].rows()<<endl;
+////  cout<<"Length of config vector 2 is:"<<config_chains[1].rows()<<endl;
+////  cout<<"Length of config vector 3 is:"<<config_chains[2].rows()<<endl;
+////  cout<<"Length of config vector 4 is:"<<config_chains[3].rows()<<endl;
+//
+////  cout<<"Length of config in total:"<<config_chains[0].rows() + config_chains[1].rows() +config_chains[2].rows() + config_chains[3].rows()<<endl;
+//
+//  //Map containing joint names and values
+//  map<string, double> nvalues;
+//
+//  //Check if there's a configuration vector for each chain
+//  if (kin_chains.size() != config_chains.size())
+//  {
+//      ROS_ERROR("The number of kinematic chains does not match the number of configuration vectors");
+//      return false;
+//  }
+//
+//  //Total number of joints (for all kinematic chains in the input vector)
+//  int num_joints_total = 0;
+//
+//  for (int i = 0; i < kin_chains.size(); i++)
+//  {
+//      //Check if there's a value for each joint of the respective kinematic chain
+//      if (kin_chains[i].getNrOfJoints() != config_chains[i].rows())
+//      {
+//          ROS_ERROR("The number of joints of this chain does not match the number of entries in the configuration vectors");
+//          return false;
+//      }
+//      else
+//      {
+//          num_joints_total += kin_chains[i].getNrOfJoints();
+//      }
+//  }
+//
+//
+//  //Configuration to show in the planning scene
+//  KDL::JntArray show_config = KDL::JntArray(num_joints_total);
+//
+//  //Stack configurations in a single vector
+//  int joint_pos_offset = 0;
+//  for (int i = 0; i < kin_chains.size(); i++)
+//  {
+//      if(i > 0)
+//      joint_pos_offset += kin_chains[i-1].getNrOfJoints();
+//
+//      //Check if there's a value for each joint of the respective kinematic chain
+//      for (int j = 0; j < kin_chains[i].getNrOfJoints(); j++)
+//      {
+//          show_config(j+joint_pos_offset) = config_chains[i](j);
+//          //cout<<show_config(j+joint_pos_offset)<<endl;
+//
+//      }
+//  }
+//
+//
+//  //cout<<endl;
+//
+//
+//  //Initialize Index of current configuration element
+//  int current_config_element = 0;
+//  int start_config_element = 0;
+//
+//
+//  //Invert the angles of joints which are part of an inverted chain (only required when custom chains are build involving chain inversion)
+//  for (int i = 0; i < kin_chains.size(); i++)
+//  {
+//      //The the start index for the configuration vector (storing the configuration of all chains in a single vector)
+//      int start_index_next_chain = 0;
+//      if(i > 0)
+//      {
+//          //cout<<"Curr conf: "<<current_config_element<<endl;
+//          //cout<<"chain dofs: "<<kin_chains[i-1].getNrOfJoints()<<endl;
+//          for (int chains = i ; chains > 0 ; chains--)
+//                start_index_next_chain = start_index_next_chain + kin_chains[chains-1].getNrOfJoints();
+//
+//          current_config_element = start_index_next_chain;
+//          start_config_element = current_config_element;
+//      }
+//
+//      for (int o = 0 ; o < kin_chains[i].getNrOfSegments(); o++)
+//      {
+//        //Search for "_inv" extension within segment name (indicating that this segment has been inverted in the custom chain build process)
+//        unsigned found_inv = kin_chains[i].getSegment(o).getName().find_last_of("_");
+//
+//        //Search for "_inv" extension within segment name (indicating that this segment has been inverted in the custom chain build process)
+//        unsigned found_virtual = kin_chains[i].getSegment(o).getName().find_first_of("_");
+//
+//        //Invert the value of this angle (to be coherent with the kinematic of the robot model, which does not know about the inversion of the kinematic chain)
+//        // Segment needs to have "inv" ending in it's name and corresponding joint must be a rotational one (not fixed)
+//        if(kin_chains[i].getSegment(o).getName().substr(found_inv+1) == "inv" && kin_chains[i].getSegment(o).getJoint().getTypeName() != "None")
+//        {
+//           //invert angle value to get correct rotation of joint in robot model
+//           show_config(current_config_element) = -show_config(current_config_element);
+//
+//           //Store name and value of joint in a map (later used to set the robot state)
+//           nvalues[kin_chains[i].getSegment(o).getJoint().getName()] = show_config(current_config_element);
+//
+//           //Check if joint is within joint limits
+//           checkJointLimits(kin_chains[i].getSegment(o).getJoint().getName(),show_config(current_config_element),false);
+//
+//           //Show minimal distance to joint limit
+//           //double min_dist = getDistanceToJointLimits(kin_chains[i].getSegment(o).getJoint().getName(), show_config(current_config_element));
+//           //cout<<"Min. Dist. to JL: "<<min_dist<<endl;
+//
+//
+//           //cout<<"Angle value for joint: "<<kin_chains[i].getSegment(o).getJoint().getName()<<" inverted"<<", New Value is : " <<show_config(current_config_element)<<endl;
+//           current_config_element++;
+//        }
+//
+//        //Configuration element index must be incremented when a rotational joint without the "inv" ending is encountered
+//        if(kin_chains[i].getSegment(o).getName().substr(found_inv+1) != "inv" && kin_chains[i].getSegment(o).getName().substr(0,found_virtual) != "virtual" && kin_chains[i].getSegment(o).getJoint().getTypeName() != "None")
+//        {
+//           //Store name and value of joint in a map (later used to set the robot state)
+//           nvalues[kin_chains[i].getSegment(o).getJoint().getName()] = show_config(current_config_element);
+//
+//           //Check if joint is within joint limits
+//           checkJointLimits(kin_chains[i].getSegment(o).getJoint().getName(),show_config(current_config_element),false);
+//
+//           //Show minimal distance to joint limit
+//           //double min_dist = getDistanceToJointLimits(kin_chains[i].getSegment(o).getJoint().getName(), show_config(current_config_element));
+//           //cout<<"Min. Dist. to JL: "<<min_dist<<endl;
+//
+//
+//           //cout<<"Angle value for joint: "<<kin_chains[i].getSegment(o).getJoint().getName()<<" is : " <<show_config(current_config_element)<<endl;
+//
+//           current_config_element++;
+//        }
+//
+//        //If the current segment is a virtual base segment it is not part of the robot configuration, thus not included in the map published to the planning scene
+//        if (kin_chains[i].getSegment(o).getName().substr(0,found_virtual) == "virtual")
+//        {
+//            //Check if joint is within joint limits
+//            checkJointLimits(kin_chains[i].getSegment(o).getJoint().getName(),show_config(current_config_element),false);
+//
+//
+//            //Just increment the configuration index
+//            current_config_element++;
+//        }
+//      }
+//
+//  }
+//
+//
+////  //Add some fixed values
+////  nvalues["HeadYaw"] = 0.0;
+////  nvalues["HeadPitch"] = 0.0;
+//
+////  nvalues["LShoulderPitch"] = 0.0; 	//Left shoulder joint front and back (Y) 	-119.5 to 119.5 	-2.0857 to 2.0857
+////  nvalues["LShoulderRoll"] = 0.0; 	//Left shoulder joint right and left (Z) 	   -18 to 76 	    -0.3142 to 1.3265
+////  nvalues["LElbowYaw"] = 0.0; 	    //Left shoulder joint twist (X) 	        -119.5 to 119.5 	-2.0857 to 2.0857
+////  nvalues["LElbowRoll"] = -0.5; 	    //Left elbow joint (Z) 	                 -88.5 to -2 	    -1.5446 to -0.0349
+////  nvalues["LWristYaw"] = 0.0; 	    //Left wrist joint (X) 	                    -104.5 to 104.5 	-1.8238 to 1.8238
+//
+//
+//  //------------- Publish configuration onto Planning Scene ------------------------
+//  //RobotState is the current configuration of the robot
+//  robot_state::RobotState robot_state(p_s_->getRobotModel());
+//  //Set all joint values to the default values
+//  robot_state.setToDefaultValues();
+//
+//  //Set current robot state
+//  robot_state.setVariablePositions(nvalues);
+//
+//  //Apply robot state to planning scene
+//  p_s_->setCurrentState(robot_state);
+//
+//  //Publish state on planning scene
+//  moveit_msgs::PlanningScene psmsg;
+//  p_s_->getPlanningSceneMsg(psmsg);
+//  //psmsg.robot_model_root = "r_sole";
+//  scene_pub_.publish(psmsg);
+//  //sleep(1);
+//  ros::Duration(sleep_duration).sleep();
+//
+//  //Return true when everything succeeds
+//  return true;
+//
+//}
+//
 
 
 //Show endeffector trace in planning scene (RViz) with limited number of trace points

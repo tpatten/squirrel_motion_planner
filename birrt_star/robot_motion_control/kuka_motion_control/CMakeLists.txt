@@ -6,20 +6,25 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   kdl_parser
-  moveit_core
-  moveit_ros_planning
+  #moveit_core
+  #moveit_ros_planning
   srdfdom
   tf
+  visualization_msgs
+  random_numbers
 )
+find_package(catkin REQUIRED cmake_modules)
+find_package(Eigen REQUIRED)
 
 find_package(orocos_kdl REQUIRED)
+
 
 #   std_msgs
 
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS roscpp rospy std_msgs kdl_parser moveit_core moveit_ros_planning srdfdom tf
+  CATKIN_DEPENDS roscpp rospy std_msgs kdl_parser  srdfdom tf visualization_msgs random_numbers #moveit_core moveit_ros_planning
   DEPENDS system_lib orocos_kdl
 )
 
@@ -29,7 +34,7 @@ ADD_DEFINITIONS(
 )
 
 include_directories(
-  include ${catkin_INCLUDE_DIRS} ${orocos_kdl_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS}
+  include ${catkin_INCLUDE_DIRS} ${orocos_kdl_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS}
 )
 
 link_directories(
@@ -50,12 +55,12 @@ include/kuka_motion_control/control_laws.h
 
 # Declare a cpp library
 add_library(${PROJECT_NAME} ${kuka_motion_control_files})
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Eigen_LIBRARIES})
 
 #Test files (for arm motion control and reaching task )
-add_executable(kuka_motion_control_node src/motion_control_node.cpp)
-target_link_libraries(kuka_motion_control_node ${PROJECT_NAME} ${catkin_LIBRARIES} ${orocos_kdl_LIBRARIES})
+#add_executable(kuka_motion_control_node src/motion_control_node.cpp)
+#target_link_libraries(kuka_motion_control_node ${PROJECT_NAME} ${catkin_LIBRARIES} ${orocos_kdl_LIBRARIES})
 
-install(TARGETS kuka_motion_control_node RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+#install(TARGETS kuka_motion_control_node RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 install(TARGETS ${PROJECT_NAME} ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION} LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION} RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION})
 install(DIRECTORY include/${PROJECT_NAME}/ DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})

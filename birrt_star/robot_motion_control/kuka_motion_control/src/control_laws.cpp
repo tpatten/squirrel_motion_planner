@@ -7,7 +7,7 @@ namespace kuka_motion_controller
 
 
 //Constructor
-RobotController::RobotController(string robot_desciption_param, string kinematic_chain, string ns_prefix)
+RobotController::RobotController(std::string robot_desciption_param, std::string kinematic_chain, std::string ns_prefix)
 {
 
     //Get package path of "kuka_motion_control"
@@ -25,25 +25,25 @@ RobotController::RobotController(string robot_desciption_param, string kinematic
 
     //Create planning scene monitor
     //psm_ = boost::shared_ptr<planning_scene_monitor::PlanningSceneMonitor>(new planning_scene_monitor::PlanningSceneMonitor(robot_desciption_param));
-    psm_ =  boost::make_shared<planning_scene_monitor::PlanningSceneMonitor>(robot_desciption_param);
+    //psm_ =  boost::make_shared<planning_scene_monitor::PlanningSceneMonitor>(robot_desciption_param);
 
     //Get topic prefix in constructor argument list -> to set topic names e.g. "robotino_group/planning_scene"
-    string planning_scene_ns = ns_prefix + "planning_scene";
-    string planning_scene_service_ns = ns_prefix + "get_planning_scene";
-    string endeffector_trajectory_ns = ns_prefix + "endeffector_trajectory";
+    std::string planning_scene_ns = ns_prefix + "planning_scene";
+    std::string planning_scene_service_ns = ns_prefix + "get_planning_scene";
+    std::string endeffector_trajectory_ns = ns_prefix + "endeffector_trajectory";
 
-    //string joint_states_ns = ns_prefix + "joint_states";
-    //string attached_collision_object_ns = ns_prefix + "attached_collision_object";
-    //string collision_object_ns = ns_prefix + "collision_object";
-    //string planning_scene_world_ns = ns_prefix + "planning_scene_world";
+    //std::string joint_states_ns = ns_prefix + "joint_states";
+    //std::string attached_collision_object_ns = ns_prefix + "attached_collision_object";
+    //std::string collision_object_ns = ns_prefix + "collision_object";
+    //std::string planning_scene_world_ns = ns_prefix + "planning_scene_world";
 
 
     //Name of Planning Scene Service;
     m_planning_scene_service = planning_scene_service_ns;
 
     //Planning Scene Publisher
-    scene_pub_ = nh.advertise<moveit_msgs::PlanningScene>(planning_scene_ns, 10);
-    ros::Duration(0.5).sleep();
+    //scene_pub_ = nh.advertise<moveit_msgs::PlanningScene>(planning_scene_ns, 10);
+    //ros::Duration(0.5).sleep();
 
     //Set Kinematic group
     kinematic_goup_ = kinematic_chain;
@@ -193,7 +193,7 @@ RobotController::RobotController(string robot_desciption_param, string kinematic
 }
 
 
-RobotController::RobotController(boost::shared_ptr<kuka_motion_controller::KDLRobotModel> kdl_robot_model, string robot_desciption_param, string kinematic_chain, string ns_prefix)
+RobotController::RobotController(boost::shared_ptr<kuka_motion_controller::KDLRobotModel> kdl_robot_model, std::string robot_desciption_param, std::string kinematic_chain, std::string ns_prefix)
 {
     //Get package path of "kuka_motion_control"
     package_path_ = ros::package::getPath("kuka_motion_control");
@@ -210,17 +210,17 @@ RobotController::RobotController(boost::shared_ptr<kuka_motion_controller::KDLRo
 
     //Create planning scene monitor
     //psm_ = boost::shared_ptr<planning_scene_monitor::PlanningSceneMonitor>(new planning_scene_monitor::PlanningSceneMonitor(robot_desciption_param));
-    psm_ =  boost::make_shared<planning_scene_monitor::PlanningSceneMonitor>(robot_desciption_param);
+    //psm_ =  boost::make_shared<planning_scene_monitor::PlanningSceneMonitor>(robot_desciption_param);
 
     //Get topic prefix in constructor argument list -> to set topic names e.g. "robotino_group/planning_scene"
-    string planning_scene_ns = ns_prefix + "planning_scene";
-    string planning_scene_service_ns = ns_prefix + "get_planning_scene";
+    std::string planning_scene_ns = ns_prefix + "planning_scene";
+    std::string planning_scene_service_ns = ns_prefix + "get_planning_scene";
 
-    //string joint_states_ns = ns_prefix + "joint_states";
-    //string attached_collision_object_ns = ns_prefix + "attached_collision_object";
-    //string collision_object_ns = ns_prefix + "collision_object";
-    //string planning_scene_world_ns = ns_prefix + "planning_scene_world";
-    //string endeffector_trajectory_ns = ns_prefix + "endeffector_trajectory";
+    //std::string joint_states_ns = ns_prefix + "joint_states";
+    //std::string attached_collision_object_ns = ns_prefix + "attached_collision_object";
+    //std::string collision_object_ns = ns_prefix + "collision_object";
+    //std::string planning_scene_world_ns = ns_prefix + "planning_scene_world";
+    //std::string endeffector_trajectory_ns = ns_prefix + "endeffector_trajectory";
 
 //    psm_->startSceneMonitor(planning_scene_ns);
 //    psm_->startStateMonitor(joint_states_ns, attached_collision_object_ns);
@@ -231,8 +231,8 @@ RobotController::RobotController(boost::shared_ptr<kuka_motion_controller::KDLRo
     m_planning_scene_service = planning_scene_service_ns;
 
     //Planning Scene Publisher
-    scene_pub_ = nh.advertise<moveit_msgs::PlanningScene>(planning_scene_ns, 10);
-    ros::Duration(0.5).sleep();
+    //scene_pub_ = nh.advertise<moveit_msgs::PlanningScene>(planning_scene_ns, 10);
+    //ros::Duration(0.5).sleep();
 
     //Set Kinematic group
     kinematic_goup_ = kinematic_chain;
@@ -412,7 +412,7 @@ RobotController::~RobotController()
 }
 
 //Set Planning Scene Service Name
-void RobotController::setPlanningSceneServiceName(string service_name)
+void RobotController::setPlanningSceneServiceName(std::string service_name)
 {
     m_planning_scene_service = service_name;
 }
@@ -467,7 +467,7 @@ void RobotController::add_Base_Platform_Obstacle()
     //table.lifetime = ros::Duration();
 
     //Store obstacle data
-    vector<double> base_platform_data;
+    std::vector<double> base_platform_data;
     base_platform_data.push_back(0.0); //Xpos
     base_platform_data.push_back(0.0); //Ypos
     base_platform_data.push_back(-table_thickness/2); //Zpos
@@ -483,7 +483,7 @@ void RobotController::add_Base_Platform_Obstacle()
 
 
 //Activate collision avoidance
-void RobotController::add_Collision_Obstacle(vector<double> object_data)
+void RobotController::add_Collision_Obstacle(std::vector<double> object_data)
 {
     //Set collision avoidance active
     collision_avoidance_active_ = true;
@@ -540,7 +540,7 @@ void RobotController::add_Collision_Obstacle(vector<double> object_data)
 
 
 //Get random EE pose
-vector<double> RobotController::getRandEEPose()
+std::vector<double> RobotController::getRandEEPose()
 {
     //Random configuration
     KDL::JntArray rand_conf(num_joints_);
@@ -569,7 +569,7 @@ vector<double> RobotController::getRandEEPose()
         }
 
         //Compute ee pose
-        vector<double> rand_ee_pose = RobotModel->compute_FK(kin_chain_,rand_conf);
+        std::vector<double> rand_ee_pose = RobotModel->compute_FK(kin_chain_,rand_conf);
 
         //Check whether endeffector is located above the base platform (i.e. z position > 0.0)
         if(0.0 < rand_ee_pose[2])
@@ -591,7 +591,7 @@ void RobotController::init(char* start_conf_filename, char *ee_traj_filename, ch
 
     //----------------------------- SET START CONFIG ------------------------
     //Map containing the start config map
-    map<string, double> start_config;
+    std::map<std::string, double> start_config;
 
     //Read first config of the motion segments joint trajectory (of the subject)
     start_config = readStartConfig(file_path_start_config_);
@@ -609,7 +609,7 @@ void RobotController::init(char* start_conf_filename, char *ee_traj_filename, ch
     traj_tracking_enabled_ = true;
 
     //cout<<"Initial ee goal pose"<<endl;
-    vector <double> first_goal_pose;
+    std::vector <double> first_goal_pose;
     for (int i = 0 ; i < 7 ; i++)
     {
         //X   Y   Z   quatX   quatY   quatZ   W
@@ -627,7 +627,7 @@ void RobotController::init(char* start_conf_filename, char *ee_traj_filename, ch
 
 
     //Solve forward kinematics for chain and final configuration
-    //vector<double> final_ee_pose = RobotModel->compute_FK(kin_chain_,final_config);
+    //std::vector<double> final_ee_pose = RobotModel->compute_FK(kin_chain_,final_config);
 
 //    cout<<"final ee pose"<<endl;
 //    cout<<"X: "<<final_ee_pose[0]<<endl;
@@ -651,22 +651,22 @@ void RobotController::init(char* start_conf_filename, char *ee_traj_filename, ch
 
 
 //Read first and last config of the motion segments joint trajectory (of the subject)
-map<string, double> RobotController::readStartConfig(char* joint_traj_filename)
+std::map<std::string, double> RobotController::readStartConfig(char* joint_traj_filename)
 {
 
-    map<string, double> start_conf_map;
-    //map<string, double> goal_conf_map;
-    //vector<map<string, double> > SG_config;
+    std::map<std::string, double> start_conf_map;
+    //std::map<std::string, double> goal_conf_map;
+    //std::vector<std::map<std::string, double> > SG_config;
 
     // --------------- Get the number of rows of the file --------------------------
-    string line;
+    std::string line;
     int num_configs = 0;
     int num_vals_per_line = 0;
     bool num_vals_read = false;
 
     char * pEnd;
     char char_line[1000];
-    vector<string> joint_names_from_file;
+    std::vector<std::string> joint_names_from_file;
 
     ifstream jVal_file(joint_traj_filename);
     if (jVal_file.is_open())
@@ -684,8 +684,8 @@ map<string, double> RobotController::readStartConfig(char* joint_traj_filename)
                  for (int r = 0; r<2; r++)
                  {
                      istringstream buf(line);
-                     istream_iterator<string> beg(buf), end;
-                     vector<string> substrings(beg, end); // done!
+                     istream_iterator<std::string> beg(buf), end;
+                     std::vector<std::string> substrings(beg, end); // done!
 
                      //Get number of values per line
                      num_vals_per_line = num_vals_per_line + substrings.size();
@@ -777,7 +777,7 @@ map<string, double> RobotController::readStartConfig(char* joint_traj_filename)
     else std::cout << "Unable to open file (readStartConfig)";
 
 
-    //Return vector containing a map for the start and goal configuration
+    //Return std::vector containing a map for the start and goal configuration
     //SG_config.push_back(start_conf_map);
     //SG_config.push_back(goal_conf_map);
     //return SG_config;
@@ -793,7 +793,7 @@ void RobotController::readEEposTrajectory(char* ee_traj_filename)
 {
 
     // --------------- Get the number of rows of the file --------------------------
-    string line;
+    std::string line;
     int num_vals_per_line = 0;
     bool num_vals_read = false;
     num_ee_poses_ = 0;
@@ -816,8 +816,8 @@ void RobotController::readEEposTrajectory(char* ee_traj_filename)
                  std::getline(eeVal_file,line);
 
                  istringstream buf(line);
-                 istream_iterator<string> beg(buf), end;
-                 vector<string> substrings(beg, end); // done!
+                 istream_iterator<std::string> beg(buf), end;
+                 std::vector<string> substrings(beg, end); // done!
                  //Set flag to true
                  num_vals_read = true;
                  //Get number of values per line
@@ -876,7 +876,7 @@ void RobotController::readEEposTrajectory(char* ee_traj_filename)
          char *tmp = char_line;
 
          //Get current endeffector pose of frame
-         //vector<double> curr_ee_pose;
+         //std::vector<double> curr_ee_pose;
          for (int i = 0 ; i < num_vals_per_line ; i++)
          {
            if (curr_row_num > 1) //row 1 = pose parameter names (i.e. x,y,z,qx,qy,qz,qw)
@@ -923,7 +923,7 @@ void RobotController::readEEposTrajectory(char* ee_traj_filename)
 void RobotController::readEEvelTrajectory(char* ee_vel_traj_filename)
 {
     // --------------- Get the number of rows of the file --------------------------
-    string line;
+    std::string line;
     int num_vals_per_line = 0;
     bool num_vals_read = false;
     num_ee_vels_ = 0;
@@ -945,8 +945,8 @@ void RobotController::readEEvelTrajectory(char* ee_vel_traj_filename)
                  std::getline(ee_vel_file,line);
 
                  istringstream buf(line);
-                 istream_iterator<string> beg(buf), end;
-                 vector<string> substrings(beg, end); // done!
+                 istream_iterator<std::string> beg(buf), end;
+                 std::vector<std::string> substrings(beg, end); // done!
                  //Set flag to true
                  num_vals_read = true;
                  //Get number of values per line
@@ -1103,7 +1103,7 @@ KDL::JntArray RobotController::getRandomConf(double env_size_x, double env_size_
         }
 
         //Compute ee pose
-        vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,rand_conf);
+        std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,rand_conf);
 
         //Check whether endeffector is located above the base platform (i.e. z position > 0.0)
         if(0.0 <= current_ee_pose[2])
@@ -1117,7 +1117,7 @@ KDL::JntArray RobotController::getRandomConf(double env_size_x, double env_size_
 
 //Get Random Configuration (by uniform sampling in the joint range)
 // -> sample base pose in non square environment borders, here min_x != max_x and min_y != max_y
-KDL::JntArray RobotController::getRandomConf(vector<double> env_size_x, vector<double> env_size_y)
+KDL::JntArray RobotController::getRandomConf(std::vector<double> env_size_x, std::vector<double> env_size_y)
 {
     //Current joint number
     int joint_num = 0;
@@ -1176,7 +1176,7 @@ KDL::JntArray RobotController::getRandomConf(vector<double> env_size_x, vector<d
         }
 
         //Compute ee pose
-        vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,rand_conf);
+        std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,rand_conf);
 
         //Check whether endeffector is located above the base platform (i.e. z position > 0.0)
         if(0.0 <= current_ee_pose[2])
@@ -1190,7 +1190,7 @@ KDL::JntArray RobotController::getRandomConf(vector<double> env_size_x, vector<d
 
 //Get Random Configuration (by gaussian sampling around a mean configuration vector with standard deviation "std_dev")
 // -> sample base pose in square environment borders, here min_x = max_x and min_y = max_y
-KDL::JntArray RobotController::getRandomConf(vector<double> mean_config, double std_dev, double env_size_x, double env_size_y)
+KDL::JntArray RobotController::getRandomConf(std::vector<double> mean_config, double std_dev, double env_size_x, double env_size_y)
 {
     //Current joint number
     int joint_num = 0;
@@ -1273,7 +1273,7 @@ KDL::JntArray RobotController::getRandomConf(vector<double> mean_config, double 
         //cout<<endl;
 
         //Compute ee pose
-        vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,rand_conf);
+        std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,rand_conf);
 
         //Check whether endeffector is located above the base platform (i.e. z position > 0.0)
         if(0.0 <= current_ee_pose[2])
@@ -1285,9 +1285,9 @@ KDL::JntArray RobotController::getRandomConf(vector<double> mean_config, double 
 }
 
 
-//Get Random Configuration (by gaussian sampling around a mean configuration vector with standard deviation "std_dev")
+//Get Random Configuration (by gaussian sampling around a mean configuration std::vector with standard deviation "std_dev")
 // -> sample base pose in non square environment borders, here min_x != max_x and min_y != max_y
-KDL::JntArray RobotController::getRandomConf(vector<double> mean_config, double std_dev, vector<double> env_size_x, vector<double> env_size_y)
+KDL::JntArray RobotController::getRandomConf(std::vector<double> mean_config, double std_dev, std::vector<double> env_size_x, std::vector<double> env_size_y)
 {
     //Current joint number
     int joint_num = 0;
@@ -1370,7 +1370,7 @@ KDL::JntArray RobotController::getRandomConf(vector<double> mean_config, double 
         //cout<<endl;
 
         //Compute ee pose
-        vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,rand_conf);
+        std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,rand_conf);
 
         //Check whether endeffector is located above the base platform (i.e. z position > 0.0)
         if(0.0 <= current_ee_pose[2])
@@ -1420,7 +1420,7 @@ void RobotController::setRandomStartConf()
 
 
         //Compute ee pose
-        vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
+        std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
 
         //Check whether endeffector is located above the base platform (i.e. z position > 0.0)
         if(0.0 <= current_ee_pose[2])
@@ -1430,7 +1430,7 @@ void RobotController::setRandomStartConf()
 
 
 //Set a specific Start Configuration as std::map
-void RobotController::setStartConf(map<string, double> start_config)
+void RobotController::setStartConf(std::map<std::string, double> start_config)
 {
     //Set start and goal configuration
     int joint_num = 0;
@@ -1460,8 +1460,8 @@ void RobotController::setStartConf(map<string, double> start_config)
 
 
 
-//Set a specific Start Configuration as double vector
-void RobotController::setStartConf(vector<double> start_config)
+//Set a specific Start Configuration as double std::vector
+void RobotController::setStartConf(std::vector<double> start_config)
 {
     if (start_config.size() < kin_chain_.getNrOfJoints() && start_config.size() > kin_chain_.getNrOfJoints())
     {
@@ -1496,7 +1496,7 @@ void RobotController::setStartConf(vector<double> start_config)
 
 
 //Set endeffector goal pose and file paths to write result
-void RobotController::set_EE_goal_pose(vector<double> ee_pose, char *traj_file_name)
+void RobotController::set_EE_goal_pose(std::vector<double> ee_pose, char *traj_file_name)
 {
     //Set number of desired ee poses to one when trajectory tracking is off
     if (traj_tracking_enabled_ == false)
@@ -1513,8 +1513,8 @@ void RobotController::set_EE_goal_pose(vector<double> ee_pose, char *traj_file_n
     // - Robotics Modeling Planning and Control.pdf (page 140), Equation (3.91)
 
     //Skew-symmetric matrix from endeffector goal pose
-    vector< vector<double> > current_goal_ee_pose_skew_mat;
-    vector<double> skew_mat_first_row, skew_mat_second_row, skew_mat_third_row;
+    std::vector< std::vector<double> > current_goal_ee_pose_skew_mat;
+    std::vector<double> skew_mat_first_row, skew_mat_second_row, skew_mat_third_row;
     skew_mat_first_row.push_back(0.0);
     skew_mat_first_row.push_back(-current_goal_ee_pose_[5]);
     skew_mat_first_row.push_back(current_goal_ee_pose_[4]);
@@ -1540,7 +1540,7 @@ void RobotController::set_EE_goal_pose(vector<double> ee_pose, char *traj_file_n
     error_.resize(dim_task_space_);
 
     //Solve forward kinematics for chain and current configuration
-    vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
+    std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
 
     //Store initial endeffector pose
     //ee_poses_.push_back(current_ee_pose);
@@ -1596,13 +1596,13 @@ void RobotController::set_EE_goal_pose(vector<double> ee_pose, char *traj_file_n
 
     //------------------------ START: FILES TO WRITE -------------------------
     //Set path to the file that will store the generated endeffector trajectory
-    string folder_path = package_path_ + "/trajectories/ee_pos_trajectories_output/";
+    std::string folder_path = package_path_ + "/trajectories/ee_pos_trajectories_output/";
     const char* path_to_EET_file_1 = folder_path.c_str();
     //Get filename from input file
-    string file_path(traj_file_name);
+    std::string file_path(traj_file_name);
     unsigned path_slash_position = file_path.find_last_of("/");
-    string filename = file_path.substr(path_slash_position+1);
-    string entire_path = path_to_EET_file_1 + filename;
+    std::string filename = file_path.substr(path_slash_position+1);
+    std::string entire_path = path_to_EET_file_1 + filename;
     file_path_endeffector_trajectory_ = new char[entire_path.size() + 1];
     copy(entire_path.begin(), entire_path.end(), file_path_endeffector_trajectory_);
     file_path_endeffector_trajectory_[entire_path.size()] = '\0'; // don't forget the terminating 0
@@ -1612,7 +1612,7 @@ void RobotController::set_EE_goal_pose(vector<double> ee_pose, char *traj_file_n
     folder_path = package_path_ + "/trajectories/joint_pos_trajectories_output/";
     const char* path_to_JT_file_1 = folder_path.c_str();
     unsigned path_underscore_position = filename.find("_ee"); //_first_of
-    string traj_name = filename.substr(0, path_underscore_position+1);
+    std::string traj_name = filename.substr(0, path_underscore_position+1);
     entire_path = path_to_JT_file_1 + traj_name + "joint_trajectory.txt";
     file_path_joint_trajectory_ = new char[entire_path.size() + 1];
     copy(entire_path.begin(), entire_path.end(), file_path_joint_trajectory_);
@@ -1637,7 +1637,7 @@ void RobotController::set_EE_goal_pose(vector<double> ee_pose, char *traj_file_n
 
 
 //Set endeffector goal pose without storing trajectory data
-void RobotController::set_EE_goal_pose(vector<double> ee_pose)
+void RobotController::set_EE_goal_pose(std::vector<double> ee_pose)
 {
     //Set number of desired ee poses to one when trajectory tracking is off
     if (traj_tracking_enabled_ == false)
@@ -1654,8 +1654,8 @@ void RobotController::set_EE_goal_pose(vector<double> ee_pose)
     // - Robotics Modeling Planning and Control.pdf (page 140), Equation (3.91)
 
     //Skew-symmetric matrix from endeffector goal pose
-    vector< vector<double> > current_goal_ee_pose_skew_mat;
-    vector<double> skew_mat_first_row, skew_mat_second_row, skew_mat_third_row;
+    std::vector< std::vector<double> > current_goal_ee_pose_skew_mat;
+    std::vector<double> skew_mat_first_row, skew_mat_second_row, skew_mat_third_row;
     skew_mat_first_row.push_back(0.0);
     skew_mat_first_row.push_back(-current_goal_ee_pose_[5]);
     skew_mat_first_row.push_back(current_goal_ee_pose_[4]);
@@ -1681,7 +1681,7 @@ void RobotController::set_EE_goal_pose(vector<double> ee_pose)
     error_.resize(dim_task_space_);
 
     //Solve forward kinematics for chain and current configuration
-    vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
+    std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
 
     //Store initial endeffector pose
     //ee_poses_.push_back(current_ee_pose);
@@ -1737,7 +1737,7 @@ void RobotController::set_EE_goal_pose(vector<double> ee_pose)
 
 //Set Variable Constraint Vector (constraint variables and don't care variables)
 // -> Considered in error computation of control loop
-void RobotController::setVariableConstraints(vector<int> var_constraint_vec, vector<pair<double, double> > var_coordinate_dev)
+void RobotController::setVariableConstraints(std::vector<int> var_constraint_vec, std::vector<std::pair<double, double> > var_coordinate_dev)
 {
     //Check dimension of constraint vector
     if(var_constraint_vec.size() > 6)
@@ -1860,7 +1860,7 @@ void RobotController::set_motion_strategy(int strategy_index)
 bool RobotController::load_joint_weights(char* file_path)
 {
     // --------------- Get the number of joint_weights stored in the file --------------------------
-    string line;
+    std::string line;
     int num_vals_per_line = 0;
     bool num_vals_read = false;
 
@@ -1878,8 +1878,8 @@ bool RobotController::load_joint_weights(char* file_path)
              if (num_vals_read == false)
              {
                  istringstream buf(line);
-                 istream_iterator<string> beg(buf), end;
-                 vector<string> substrings(beg, end); // done!
+                 istream_iterator<std::string> beg(buf), end;
+                 std::vector<std::string> substrings(beg, end); // done!
                  //Set flag to true
                  num_vals_read = true;
                  //Get number of values per line
@@ -1922,7 +1922,7 @@ bool RobotController::load_joint_weights(char* file_path)
          char *tmp = char_line;
 
          //Get current endeffector pose of frame
-         //vector<double> curr_ee_pose;
+         //std::vector<double> curr_ee_pose;
          for (int i = 0 ; i < num_vals_per_line ; i++)
          {
            if (curr_row_num > 1) //row 1 = joint names
@@ -2030,53 +2030,53 @@ bool RobotController::load_joint_weights(char* file_path)
 
 
 //Show intermediate configuration of IK loop
-void RobotController::show_ik_intermediate_config(double sleep_duration = 0.02)
-{
-
-    //Set name of planning scene service
-    const std::string PLANNING_SCENE_SERVICE = m_planning_scene_service;
-
-    //Get curent planning scene
-    psm_->requestPlanningSceneState(PLANNING_SCENE_SERVICE);
-    planning_scene_monitor::LockedPlanningSceneRW ps(psm_);
-    ps->getCurrentStateNonConst().update();
-    //if you want to modify it
-    planning_scene::PlanningScenePtr scene = ps->diff();
-    scene->decoupleParent();
-
-
-    robot_state::RobotState state(psm_->getRobotModel());
-    state.setToDefaultValues();
-
-    //Set current robot state
-    state.setVariablePositions(nvalues_);
-
-    //Apply robot state to planning scene
-    //psm_->getPlanningScene()->setCurrentState(state);
-    scene->setCurrentState(state);
-
-    //Publish state on planning scene
-    moveit_msgs::PlanningScene psmsg;
-    scene->getPlanningSceneMsg(psmsg);
-    psmsg.robot_state.is_diff = true;
-    psmsg.is_diff = true;
-    scene_pub_.publish(psmsg);
-    ros::Duration(sleep_duration).sleep();
-
-    //cout<<"Published"<<endl;
-}
+//void RobotController::show_ik_intermediate_config(double sleep_duration = 0.02)
+//{
+//
+//    //Set name of planning scene service
+//    const std::string PLANNING_SCENE_SERVICE = m_planning_scene_service;
+//
+//    //Get curent planning scene
+//    psm_->requestPlanningSceneState(PLANNING_SCENE_SERVICE);
+//    planning_scene_monitor::LockedPlanningSceneRW ps(psm_);
+//    ps->getCurrentStateNonConst().update();
+//    //if you want to modify it
+//    planning_scene::PlanningScenePtr scene = ps->diff();
+//    scene->decoupleParent();
+//
+//
+//    robot_state::RobotState state(psm_->getRobotModel());
+//    state.setToDefaultValues();
+//
+//    //Set current robot state
+//    state.setVariablePositions(nvalues_);
+//
+//    //Apply robot state to planning scene
+//    //psm_->getPlanningScene()->setCurrentState(state);
+//    scene->setCurrentState(state);
+//
+//    //Publish state on planning scene
+//    moveit_msgs::PlanningScene psmsg;
+//    scene->getPlanningSceneMsg(psmsg);
+//    psmsg.robot_state.is_diff = true;
+//    psmsg.is_diff = true;
+//    scene_pub_.publish(psmsg);
+//    ros::Duration(sleep_duration).sleep();
+//
+//    //cout<<"Published"<<endl;
+//}
 
 
 //Update the error and its norm(pos+orientation)
-void RobotController::update_error_norm(vector<double> curr_ee_pose, vector<double> des_ee_pose, bool error_clamping)
+void RobotController::update_error_norm(std::vector<double> curr_ee_pose, std::vector<double> des_ee_pose, bool error_clamping)
 {
 
     //Orientation Error computation based on literature:
     // - Robotics Modeling Planning and Control.pdf (page 140), Equation (3.91)
 
     //Skew-symmetric matrix from endeffector goal pose
-    vector< vector<double> > current_goal_ee_pose_skew_mat;
-    vector<double> skew_mat_first_row, skew_mat_second_row, skew_mat_third_row;
+    std::vector< std::vector<double> > current_goal_ee_pose_skew_mat;
+    std::vector<double> skew_mat_first_row, skew_mat_second_row, skew_mat_third_row;
     skew_mat_first_row.push_back(0.0);
     skew_mat_first_row.push_back(-des_ee_pose[5]);
     skew_mat_first_row.push_back(des_ee_pose[4]);
@@ -2164,14 +2164,14 @@ void RobotController::update_error_norm(vector<double> curr_ee_pose, vector<doub
 
 
 //Update the error vector(pos+orientation)
-void RobotController::update_error_vec(vector<double> curr_ee_pose, vector<double> des_ee_pose)
+void RobotController::update_error_vec(std::vector<double> curr_ee_pose, std::vector<double> des_ee_pose)
 {
     //Orientation Error computation based on literature:
     // - Robotics Modeling Planning and Control.pdf (page 140), Equation (3.91)
 
     //Skew-symmetric matrix from endeffector goal pose
-    vector< vector<double> > current_goal_ee_pose_skew_mat;
-    vector<double> skew_mat_first_row, skew_mat_second_row, skew_mat_third_row;
+    std::vector< std::vector<double> > current_goal_ee_pose_skew_mat;
+    std::vector<double> skew_mat_first_row, skew_mat_second_row, skew_mat_third_row;
     skew_mat_first_row.push_back(0.0);
     skew_mat_first_row.push_back(-des_ee_pose[5]);
     skew_mat_first_row.push_back(des_ee_pose[4]);
@@ -2284,7 +2284,7 @@ bool RobotController::run_J_pinv_Controller(int max_iter, int show_motion, bool 
     //Null Space of the Jacobian (arm_chain)
     double **null_space_projector;
     //Value of the JL-Gradient function (to be used in the control loop)
-    vector<double> jl_grad_func_val(num_joints_);
+    std::vector<double> jl_grad_func_val(num_joints_);
 
     //Init iteration counter
     int current_iter = 0;
@@ -2314,7 +2314,7 @@ bool RobotController::run_J_pinv_Controller(int max_iter, int show_motion, bool 
             current_goal_ee_pose_ = curr_goal_pose;
 
             //Get EE pose
-            vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
+            std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
 
             //Update the error
             update_error_norm(current_ee_pose, current_goal_ee_pose_, true);
@@ -2503,7 +2503,7 @@ bool RobotController::run_J_pinv_Controller(int max_iter, int show_motion, bool 
 
 
             //Get new EE pose
-            vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
+            std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
 
             //Store current endeffector pose
             if(store_traj_data == true)
@@ -2515,8 +2515,8 @@ bool RobotController::run_J_pinv_Controller(int max_iter, int show_motion, bool 
 
 
             //++++++ Show Motion
-            if(show_motion == 1 || current_iter == max_iter-1 || error_norm_ < error_treshold_)
-                show_ik_intermediate_config(sleep_duration_between_confs_);
+            //if(show_motion == 1 || current_iter == max_iter-1 || error_norm_ < error_treshold_)
+            //   show_ik_intermediate_config(sleep_duration_between_confs_);
 
 
             //Show endeffector trace
@@ -2612,7 +2612,7 @@ bool RobotController::run_J_dls_Controller(int max_iter, int show_motion, bool s
     //Null Space of the Jacobian (arm_chain)
     double **null_space_projector;
     //Value of the JL-Gradient function (to be used in the control loop)
-    vector<double> jl_grad_func_val(num_joints_);
+    std::vector<double> jl_grad_func_val(num_joints_);
 
     //Init iteration counter
     int current_iter = 0;
@@ -2648,7 +2648,7 @@ bool RobotController::run_J_dls_Controller(int max_iter, int show_motion, bool s
             current_goal_ee_pose_ = curr_goal_pose;
 
             //Get EE pose
-            vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
+            std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
 
             //Update the error
             update_error_norm(current_ee_pose, current_goal_ee_pose_, true);
@@ -2820,7 +2820,7 @@ bool RobotController::run_J_dls_Controller(int max_iter, int show_motion, bool s
 
 
             //Get new EE pose
-            vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
+            std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
 
             //Store current endeffector pose
             ee_poses_.push_back(current_ee_pose);
@@ -2829,8 +2829,8 @@ bool RobotController::run_J_dls_Controller(int max_iter, int show_motion, bool s
             update_error_norm(current_ee_pose, current_goal_ee_pose_, true);
 
             //++++++ Show Motion
-            if(show_motion == 1 || current_iter == max_iter-1 || error_norm_ < error_treshold_)
-                show_ik_intermediate_config(sleep_duration_between_confs_);
+            //f(show_motion == 1 || current_iter == max_iter-1 || error_norm_ < error_treshold_)
+            //    show_ik_intermediate_config(sleep_duration_between_confs_);
 
 
             //Show endeffector trace
@@ -2923,7 +2923,7 @@ bool RobotController::run_J_vdls_Controller(int max_iter, int show_motion, bool 
     //Null Space of the Jacobian (arm_chain)
     double **null_space_projector;
     //Value of the JL-Gradient function (to be used in the control loop)
-    vector<double> jl_grad_func_val(num_joints_);
+    std::vector<double> jl_grad_func_val(num_joints_);
 
     //Init iteration counter
     int current_iter = 0;
@@ -2940,12 +2940,12 @@ bool RobotController::run_J_vdls_Controller(int max_iter, int show_motion, bool 
 
 
     //Repulsive vector
-    vector<double> ee_rep_vec;
+    std::vector<double> ee_rep_vec;
     //Control Points
-    vector<vector<double> > ca_control_points;
+    std::vector<std::vector<double> > ca_control_points;
 
     //Current joint velocity bounds (manipulated by robot body collision avoidance)
-    vector<vector<double> > joint_vel_bounds;
+    std::vector<std::vector<double> > joint_vel_bounds;
 
 
     if(collision_avoidance_active_ == true)
@@ -2989,7 +2989,7 @@ bool RobotController::run_J_vdls_Controller(int max_iter, int show_motion, bool 
             current_goal_ee_pose_ = curr_goal_pose;
 
             //Get EE pose
-            vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
+            std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
 
 
             //Update the error
@@ -3149,7 +3149,7 @@ bool RobotController::run_J_vdls_Controller(int max_iter, int show_motion, bool 
 
 
             //Get new EE pose
-            vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
+            std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
 
 //            cout<<"EE pos:"<<endl;
 //            cout<<"X:"<<current_ee_pose[0]<<endl;
@@ -3165,8 +3165,8 @@ bool RobotController::run_J_vdls_Controller(int max_iter, int show_motion, bool 
 
 
             //++++++ Show Motion
-            if(show_motion == 1 || current_iter == max_iter-1 || error_norm_ < error_treshold_)
-                show_ik_intermediate_config(sleep_duration_between_confs_);
+            //if(show_motion == 1 || current_iter == max_iter-1 || error_norm_ < error_treshold_)
+            //    show_ik_intermediate_config(sleep_duration_between_confs_);
 
 
             if(collision_avoidance_active_ == true)
@@ -3280,7 +3280,7 @@ bool RobotController::run_J_vdls_Controller(int max_iter, int show_motion, bool 
 
 
 
-Status RobotController::run_VDLS_Control_Connector(int max_iter, vector<vector<double> > &joint_traj, vector<vector<double> > &ee_traj, bool show_motion, bool show_ee_trace)
+Status RobotController::run_VDLS_Control_Connector(int max_iter, std::vector<std::vector<double> > &joint_traj, std::vector<std::vector<double> > &ee_traj, bool show_motion, bool show_ee_trace)
 {
 
     //Eigen Matrices storing the Jacobian for the chain
@@ -3290,7 +3290,7 @@ Status RobotController::run_VDLS_Control_Connector(int max_iter, vector<vector<d
     //Null Space of the Jacobian (arm_chain)
     //double **null_space_projector;
     //Value of the JL-Gradient function (to be used in the control loop)
-    //vector<double> jl_grad_func_val(num_joints_);
+    //std::vector<double> jl_grad_func_val(num_joints_);
 
     //Init iteration counter
     int current_iter = 0;
@@ -3306,15 +3306,15 @@ Status RobotController::run_VDLS_Control_Connector(int max_iter, vector<vector<d
     ee_poses_.clear(); //Clear vector storing ee poses
 
     //Current config as double vector (used for storing joint trajectory)
-    vector<double> robot_config(num_joints_);
+    std::vector<double> robot_config(num_joints_);
 
     //Repulsive vector
-    vector<double> ee_rep_vec;
+    std::vector<double> ee_rep_vec;
     //Control Points
-    vector<vector<double> > ca_control_points;
+    std::vector<std::vector<double> > ca_control_points;
 
     //Current joint velocity bounds (manipulated by robot body collision avoidance)
-    vector<vector<double> > joint_vel_bounds;
+    std::vector<std::vector<double> > joint_vel_bounds;
 
     //Flag indicating when endeffector is stuck / does not make any significant progress towards goal anymore
     int deadlock_timeout = 500;
@@ -3376,7 +3376,7 @@ Status RobotController::run_VDLS_Control_Connector(int max_iter, vector<vector<d
 
 
             //Get EE pose
-            vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
+            std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
 
             //Update the error
             update_error_vec(current_ee_pose, current_goal_ee_pose_);
@@ -3411,7 +3411,7 @@ Status RobotController::run_VDLS_Control_Connector(int max_iter, vector<vector<d
             joint_traj.push_back(robot_config);
 
             //Solve forward kinematics for chain and current configuration
-            vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
+            std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
 
             //Store current ee pose
             ee_traj.push_back(current_ee_pose);
@@ -3564,7 +3564,7 @@ Status RobotController::run_VDLS_Control_Connector(int max_iter, vector<vector<d
 
 
             //Get new EE pose
-            vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
+            std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
 
             //Store current ee pose
             ee_traj.push_back(current_ee_pose);
@@ -3573,7 +3573,7 @@ Status RobotController::run_VDLS_Control_Connector(int max_iter, vector<vector<d
             //ee_poses_.push_back(current_ee_pose);
 
             //Store previous error
-            vector<double> previous_error = error_;
+            std::vector<double> previous_error = error_;
 
             //++++++ ERROR UPDATE
             update_error_vec(current_ee_pose, current_goal_ee_pose_);
@@ -3617,8 +3617,8 @@ Status RobotController::run_VDLS_Control_Connector(int max_iter, vector<vector<d
             //}
 
             //++++++ Show Motion
-            if(show_motion == 1)// || current_iter == max_iter-1 || error_norm_ < error_threshold)
-                show_ik_intermediate_config(sleep_duration_between_confs_);
+            //if(show_motion == 1)// || current_iter == max_iter-1 || error_norm_ < error_threshold)
+            //    show_ik_intermediate_config(sleep_duration_between_confs_);
 
 
             if(collision_avoidance_active_ == true)
@@ -3722,9 +3722,9 @@ bool RobotController::run_J_wvdls_Controller(int max_iter, int show_motion, bool
     //Pseudoinverse of the Jacobian (arm_chain)
     double **current_jac_pinv;
     //Value of the JL-Gradient function (to be used in the control loop)
-    vector<double> jl_grad_func_val(num_joints_);
+    std::vector<double> jl_grad_func_val(num_joints_);
     //Value of the JL-Gradient function in previous iteration
-    vector<double> previous_jl_grad_func_val(num_joints_);
+    std::vector<double> previous_jl_grad_func_val(num_joints_);
 
     //Init iteration counter
     int current_iter = 0;
@@ -3767,7 +3767,7 @@ bool RobotController::run_J_wvdls_Controller(int max_iter, int show_motion, bool
             current_goal_ee_pose_ = curr_goal_pose;
 
             //Get EE pose
-            vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
+            std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
 
             //Update the error
             update_error_norm(current_ee_pose, current_goal_ee_pose_, true);
@@ -3920,7 +3920,7 @@ bool RobotController::run_J_wvdls_Controller(int max_iter, int show_motion, bool
 
 
             //Get new EE pose
-            vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
+            std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
 
             //Store current endeffector pose
             ee_poses_.push_back(current_ee_pose);
@@ -3931,8 +3931,8 @@ bool RobotController::run_J_wvdls_Controller(int max_iter, int show_motion, bool
 
 
             //++++++ Show Motion
-            if(show_motion == 1 || current_iter == max_iter-1 || error_norm_ < error_treshold_)
-                show_ik_intermediate_config(sleep_duration_between_confs_);
+            //if(show_motion == 1 || current_iter == max_iter-1 || error_norm_ < error_treshold_)
+            //    show_ik_intermediate_config(sleep_duration_between_confs_);
 
 
             //Show endeffector trace
@@ -4023,9 +4023,9 @@ bool RobotController::run_J_wln_Controller(int max_iter, int show_motion, bool s
     //Pseudoinverse of the Jacobian (arm_chain)
     double **current_jac_pinv;
     //Value of the JL-Gradient function (to be used in the control loop)
-    vector<double> jl_grad_func_val(num_joints_);
+    std::vector<double> jl_grad_func_val(num_joints_);
     //Value of the JL-Gradient function in previous iteration
-    vector<double> previous_jl_grad_func_val(num_joints_);
+    std::vector<double> previous_jl_grad_func_val(num_joints_);
 
     //Init iteration counter
     int current_iter = 0;
@@ -4065,7 +4065,7 @@ bool RobotController::run_J_wln_Controller(int max_iter, int show_motion, bool s
             current_goal_ee_pose_ = curr_goal_pose;
 
             //Get EE pose
-            vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
+            std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
 
             //Update the error
             update_error_norm(current_ee_pose, current_goal_ee_pose_, true);
@@ -4256,7 +4256,7 @@ bool RobotController::run_J_wln_Controller(int max_iter, int show_motion, bool s
 
 
             //Get new EE pose
-            vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
+            std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
 
 //            cout<<"Current endeffector pose: "<<endl;
 //            cout<<"X: "<<current_ee_pose[0]<<endl;
@@ -4275,8 +4275,8 @@ bool RobotController::run_J_wln_Controller(int max_iter, int show_motion, bool s
 
 
             //++++++ Show Motion
-            if(show_motion == 1 || current_iter == max_iter-1 || error_norm_ < error_treshold_)
-                show_ik_intermediate_config(sleep_duration_between_confs_);
+            //if(show_motion == 1 || current_iter == max_iter-1 || error_norm_ < error_treshold_)
+            //    show_ik_intermediate_config(sleep_duration_between_confs_);
 
 
             //Show endeffector trace
@@ -4398,7 +4398,7 @@ bool RobotController::run_J_trans_Controller(int max_iter, int show_motion, bool
             current_goal_ee_pose_ = curr_goal_pose;
 
             //Get EE pose
-            vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
+            std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
 
             //Update the error
             update_error_norm(current_ee_pose, current_goal_ee_pose_, true);
@@ -4543,7 +4543,7 @@ bool RobotController::run_J_trans_Controller(int max_iter, int show_motion, bool
 
 
             //Get new EE pose
-            vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
+            std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
 
             //Store current endeffector pose
             ee_poses_.push_back(current_ee_pose);
@@ -4554,8 +4554,8 @@ bool RobotController::run_J_trans_Controller(int max_iter, int show_motion, bool
 
 
             //++++++ Show Motion
-            if(show_motion == 1 || current_iter == max_iter-1 || error_norm_ < error_treshold_)
-                show_ik_intermediate_config(sleep_duration_between_confs_);
+            //if(show_motion == 1 || current_iter == max_iter-1 || error_norm_ < error_treshold_)
+            //    show_ik_intermediate_config(sleep_duration_between_confs_);
 
 
             //Show endeffector trace
@@ -4712,7 +4712,7 @@ bool RobotController::update_joint_weights(int j_num, double mean_joint_traj_err
 {
 
     //Read joint trajectory generated by the controller
-    map<string, vector<double> > control_joint_trajectory = readJointTrajectory(file_path_joint_trajectory_);
+    std::map<std::string, std::vector<double> > control_joint_trajectory = readJointTrajectory(file_path_joint_trajectory_);
 
 //    //----------------------------- Start: Plot human and control joint trajectory ------------------------
 //    std::vector<std::pair<double, double> > human_joint_traj;
@@ -4908,7 +4908,7 @@ void RobotController::writeJointWeights(KDL::JntArray joint_weights, char* file_
 //bool RobotController::update_joint_weights(int j_num, double mean_joint_traj_error_threshold)
 //{
 //    //Read joint trajectory generated by the controller
-//    map<string, vector<double> > control_joint_trajectory = readJointTrajectory(file_path_joint_trajectory_);
+//    std::map<string, std::vector<double> > control_joint_trajectory = readJointTrajectory(file_path_joint_trajectory_);
 
 //    double delta_j_human = 0.0;
 //    double delta_j_control = 0.0;
@@ -5113,21 +5113,21 @@ void RobotController::writeJointWeights(KDL::JntArray joint_weights, char* file_
 
 
 //Read joint trajectory (of the human subject and motion segment)
-map<string, vector<double> > RobotController::readJointTrajectory(char* joint_traj_filename)
+std::map<std::string, std::vector<double> > RobotController::readJointTrajectory(char* joint_traj_filename)
 {
 
     //Map to be returned
-    map<string, vector<double> > joint_trajectory;
+    std::map<std::string, std::vector<double> > joint_trajectory;
 
     // --------------- Get the number of rows of the file --------------------------
-    string line;
+    std::string line;
     num_configs_ = 0;
     int num_vals_per_line = 0;
     bool num_vals_read = false;
 
     char * pEnd;
     char char_line[1000];
-    vector<string> joint_names_from_file;
+    std::vector<std::string> joint_names_from_file;
 
     ifstream jVal_file(joint_traj_filename);
     if (jVal_file.is_open())
@@ -5146,8 +5146,8 @@ map<string, vector<double> > RobotController::readJointTrajectory(char* joint_tr
                  {
 
                      istringstream buf(line);
-                     istream_iterator<string> beg(buf), end;
-                     vector<string> substrings(beg, end); // done!
+                     istream_iterator<std::string> beg(buf), end;
+                     std::vector<std::string> substrings(beg, end); // done!
 
                      //Get number of values per line
                      num_vals_per_line = num_vals_per_line + substrings.size();
@@ -6023,9 +6023,9 @@ double **RobotController::compute_inverse(double** matrix, int num_rows, int num
 
 
 //Convert JntArray to std::Vector
-vector<double> RobotController::JntArray_to_Vector(KDL::JntArray jnt_array)
+std::vector<double> RobotController::JntArray_to_Vector(KDL::JntArray jnt_array)
 {
-    vector<double> vec(jnt_array.rows());
+    std::vector<double> vec(jnt_array.rows());
 
     for(int i = 0 ; i < jnt_array.rows() ; i++)
         vec[i]= jnt_array(i);
@@ -6035,7 +6035,7 @@ vector<double> RobotController::JntArray_to_Vector(KDL::JntArray jnt_array)
 
 
 //Convert std::Vector to JntArray
-KDL::JntArray RobotController::Vector_to_JntArray(vector<double> vec)
+KDL::JntArray RobotController::Vector_to_JntArray(std::vector<double> vec)
 {
     KDL::JntArray jnt_array(vec.size());
 
@@ -6306,11 +6306,11 @@ int RobotController::control_strategy_selection(KDL::Jacobian current_jacobian)
 
 
 //Functions to get Joint and Endeffector Trajectory generated by the controller
-vector< map<string, double> > RobotController::getJointTrajectory()
+std::vector< std::map<std::string, double> > RobotController::getJointTrajectory()
 {
     return configurations_;
 }
-vector< vector<double> > RobotController::getEETrajectory()
+std::vector< std::vector<double> > RobotController::getEETrajectory()
 {
     return ee_poses_;
 }
@@ -6319,13 +6319,13 @@ vector< vector<double> > RobotController::getEETrajectory()
 
 
 //Compute Control Points (Position of Spheres located alon the endeffector chain, subsequently used for collision avoidance)
-vector<vector<double> > RobotController::compute_CA_ControlPoints(vector<int> joint_indices)
+std::vector<std::vector<double> > RobotController::compute_CA_ControlPoints(std::vector<int> joint_indices)
 {
     //- Compute Position of spheres along kinematic chain
-    vector< vector<double> > control_points;
+    std::vector< std::vector<double> > control_points;
 
     //Compute Segment FK (for endeffector)
-    vector<double> current_ee_pose;
+    std::vector<double> current_ee_pose;
 
     for (int i = 0 ; i < joint_indices.size(); i++)
     {
@@ -6355,10 +6355,10 @@ vector<vector<double> > RobotController::compute_CA_ControlPoints(vector<int> jo
 
 
 //Compute Repulsive vector (for obstacle avoidance)
-vector<double> RobotController::compute_EE_RepulsiveVector(vector<double> ee_position)
+std::vector<double> RobotController::compute_EE_RepulsiveVector(std::vector<double> ee_position)
 {
     //Repulsive vector to be returned
-    vector<double> ee_rep_vec(dim_task_space_);
+    std::vector<double> ee_rep_vec(dim_task_space_);
 
     //Init Artificial Potential Field elements 0,1,2 in cartesian space
     ee_rep_vec[0] = 0.0;
@@ -6370,7 +6370,7 @@ vector<double> RobotController::compute_EE_RepulsiveVector(vector<double> ee_pos
     ee_rep_vec[5] = 0.0;
 
     //Obstacle potential in cartesian space (Vr)
-    vector<double> obs_potential(3);
+    std::vector<double> obs_potential(3);
 
     //Distance of endeffector to closest obstacle
     double min_obs_dist_norm = 10000.0;
@@ -6383,7 +6383,7 @@ vector<double> RobotController::compute_EE_RepulsiveVector(vector<double> ee_pos
     {
 
         //Distance from endeffector to i-th obstacle
-        vector<double> cp_obs_dist = compute_Dist_to_Obs(ee_position, scene_obstacles_[i]);
+        std::vector<double> cp_obs_dist = compute_Dist_to_Obs(ee_position, scene_obstacles_[i]);
 
         //Compute norm of obstacle distance (i.e ||cp_obs_dist||)
         double cp_obs_dist_norm = sqrt( (cp_obs_dist[0]*cp_obs_dist[0]) + (cp_obs_dist[1]*cp_obs_dist[1]) + (cp_obs_dist[2]*cp_obs_dist[2]));
@@ -6443,10 +6443,10 @@ vector<double> RobotController::compute_EE_RepulsiveVector(vector<double> ee_pos
 
 
 //Distance from control points to obstacle
-vector<double> RobotController::compute_Dist_to_Obs(vector<double> pos_control_point, vector<double> obstacle_pos)
+std::vector<double> RobotController::compute_Dist_to_Obs(std::vector<double> pos_control_point, std::vector<double> obstacle_pos)
 {
     //Cartesian distance between control point and obstacle
-    vector<double> cp_obs_dist(3);
+    std::vector<double> cp_obs_dist(3);
 
     //Compute distance between points
     if(obstacle_pos[4] == 0.0) //4th element of vector used to indicate that the obstacle is the base platform or another obstacle
@@ -6481,11 +6481,11 @@ double RobotController::compute_Pot_Field_Magnitude(double cp_obs_dist_norm)
 
 
 //Compute risk of collision function (for robot body collision avoidance)
-vector<vector<double> > RobotController::compute_risk_func_vector(vector<vector<double> > control_points_pos, Eigen::MatrixXf jacobian)
+std::vector<std::vector<double> > RobotController::compute_risk_func_vector(std::vector<std::vector<double> > control_points_pos, Eigen::MatrixXf jacobian)
 {
 
     //Vector used for joint motion scaling (to be returned)
-    vector<vector<double> > joint_vel_bounds(num_joints_);
+    std::vector<std::vector<double> > joint_vel_bounds(num_joints_);
 
     //Init joint velocity bounds
     for (int i = 0 ; i < num_joints_ ; i++)
@@ -6496,7 +6496,7 @@ vector<vector<double> > RobotController::compute_risk_func_vector(vector<vector<
 
 
     //Risk function vector (s)
-    vector<double> risk_func_vec(num_joints_);
+    std::vector<double> risk_func_vec(num_joints_);
 
     //Init risk function vector
     for (int z = 0; z < num_joints_ ; z++)
@@ -6512,7 +6512,7 @@ vector<vector<double> > RobotController::compute_risk_func_vector(vector<vector<
     for(int i = 1 ; i < control_points_pos.size() ; i++)
     {
         //Minumum values to be stored
-        vector<double> cp_obs_dist_min ;
+        std::vector<double> cp_obs_dist_min ;
         double cp_obs_dist_norm_min = 10000.0;
 
 
@@ -6520,7 +6520,7 @@ vector<vector<double> > RobotController::compute_risk_func_vector(vector<vector<
         for(int j = 0 ; j < scene_obstacles_.size() ; j++)
         {
            //Compute distance
-           vector<double> cp_obs_dist = compute_Dist_to_Obs(control_points_pos[i],scene_obstacles_[j]);
+           std::vector<double> cp_obs_dist = compute_Dist_to_Obs(control_points_pos[i],scene_obstacles_[j]);
 
            //Compute norm of obstacle distance (i.e ||cp_obs_dist||)
            double cp_obs_dist_norm = sqrt( (cp_obs_dist[0]*cp_obs_dist[0]) + (cp_obs_dist[1]*cp_obs_dist[1]) + (cp_obs_dist[2]*cp_obs_dist[2]));
@@ -6629,7 +6629,7 @@ vector<vector<double> > RobotController::compute_risk_func_vector(vector<vector<
 
 
 //First Order Retraction (according to Paper "Task Constrained Motion Planning in Joint Space", Mike Stilman)
-bool RobotController::run_config_retraction(vector<double> &retract_conf, KDL::Frame task_frame, KDL::Frame grasp_transform, vector<int> constraint_vector, vector<pair<double,double> > coordinate_dev, int max_iter)
+bool RobotController::run_config_retraction(std::vector<double> &retract_conf, KDL::Frame task_frame, KDL::Frame grasp_transform, std::vector<int> constraint_vector, std::vector<std::pair<double,double> > coordinate_dev, int max_iter)
 {
 
     //Eigen Matrices storing the Jacobian for the chain (6 = dimension of task space)
@@ -6645,7 +6645,7 @@ bool RobotController::run_config_retraction(vector<double> &retract_conf, KDL::F
     int iter = 0;
 
     //Norm of current error
-    vector<double> curr_task_error = compute_task_error(retract_conf, task_frame, grasp_transform, constraint_vector, coordinate_dev);
+    std::vector<double> curr_task_error = compute_task_error(retract_conf, task_frame, grasp_transform, constraint_vector, coordinate_dev);
 
     //Compute current error norm
     double curr_error_norm = getVectorNorm(curr_task_error);
@@ -6654,7 +6654,7 @@ bool RobotController::run_config_retraction(vector<double> &retract_conf, KDL::F
     delta_t_ = 0.02;
 
     //Store initial configuration (before retraction)
-    vector<double> retract_conf_initial = retract_conf;
+    std::vector<double> retract_conf_initial = retract_conf;
 
 
     // ----- End: INITIALIZATION ---
@@ -6776,10 +6776,10 @@ bool RobotController::run_config_retraction(vector<double> &retract_conf, KDL::F
 }
 
 
-vector<double> RobotController::compute_task_error(vector<double> retract_conf, KDL::Frame task_frame, KDL::Frame grasp_transform, vector<int> constraint_vector, vector<pair<double,double> > coordinate_dev)
+std::vector<double> RobotController::compute_task_error(std::vector<double> retract_conf, KDL::Frame task_frame, KDL::Frame grasp_transform, std::vector<int> constraint_vector, std::vector<std::pair<double,double> > coordinate_dev)
 {
     //Task error to be returned
-    vector<double> task_error(6);
+    std::vector<double> task_error(6);
 
     //Invert task frame transform to get world frame expressed in task frame T^t_0
     KDL::Frame inv_task_frame_transform = task_frame.Inverse();
@@ -6796,14 +6796,14 @@ vector<double> RobotController::compute_task_error(vector<double> retract_conf, 
 //    double q_x,q_y,q_z,q_w;
 //    task_frame.M.GetQuaternion(q_x,q_y,q_z,q_w);
 
-//    vector<double> quat_vector(4);
+//    std::vector<double> quat_vector(4);
 //    quat_vector[0] = q_w;
 //    quat_vector[1] = q_x;
 //    quat_vector[2] = q_y;
 //    quat_vector[3] = q_z;
 
 
-//    vector<double> rpy_angles = three_axis_rot( -2.*(quat_vector[2]*quat_vector[3] - quat_vector[0]*quat_vector[1]), \
+//    std::vector<double> rpy_angles = three_axis_rot( -2.*(quat_vector[2]*quat_vector[3] - quat_vector[0]*quat_vector[1]), \
 //                                        quat_vector[0]*quat_vector[0] - quat_vector[1]*quat_vector[1] - quat_vector[2]*quat_vector[2] + quat_vector[3]*quat_vector[3], \
 //                                        2*(quat_vector[1]*quat_vector[3] + quat_vector[0]*quat_vector[2]), \
 //                                       -2*(quat_vector[1]*quat_vector[2] - quat_vector[0]*quat_vector[3]), \
@@ -6835,7 +6835,7 @@ vector<double> RobotController::compute_task_error(vector<double> retract_conf, 
 //    cout<<"z t: "<<task_frame_to_ee_transform.p.z()<<endl;
 
     // ++ Get task error + select only constraint components (others set to zero -> i.e. no error since they're unconstraint)
-    vector<double> delta_vec(6);
+    std::vector<double> delta_vec(6);
 
     //--- Get translation
     delta_vec[0] = task_frame_to_ee_transform.p.x() * constraint_vector[0];
@@ -6848,13 +6848,13 @@ vector<double> RobotController::compute_task_error(vector<double> retract_conf, 
     task_frame_to_ee_transform.M.GetQuaternion(q_x,q_y,q_z,q_w);
 
     //Reverse quaternion order to w,x,y,z (in order to use three_axis_rot function)
-    vector<double> quat_vector(4);
+    std::vector<double> quat_vector(4);
     quat_vector[0] = q_w;
     quat_vector[1] = q_x;
     quat_vector[2] = q_y;
     quat_vector[3] = q_z;
     //Compute RPY angles
-    vector<double> rpy_angles = three_axis_rot( -2.*(quat_vector[2]*quat_vector[3] - quat_vector[0]*quat_vector[1]), \
+    std::vector<double> rpy_angles = three_axis_rot( -2.*(quat_vector[2]*quat_vector[3] - quat_vector[0]*quat_vector[1]), \
                                         quat_vector[0]*quat_vector[0] - quat_vector[1]*quat_vector[1] - quat_vector[2]*quat_vector[2] + quat_vector[3]*quat_vector[3], \
                                         2*(quat_vector[1]*quat_vector[3] + quat_vector[0]*quat_vector[2]), \
                                        -2*(quat_vector[1]*quat_vector[2] - quat_vector[0]*quat_vector[3]), \
@@ -6901,9 +6901,9 @@ vector<double> RobotController::compute_task_error(vector<double> retract_conf, 
 
 
 //Three axis rotation
-vector<double> RobotController::three_axis_rot(double r11, double r12, double r21, double r31, double r32)
+std::vector<double> RobotController::three_axis_rot(double r11, double r12, double r21, double r31, double r32)
 {
-    vector<double> rot(3);
+    std::vector<double> rot(3);
 
     //find angles for rotations about X, Y, and Z axes
     rot[0] = atan2( r11, r12 ); //X
@@ -6914,7 +6914,7 @@ vector<double> RobotController::three_axis_rot(double r11, double r12, double r2
 }
 
 
-bool RobotController::is_error_within_bounds(vector<double> task_space_error)
+bool RobotController::is_error_within_bounds(std::vector<double> task_space_error)
 {
     //Flag to be returned
     bool within_bounds = true;
@@ -6932,7 +6932,7 @@ bool RobotController::is_error_within_bounds(vector<double> task_space_error)
 
 
 //Convert XYZ (Roll-Pitch-Yaw) Euler angles to Quaternion
-vector<double> RobotController::convertEulertoQuat(double rotX, double rotY, double rotZ)
+std::vector<double> RobotController::convertEulertoQuat(double rotX, double rotY, double rotZ)
 {
     double sx = sin(rotX/2);
     double sy = sin(rotY/2);
@@ -6941,7 +6941,7 @@ vector<double> RobotController::convertEulertoQuat(double rotX, double rotY, dou
     double cy = cos(rotY/2);
     double cz = cos(rotZ/2);
 
-    vector<double> quat(4);
+    std::vector<double> quat(4);
     //XYZ rotation sequence
     quat[0] =  sx * cy * cz + sy * sz * cx; //x
     quat[1] =  -sx * sz * cy + sy * cx * cz; //y
@@ -6959,12 +6959,12 @@ vector<double> RobotController::convertEulertoQuat(double rotX, double rotY, dou
 }
 
 //Compute quaternion hamilton product
-vector<double> RobotController::compute_QuatHProd(vector<double> q1, vector<double> q2)
+std::vector<double> RobotController::compute_QuatHProd(std::vector<double> q1, std::vector<double> q2)
 {
     //q = (x,y,z,w)
 
     //Compute Hamilton product of quaternions 'q1' and 'q2'.
-    vector<double> quat_prod(4);
+    std::vector<double> quat_prod(4);
 
 //    quat_prod[0] = q1[4]*q2[3] + q1[3]*q2[4] + q1[2]*q2[1] - q1[1]*q2[2];  //x
 //    quat_prod[1] = q1[4]*q2[2] - q1[3]*q2[1] + q1[2]*q2[4] + q1[1]*q2[3];  //y
@@ -6986,9 +6986,9 @@ vector<double> RobotController::compute_QuatHProd(vector<double> q1, vector<doub
 }
 
 //Compute inverse of quaternion
-vector<double> RobotController::compute_QuadInv(vector<double> quat)
+std::vector<double> RobotController::compute_QuadInv(std::vector<double> quat)
 {
-    vector<double> quat_inv(4);
+    std::vector<double> quat_inv(4);
     quat_inv[0] = -quat[0];
     quat_inv[1] = -quat[1];
     quat_inv[2] = -quat[2];
@@ -6999,7 +6999,7 @@ vector<double> RobotController::compute_QuadInv(vector<double> quat)
 }
 
 //Compute norm of a vector
-double RobotController::getVectorNorm(vector<double> vec)
+double RobotController::getVectorNorm(std::vector<double> vec)
 {
     double sum_squares = 0.0;
     for(int i = 0 ; i < vec.size() ; i++)
@@ -7013,7 +7013,7 @@ double RobotController::getVectorNorm(vector<double> vec)
 
 
 //Compute largest value stored in a vector
-double RobotController::getLargestValueFromVector(vector<double> vec)
+double RobotController::getLargestValueFromVector(std::vector<double> vec)
 {
     double val = 0.0;
 
@@ -7031,7 +7031,7 @@ double RobotController::getLargestValueFromVector(vector<double> vec)
 
 
 //Compute euclidean distance between two configurations
-double RobotController::compute_euclidean_config_distance(vector<double> conf_start, vector<double> conf_end)
+double RobotController::compute_euclidean_config_distance(std::vector<double> conf_start, std::vector<double> conf_end)
 {
     //Euclidean distance to be returned
     double eucl_dist = 0.0;
@@ -7042,7 +7042,7 @@ double RobotController::compute_euclidean_config_distance(vector<double> conf_st
 
 
     //Distance Vector between two configurations
-    vector<double> distance_vec(conf_start.size());
+    std::vector<double> distance_vec(conf_start.size());
 
     //Sum of the error square
     double sum_error_sq = 0.0;
@@ -7079,7 +7079,7 @@ double RobotController::compute_euclidean_config_distance(vector<double> conf_st
 }
 
 
-Eigen::MatrixXf RobotController::getTaskFrameJacobian(KDL::Chain kin_chain, vector<double> retract_conf, KDL::Frame task_frame)
+Eigen::MatrixXf RobotController::getTaskFrameJacobian(KDL::Chain kin_chain, std::vector<double> retract_conf, KDL::Frame task_frame)
 {
     //Task frame jacobian to be returned by the function (6 = dimension of task space)
     Eigen::MatrixXf eigen_task_frame_jac(6,num_joints_);
@@ -7156,7 +7156,7 @@ bool RobotController::run_J_vdls_Target_Tracking(bool show_motion)
     //Null Space of the Jacobian (arm_chain)
     double **null_space_projector;
     //Value of the JL-Gradient function (to be used in the control loop)
-    vector<double> jl_grad_func_val(num_joints_);
+    std::vector<double> jl_grad_func_val(num_joints_);
 
 
     //Variables for variable damping with DLS (based on manipulability analysis)
@@ -7167,7 +7167,7 @@ bool RobotController::run_J_vdls_Target_Tracking(bool show_motion)
 
 
     //Get EE pose
-    vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
+    std::vector<double> current_ee_pose = RobotModel->compute_FK(kin_chain_,current_config_);
 
     //Store current endeffector pose
     ee_poses_.push_back(current_ee_pose);
@@ -7284,8 +7284,8 @@ bool RobotController::run_J_vdls_Target_Tracking(bool show_motion)
 
 
     //++++++ Show Motion
-    if(show_motion == 1)
-        show_ik_intermediate_config(sleep_duration_between_confs_);
+    //if(show_motion == 1)
+    //    show_ik_intermediate_config(sleep_duration_between_confs_);
 
 
 

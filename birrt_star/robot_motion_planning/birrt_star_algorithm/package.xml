@@ -22,6 +22,10 @@
   <build_depend>octomap</build_depend>
   <build_depend>octomap_msgs</build_depend>
   <build_depend>octomap_server</build_depend>
+  <build_depend>visualization_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>moveit_core</build_depend>
+  <build_depend>tf</build_depend>
 
   <run_depend>kuka_motion_control</run_depend>
   <run_depend>planner_data_structures</run_depend>
@@ -35,5 +39,9 @@
   <run_depend>octomap</run_depend>
   <run_depend>octomap_msgs</run_depend>
   <run_depend>octomap_server</run_depend>
+  <run_depend>visualization_msgs</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>moveit_core</run_depend>
+  <run_depend>tf</run_depend>
 
 </package>

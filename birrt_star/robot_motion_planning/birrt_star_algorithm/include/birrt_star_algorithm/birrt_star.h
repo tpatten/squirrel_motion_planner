@@ -13,6 +13,11 @@
 #include <kuka_motion_control/control_laws.h>
 #include <planning_heuristics/distance_heuristics.h>
 #include <birrt_star_algorithm/collision_checker.hpp>
+#include <visualization_msgs/MarkerArray.h>
+#include <sensor_msgs/JointState.h>
+#include <moveit/robot_model_loader/robot_model_loader.h>
+#include <tf/tf.h>
+#include <tf/transform_listener.h>
 
 namespace birrt_star_motion_planning
 {
@@ -399,7 +404,7 @@ private:
   //++ Planning with Attached Objects ++
 
   //Attached object
-  moveit_msgs::AttachedCollisionObject m_attached_object;
+  //moveit_msgs::AttachedCollisionObject m_attached_object;
 
   // ++ RRT* Tree visualization ++
 

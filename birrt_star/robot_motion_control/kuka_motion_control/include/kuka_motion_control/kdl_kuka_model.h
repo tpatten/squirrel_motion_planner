@@ -7,6 +7,10 @@
 
 
 #include <ros/ros.h>
+#include <ros/package.h>
+#include <visualization_msgs/Marker.h>
+#include <iostream>
+#include <fstream>
 
 #include <kdl_parser/kdl_parser.hpp>
 #include <kdl/frames.hpp>
@@ -25,7 +29,7 @@
 //#include <kdl/utilities/svd_eigen_HH.hpp>
 //#include <Eigen/SVD>
 
-#include <moveit/planning_scene_monitor/planning_scene_monitor.h>
+//#include <moveit/planning_scene_monitor/planning_scene_monitor.h>
 #include <srdfdom/model.h>
 
 #ifndef KDL_KUKA_MODEL_H_
@@ -94,7 +98,7 @@ class KDLRobotModel
   double getDistanceToJointLimits(string joint_name, double q_val);
 
   //Show configuration of kinematic chain(s) in planning scene
-  bool showConfig(vector<KDL::Chain> kin_chains, vector<KDL::JntArray> config_chains, double sleep_duration);
+  //bool showConfig(vector<KDL::Chain> kin_chains, vector<KDL::JntArray> config_chains, double sleep_duration);
 
   //Show endeffector trace in planning scene (RViz) with limited number of trace points
   void show_ee_trace(vector<double> curr_pose_vec, vector<double> color_rgb, int max_traj_points);
@@ -163,7 +167,7 @@ class KDLRobotModel
 
 
   //Planning Scene Monitor
-  boost::shared_ptr<planning_scene::PlanningScene> p_s_;
+  //boost::shared_ptr<planning_scene::PlanningScene> p_s_;
 
   //Planning Scene Publisher
   ros::Publisher scene_pub_;

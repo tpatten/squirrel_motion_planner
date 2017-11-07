@@ -7,6 +7,7 @@
 
 
 #include <ros/ros.h>
+#include <ros/package.h>
 #include <kuka_motion_control//kdl_kuka_model.h>
 #include <kuka_motion_control/control_laws.h>
 
