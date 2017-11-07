@@ -17,16 +17,11 @@ find_package(catkin REQUIRED COMPONENTS
   octomap_server
   kdl_parser
   fcl
-  dynamic_reconfigure
 )
 
 find_package(octomap REQUIRED)
 
 find_package(orocos_kdl REQUIRED)
-
-generate_dynamic_reconfigure_options(
-  config/RobotinoPose.cfg
-)
 
 
 catkin_package(
