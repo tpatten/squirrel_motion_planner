@@ -1,1 +1,0 @@
-float64[] array1d_double
