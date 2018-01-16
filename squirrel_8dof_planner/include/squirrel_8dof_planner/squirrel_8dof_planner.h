@@ -122,6 +122,11 @@ class Planner
   birrt_star_motion_planning::BiRRTstarPlanner birrtStarPlanner;     ///< Instance of the 8dof BiRRT* planner.
   Int birrtStarPlanningNumber;     ///< The current planning number of the BiRRT* planner; increases by 1 after every planning attempt.
 
+  /*
+   * Transforms
+   */
+  tf::TransformListener tfListener;
+
 public:
 
   /**

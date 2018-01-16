@@ -321,6 +321,8 @@ void Planner::subscriberPoseHandler(const sensor_msgs::JointState &msg)
     else if (msg.name[i] == "base_jointz")
       poseCurrent[2] = msg.position[i];
   }
+
+  // Now transform the base to the map frame
 }
 
 bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequest &req, squirrel_motion_planner_msgs::PlanPoseResponse &res)
