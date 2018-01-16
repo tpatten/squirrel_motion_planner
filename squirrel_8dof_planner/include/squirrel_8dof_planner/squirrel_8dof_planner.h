@@ -126,6 +126,7 @@ class Planner
    * Transforms
    */
   tf::TransformListener tfListener;
+  Tuple3D transformBase(const std::string &sourceFrame, const std::string &targetFrame, const Tuple3D &basePose);
 
 public:
 

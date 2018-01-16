@@ -205,7 +205,7 @@ void Planner::publish2DPath() const
 
   nav_msgs::Path msg;
 
-  msg.header.frame_id = "map";
+  msg.header.frame_id = "map";  // Shouldn't this be odom??
   msg.header.seq = 0;
 
   geometry_msgs::PoseStamped poseStamped;
@@ -289,11 +289,25 @@ void Planner::publishTrajectoryController()
   msg.joint_names[7] = "arm_joint5";
   msg.points.resize(posesTrajectoryNormalized.size());
 
-  ros::Duration time(0.0);
+  // Transform the base positions to odom commands
+  Trajectory controllerTrajectory = posesTrajectoryNormalized;
+  Tuple3D transformedPose;
   for (UInt i = 0; i < posesTrajectoryNormalized.size(); ++i)
   {
+    transformedPose = transformBase("/map", "/odom",
+                                    Tuple3D(controllerTrajectory[i][0],
+                                            controllerTrajectory[i][1],
+                                            controllerTrajectory[i][2]));
+    controllerTrajectory[i][0] = transformedPose.x;
+    controllerTrajectory[i][1] = transformedPose.y;
+    controllerTrajectory[i][2] = transformedPose.z;
+  }
+
+  ros::Duration time(0.0);
+  for (UInt i = 0; i < controllerTrajectory.size(); ++i)
+  {
     time += ros::Duration(timeBetweenPoses);
-    msg.points[i].positions = posesTrajectoryNormalized[i];
+    msg.points[i].positions = controllerTrajectory[i];
     msg.points[i].time_from_start = time;
   }
 
@@ -322,7 +336,14 @@ void Planner::subscriberPoseHandler(const sensor_msgs::JointState &msg)
       poseCurrent[2] = msg.position[i];
   }
 
-  // Now transform the base to the map frame
+  // Transform the position to map
+  //Tuple3D baseInMap = transformBase(msg.header.frame_id, "/map", Tuple3D(poseCurrent[0], poseCurrent[1], poseCurrent[2]));
+  Tuple3D baseInMap = transformBase("/odom", "/map", Tuple3D(poseCurrent[0], poseCurrent[1], poseCurrent[2]));
+  //std::cout << "Transformed from: " << poseCurrent[0] << " " << poseCurrent[1] << " " << poseCurrent[2] << " to "
+  //          << baseInMap.x << " " << baseInMap.y << " " << baseInMap.z << std::endl;
+  poseCurrent[0] = baseInMap.x;
+  poseCurrent[1] = baseInMap.y;
+  poseCurrent[2] = baseInMap.z;
 }
 
 bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequest &req, squirrel_motion_planner_msgs::PlanPoseResponse &res)
@@ -419,21 +440,21 @@ bool Planner::serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanE
     ROS_ERROR("COMBINED 2DOF AND 8DOF PLANNING NOT IMPLEMENTED!");
     return false;
 
-    createOccupancyMapFromOctomap();
-    inflateOccupancyMap();
-    createAStarNodesMap();
+//    createOccupancyMapFromOctomap();
+//    inflateOccupancyMap();
+//    createAStarNodesMap();
 
-    if (!findTrajectory2D())
-    {
-      res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_2DOF_PLANNING;
-      return true;
-    }
+//    if (!findTrajectory2D())
+//    {
+//      res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_2DOF_PLANNING;
+//      return true;
+//    }
 
-    if (!findTrajectory8D(posesTrajectory.back(), poseGoal, req.max_planning_time))
-    {
-      res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_8DOF_PLANNING;
-      return true;
-    }
+//    if (!findTrajectory8D(posesTrajectory.back(), poseGoal, req.max_planning_time))
+//    {
+//      res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_8DOF_PLANNING;
+//      return true;
+//    }
   }
   else
   {
@@ -1001,6 +1022,19 @@ bool Planner::findTrajectory8D(const Pose &poseStart, const Pose &poseGoal, cons
   for (UInt i = 0; i < trajectoryBirrtStar.size(); ++i)
     posesTrajectory.push_back(trajectoryBirrtStar[i]);
 
+//  // Transform the base positions
+//  Tuple3D transformedPose;
+//  for (UInt i = 0; i < posesTrajectory.size(); ++i)
+//  {
+//    transformedPose = transformBase("/map", "/odom",
+//                                    Tuple3D(posesTrajectory[i][0],
+//                                            posesTrajectory[i][1],
+//                                            posesTrajectory[i][2]));
+//    posesTrajectory[i][0] = transformedPose.x;
+//    posesTrajectory[i][1] = transformedPose.y;
+//    posesTrajectory[i][2] = transformedPose.z;
+//  }
+
   ++birrtStarPlanningNumber;
   return true;
 }
@@ -1386,6 +1420,57 @@ Tuple3D Planner::getEndEffectorDirection(const Pose &poseEndEffector)
 
  return Tuple3D(axis[0], axis[1], axis[2]);
 }
+
+Tuple3D Planner::transformBase(const std::string &sourceFrame, const std::string &targetFrame, const Tuple3D &basePose)
+{
+  // Get the orientation as a quaternion
+  tf::Matrix3x3 ypr;
+  ypr.setEulerYPR(basePose.z, 0.0, 0.0);
+  tf::Quaternion quat;
+  ypr.getRotation(quat);
+
+  // Create a geometry_msgs::PoseStamped for the transform
+  geometry_msgs::PoseStamped poseSource;
+  poseSource.header.frame_id = sourceFrame;
+  poseSource.pose.position.x = basePose.x;
+  poseSource.pose.position.y = basePose.y;
+  poseSource.pose.position.z = 0.0;
+  poseSource.pose.orientation.x = quat.getX();
+  poseSource.pose.orientation.y = quat.getY();
+  poseSource.pose.orientation.z = quat.getZ();
+  poseSource.pose.orientation.w = quat.getW();
+
+  // Transform using the listerner
+  ros::Time commonTime;
+  std::string* error;
+  geometry_msgs::PoseStamped poseTarget;
+  try
+  {
+    tfListener.getLatestCommonTime(sourceFrame, targetFrame, commonTime, error);
+    poseSource.header.stamp = commonTime;
+    tfListener.transformPose(targetFrame, poseSource, poseTarget);
+  }
+  catch(tf::TransformException ex)
+  {
+    // Error occured!
+    ROS_ERROR("Tf listener exception thrown with message '%s'", ex.what());
+    ros::Duration(1.0).sleep();
+    // Need to set poseCurrent to something invalid that would prevent planning
+    return Tuple3D(-1000, -1000, -1000);
+  }
+
+  // Get the yaw
+  tf::Matrix3x3 mat(tf::Quaternion(poseTarget.pose.orientation.x,
+                                   poseTarget.pose.orientation.y,
+                                   poseTarget.pose.orientation.z,
+                                   poseTarget.pose.orientation.w) );
+  double roll, pitch, yaw;
+  mat.getEulerYPR(yaw, pitch, roll);
+
+  // Return the values
+  return Tuple3D(poseTarget.pose.position.x, poseTarget.pose.position.y, yaw);
+}
+
 
 // ******************** INLINES ********************
 
