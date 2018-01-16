@@ -35,6 +35,9 @@
 #include <octomap_server/OctomapServer.h>
 #include <squirrel_8dof_planner/squirrel_8dof_planner_structures.hpp>
 
+#define PLANNING_FRAME_ "map"
+#define CONTROLLER_FRAME_ "odom"
+
 
 namespace SquirrelMotionPlanner
 {
@@ -126,7 +129,7 @@ class Planner
    * Transforms
    */
   tf::TransformListener tfListener;
-  Tuple3D transformBase(const std::string &sourceFrame, const std::string &targetFrame, const Tuple3D &basePose);
+  Pose transformBase(const std::string &sourceFrame, const std::string &targetFrame, const Pose &pose) const;
 
 public:
 

@@ -50,7 +50,8 @@
 
   <node name="octomap_server_node" pkg="octomap_server" type="octomap_server_node" args="$(find squirrel_8dof_planner)/config/$(arg world_name).ot"/>
   
-  <node name="static_transform_publisher_octomap" pkg="tf" type="static_transform_publisher" args="0.1 0.5 0.0 0.5 0.0 0.0 map odom 10"/>
+  <!--node name="static_transform_publisher_octomap" pkg="tf" type="static_transform_publisher" args="0.1 0.5 0.0 0.5 0.0 0.0 map odom 10"/-->
+  <node name="static_transform_publisher_octomap" pkg="tf" type="static_transform_publisher" args="0.0 0.0 0.0 0.0 0.0 0.0 map odom 10"/>
 
   <!-- start joypad controller -->
   <group if="$(arg joypad)">
