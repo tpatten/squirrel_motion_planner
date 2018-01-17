@@ -291,22 +291,15 @@ void Planner::publishTrajectoryController()
 
   // Transform the base positions to odom commands
   Trajectory controllerTrajectory = posesTrajectoryNormalized;
-//  Pose originalPose, transformedPose;
-//  originalPose.resize(3);
-//  for (UInt i = 0; i < controllerTrajectory.size(); ++i)
-//  {
-//    transformedPose = transformBase(PLANNING_FRAME_, CONTROLLER_FRAME_, posesTrajectoryNormalized[i]);
-//    std::cout << i << " " << controllerTrajectory[i][0] << " " << controllerTrajectory[i][1] << " " << controllerTrajectory[i][2] << " -> "
-//              << transformedPose[0] << " " << transformedPose[1] << " " << transformedPose[2] << std::endl;
-//    controllerTrajectory[i] = transformedPose;
-////    originalPose[0] = posesTrajectoryNormalized[i][0];
-////    originalPose[1] = posesTrajectoryNormalized[i][1];
-////    originalPose[2] = posesTrajectoryNormalized[i][2];
-////    transformedPose = transformBase(PLANNING_FRAME_, CONTROLLER_FRAME_, originalPose);
-////    controllerTrajectory[i][0] = transformedPose[0];
-////    controllerTrajectory[i][1] = transformedPose[1];
-////    controllerTrajectory[i][2] = transformedPose[2];
-//  }
+  Pose originalPose, transformedPose;
+  originalPose.resize(3);
+  for (UInt i = 0; i < controllerTrajectory.size(); ++i)
+  {
+    transformedPose = transformBase(PLANNING_FRAME_, CONTROLLER_FRAME_, posesTrajectoryNormalized[i]);
+    //std::cout << i << " " << controllerTrajectory[i][0] << " " << controllerTrajectory[i][1] << " " << controllerTrajectory[i][2] << " -> "
+    //          << transformedPose[0] << " " << transformedPose[1] << " " << transformedPose[2] << std::endl;
+    controllerTrajectory[i] = transformedPose;
+  }
 
   ros::Duration time(0.0);
   for (UInt i = 0; i < controllerTrajectory.size(); ++i)
