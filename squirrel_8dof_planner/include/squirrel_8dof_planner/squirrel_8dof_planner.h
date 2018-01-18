@@ -35,6 +35,9 @@
 #include <octomap_server/OctomapServer.h>
 #include <squirrel_8dof_planner/squirrel_8dof_planner_structures.hpp>
 
+#define PLANNING_FRAME_ "map"
+#define CONTROLLER_FRAME_ "odom"
+
 
 namespace SquirrelMotionPlanner
 {
@@ -121,6 +124,12 @@ class Planner
    */
   birrt_star_motion_planning::BiRRTstarPlanner birrtStarPlanner;     ///< Instance of the 8dof BiRRT* planner.
   Int birrtStarPlanningNumber;     ///< The current planning number of the BiRRT* planner; increases by 1 after every planning attempt.
+
+  /*
+   * Transforms
+   */
+  tf::TransformListener tfListener;
+  Pose transformBase(const std::string &sourceFrame, const std::string &targetFrame, const Pose &pose) const;
 
 public:
 
