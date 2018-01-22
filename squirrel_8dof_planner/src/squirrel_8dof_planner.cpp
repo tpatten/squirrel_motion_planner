@@ -337,6 +337,7 @@ void Planner::subscriberPoseHandler(const sensor_msgs::JointState &msg)
   // Transform the position to map
   Pose poseInMap = transformBase(CONTROLLER_FRAME_, PLANNING_FRAME_, poseCurrent);
   poseCurrent = poseInMap;
+  //std::cout << poseCurrent[0] << "  " << poseCurrent[1] << " " << poseCurrent[2] << std::endl;
 }
 
 bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequest &req, squirrel_motion_planner_msgs::PlanPoseResponse &res)
@@ -634,6 +635,7 @@ bool Planner::serviceCallbackFoldArm(squirrel_motion_planner_msgs::FoldArmReques
     for (Trajectory::reverse_iterator it = posesFolding.rbegin() + 1; it != posesFolding.rend(); ++it)
     {
       copyArmToRobotPose(*it, poseTmp);
+      //std::cout << poseTmp[0] << " " << poseTmp[1] << " " << poseTmp[2] << std::endl;
       if (!birrtStarPlanner.isConfigValid(poseTmp, checkSelfCollision, checkMapCollision))
       {
         res.result = squirrel_motion_planner_msgs::FoldArmResponse::COLLISION_FOLDING;
@@ -648,6 +650,7 @@ bool Planner::serviceCallbackFoldArm(squirrel_motion_planner_msgs::FoldArmReques
     for (Trajectory::reverse_iterator it = posesFolding.rbegin(); it != posesFolding.rend(); ++it)
     {
       copyArmToRobotPose(*it, poseTmp);
+      //std::cout << poseTmp[0] << " " << poseTmp[1] << " " << poseTmp[2] << std::endl;
       if (!birrtStarPlanner.isConfigValid(poseTmp, checkSelfCollision, checkMapCollision))
       {
         res.result = squirrel_motion_planner_msgs::FoldArmResponse::COLLISION_FOLDING;
