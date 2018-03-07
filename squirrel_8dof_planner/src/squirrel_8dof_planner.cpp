@@ -65,9 +65,6 @@ void Planner::initializeParameters()
   else
     ROS_ERROR("Parameter list 'trajectory_folding_arm' is not divisible by 5. Folding arm trajectory has not been loaded.");
 
-
-
-
   loadParameter("time_between_poses", timeBetweenPoses, 1.0);
   loadParameter("occupancy_height_min", mapMinZ, 0.0);
   loadParameter("occupancy_height_max", mapMaxZ, 2.0);
@@ -912,11 +909,11 @@ int Planner::findGoalPose(const Pose &poseEndEffector)
   {
     dist = 0.44;
 
-      poseInitializer[3] = -0.8;
-      poseInitializer[4] = 0.8;
-      poseInitializer[5] = 0.0;
-      poseInitializer[6] = -1.5;
-      poseInitializer[7] = 0.0;
+    poseInitializer[3] = -0.8;
+    poseInitializer[4] = 0.8;
+    poseInitializer[5] = 0.0;
+    poseInitializer[6] = -1.5;
+    poseInitializer[7] = 0.0;
   }
   else
   {
@@ -929,10 +926,17 @@ int Planner::findGoalPose(const Pose &poseEndEffector)
     poseInitializer[7] = -1.5;
   }
 
-  Real angle = 0.0;
+  const Real poseToGoalX = poseEndEffector[0] - poseCurrent[0];
+  const Real poseToGoalY = poseEndEffector[1] - poseCurrent[1];
+  const Real startingAngle =
+      poseToGoalY > 0 ? acos(poseToGoalX / sqrt(pow(poseToGoalX, 2) + pow(poseToGoalY, 2))) :
+          -acos(poseToGoalX / sqrt(pow(poseToGoalX, 2) + pow(poseToGoalY, 2)));
+
   bool foundSinglePose = false;
-  while (angle < 2 * M_PI)
+  Real angleDiff = 0.0;
+  while (fabs(angleDiff) < M_PI)
   {
+    const Real angle = startingAngle + angleDiff;
     poseInitializer[0] = poseEndEffector[0] - dist * cos(angle);
     poseInitializer[1] = poseEndEffector[1] - dist * sin(angle);
     poseInitializer[2] = isDownward ? angle + 0.99 : angle + 0.99;
@@ -947,7 +951,9 @@ int Planner::findGoalPose(const Pose &poseEndEffector)
       }
     }
 
-    angle += 0.5;
+    angleDiff *= -1;
+    if (angleDiff >= 0.0)
+      angleDiff += 0.5;
   }
 
   poseGoal.clear();
@@ -1363,26 +1369,26 @@ void Planner::normalizeTrajectory(const Trajectory &trajectory, Trajectory &traj
 
 Tuple3D Planner::getEndEffectorDirection(const Pose &poseEndEffector)
 {
- tf::StampedTransform transform;
- transform.frame_id_ = "zero";
- transform.child_frame_id_ = "pose_goal_end_effector";
- transform.stamp_ = ros::Time::now();
- transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
- tf::Quaternion quaternion;
- quaternion.setRPY(poseEndEffector[3], poseEndEffector[4], poseEndEffector[5]);
- transform.setRotation(quaternion);
- transformer.setTransform(transform);
+  tf::StampedTransform transform;
+  transform.frame_id_ = "zero";
+  transform.child_frame_id_ = "pose_goal_end_effector";
+  transform.stamp_ = ros::Time::now();
+  transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
+  tf::Quaternion quaternion;
+  quaternion.setRPY(poseEndEffector[3], poseEndEffector[4], poseEndEffector[5]);
+  transform.setRotation(quaternion);
+  transformer.setTransform(transform);
 
- tf::Stamped<tf::Vector3> axisOrig, axis;
- axisOrig[0] = 0.0;
- axisOrig[1] = 1.0;
- axisOrig[2] = 0.0;
- axisOrig.frame_id_ = "pose_goal_end_effector";
- axisOrig.stamp_ = ros::Time(0.0);
- axis.stamp_ = ros::Time(0.0);
- transformer.transformVector("zero", axisOrig, axis);
+  tf::Stamped<tf::Vector3> axisOrig, axis;
+  axisOrig[0] = 0.0;
+  axisOrig[1] = 1.0;
+  axisOrig[2] = 0.0;
+  axisOrig.frame_id_ = "pose_goal_end_effector";
+  axisOrig.stamp_ = ros::Time(0.0);
+  axis.stamp_ = ros::Time(0.0);
+  transformer.transformVector("zero", axisOrig, axis);
 
- return Tuple3D(axis[0], axis[1], axis[2]);
+  return Tuple3D(axis[0], axis[1], axis[2]);
 }
 
 // ******************** INLINES ********************
