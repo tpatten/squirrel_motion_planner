@@ -952,6 +952,7 @@ int Planner::findGoalPose(const Pose &poseEndEffector)
     }
 
     angleDiff *= -1;
+    angleDiff += 0.0;
     if (angleDiff >= 0.0)
       angleDiff += 0.5;
   }
