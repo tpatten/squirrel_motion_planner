@@ -146,6 +146,7 @@ private:
     if (!initializeFCL())
       return false;
 
+    checkAllOcotmapLinkCollisions = true;
     findSelfCollisionPairs();
 
     return true;
