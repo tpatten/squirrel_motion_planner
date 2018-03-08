@@ -337,6 +337,7 @@ bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequ
     return true;
   }
 
+  birrtStarPlanner.setDisabledLinkMapCollisions(req.disabled_octomap_link_collision);
   poseGoal = req.joints;
   posesTrajectory.clear();
 
@@ -396,6 +397,7 @@ bool Planner::serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanE
     return true;
   }
 
+  birrtStarPlanner.setDisabledLinkMapCollisions(req.disabled_octomap_link_collision);
   int goalPoseResult = findGoalPose(req.positions);
   if (goalPoseResult == 1)
   {
@@ -458,6 +460,7 @@ bool Planner::serviceCallbackGoalMarker(squirrel_motion_planner_msgs::PlanEndEff
     return true;
   }
 
+  birrtStarPlanner.setDisabledLinkMapCollisions(req.disabled_octomap_link_collision);
   int goalPoseResult = findGoalPose(poseInteractiveMarker);
   if (goalPoseResult == 1)
   {
@@ -540,6 +543,7 @@ bool Planner::serviceCallbackFoldArm(squirrel_motion_planner_msgs::FoldArmReques
     return true;
   }
 
+  birrtStarPlanner.setDisabledLinkMapCollisions(req.disabled_octomap_link_collision);
   posesTrajectoryNormalized.clear();
 
   if (!isArmStretched())
@@ -608,6 +612,7 @@ bool Planner::serviceCallbackUnfoldArm(squirrel_motion_planner_msgs::UnfoldArmRe
     return true;
   }
 
+  birrtStarPlanner.setDisabledLinkMapCollisions(req.disabled_octomap_link_collision);
   posesTrajectoryNormalized.clear();
   Pose poseTmp = poseCurrent;
 

@@ -7,6 +7,7 @@
 #include <vector>
 #include <stdint.h>
 #include <map>
+#include <tuple>
 
 #include <ros/ros.h>
 #include <ros/package.h>
@@ -83,12 +84,25 @@ public:
     octomapCollisionObject->setTransform(fcl::Quaternion3f(1, 0, 0, 0), fcl::Vec3f(0, 0, -0.02));
   }
 
+  void setDisabledLinkMapCollisions(const std::vector<std::string> &links)
+  {
+    if (links.size() == 0 && octomapCollisionLinks.size() == links.size())
+      checkAllOcotmapLinkCollisions = true;
+    else
+    {
+      for (std::map<std::string, std::pair<Link*, bool> >::iterator it = octomapCollisionLinks.begin(); it != octomapCollisionLinks.end(); ++it)
+        it->second.second = true;
+      for (std::vector<std::string>::const_iterator it = links.begin(); it != links.end(); ++it)
+        octomapCollisionLinks[*it].second = false;
+    }
+  }
+
   bool isInCollision(const std::vector<Real> &jointPositions, const bool checkSelfCollision, const bool checkMapCollision)
   {
     if (!initialized)
       return true;
 
-    if(!checkSelfCollision && !checkMapCollision)
+    if (!checkSelfCollision && !checkMapCollision)
       return false;
 
     updateTransforms(jointPositions);
@@ -110,9 +124,10 @@ private:
   KDL::Tree kdlTree;
   std::vector<Real> jointPositions;
   std::vector<Link> links;
-  std::vector<Link*> octomapCollisionLinks;
 
   std::vector<std::pair<Link*, Link*> > selfCollisionPairs;
+  std::map<std::string, std::pair<Link*, bool> > octomapCollisionLinks;
+  bool checkAllOcotmapLinkCollisions;
 
   fcl::CollisionObject* octomapCollisionObject;
 
@@ -161,6 +176,7 @@ private:
     links.back().name = kdlTree.getRootSegment()->second.segment.getName();
     links.back().transform = KDL::Frame::Identity();
     links.back().transformToParent = KDL::Frame::Identity();
+    octomapCollisionLinks[links.back().name] = std::make_pair(&links.back(), true);
 
     expandTreeKDL(kdlTree.getRootSegment(), 0);
   }
@@ -335,10 +351,11 @@ private:
             selfCollisionPairs.push_back(std::make_pair(&links[i], &links[j]));
     }
 
-    std::cout << "Checking a total of " << selfCollisionPairs.size() << " self collision pairs." << std::endl;
+    std::cout << "Checking a total of " << selfCollisionPairs.size() << " self collision pairs and " << octomapCollisionLinks.size()
+        << " link collisions with the octomap." << std::endl;
   }
 
-  bool parseSRDF(const std::string &filePath, std::vector<std::pair<std::string, std::string> > &disabledPairs) const
+  bool parseSRDF(const std::string &filePath, std::vector<std::pair<std::string, std::string> > &disabledPairs)
   {
     std::ifstream file(filePath.c_str());
     if (!file.good())
@@ -351,7 +368,15 @@ private:
       {
         std::string link1, link2;
         getLinksFromString(line, link1, link2);
-        disabledPairs.push_back(std::make_pair(link1, link2));
+        if (link1 != "octomap" && link2 != "octomap")
+          disabledPairs.push_back(std::make_pair(link1, link2));
+        else
+        {
+          if (link1 == "octomap" && link2 == "octomap")
+            continue;
+
+          octomapCollisionLinks.erase(link1 == "octomap" ? link2 : link1);
+        }
       }
     }
 
@@ -432,22 +457,43 @@ private:
     if (!octomapCollisionObject)
       return false;
 
-    bool foundCollision = false;
-    for (std::vector<Link>::const_iterator it = links.begin(); it != links.end(); ++it)
+    if (checkAllOcotmapLinkCollisions)
     {
-      if (!it->collisionObject)
-        continue;
-      fcl::CollisionRequest request;
-      fcl::CollisionResult result;
-      fcl::collide(octomapCollisionObject, it->collisionObject, request, result);
-      if (result.isCollision())
+      for (std::vector<Link>::const_iterator it = links.begin(); it != links.end(); ++it)
       {
-        return true;
-        foundCollision = true;
-        std::cout << "Collision between '" << it->name << "' and 'octomap'." << std::endl;
+        if (!it->collisionObject)
+          continue;
+        fcl::CollisionRequest request;
+        fcl::CollisionResult result;
+        fcl::collide(octomapCollisionObject, it->collisionObject, request, result);
+        if (result.isCollision())
+        {
+          return true;
+        }
       }
+      return false;
     }
-    return foundCollision;
+    else
+    {
+      for (std::map<std::string, std::pair<Link*, bool> >::const_iterator it = octomapCollisionLinks.begin(); it != octomapCollisionLinks.end(); ++it)
+      {
+        if(!it->second.second)
+          continue;
+
+        const fcl::CollisionObject* collisionObject = it->second.first->collisionObject;
+
+        if (!collisionObject)
+          continue;
+        fcl::CollisionRequest request;
+        fcl::CollisionResult result;
+        fcl::collide(octomapCollisionObject, collisionObject, request, result);
+        if (result.isCollision())
+        {
+          return true;
+        }
+      }
+      return false;
+    }
   }
 };
 
