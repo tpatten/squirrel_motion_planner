@@ -84,16 +84,16 @@ public:
     octomapCollisionObject->setTransform(fcl::Quaternion3f(1, 0, 0, 0), fcl::Vec3f(0, 0, -0.02));
   }
 
-  void setDisabledLinkMapCollisions(const std::vector<std::string> &links)
+  void setDisabledLinkMapCollisions(const std::vector<std::string> &linksDisabled)
   {
-    if (links.size() == 0 && octomapCollisionLinks.size() == links.size())
+    if (linksDisabled.size() == 0 && octomapCollisionLinks.size() == links.size())
       checkAllOcotmapLinkCollisions = true;
     else
     {
       checkAllOcotmapLinkCollisions = false;
       for (std::map<std::string, std::pair<Link*, bool> >::iterator it = octomapCollisionLinks.begin(); it != octomapCollisionLinks.end(); ++it)
         it->second.second = true;
-      for (std::vector<std::string>::const_iterator it = links.begin(); it != links.end(); ++it)
+      for (std::vector<std::string>::const_iterator it = linksDisabled.begin(); it != linksDisabled.end(); ++it)
         octomapCollisionLinks[*it].second = false;
     }
   }
