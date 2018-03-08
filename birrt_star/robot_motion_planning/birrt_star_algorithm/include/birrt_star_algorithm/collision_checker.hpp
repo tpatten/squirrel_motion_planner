@@ -110,6 +110,7 @@ private:
   KDL::Tree kdlTree;
   std::vector<Real> jointPositions;
   std::vector<Link> links;
+  std::vector<Link*> octomapCollisionLinks;
 
   std::vector<std::pair<Link*, Link*> > selfCollisionPairs;
 
