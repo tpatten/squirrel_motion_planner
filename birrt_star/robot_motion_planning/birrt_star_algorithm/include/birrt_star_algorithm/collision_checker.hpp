@@ -90,6 +90,7 @@ public:
       checkAllOcotmapLinkCollisions = true;
     else
     {
+      checkAllOcotmapLinkCollisions = false;
       for (std::map<std::string, std::pair<Link*, bool> >::iterator it = octomapCollisionLinks.begin(); it != octomapCollisionLinks.end(); ++it)
         it->second.second = true;
       for (std::vector<std::string>::const_iterator it = links.begin(); it != links.end(); ++it)
