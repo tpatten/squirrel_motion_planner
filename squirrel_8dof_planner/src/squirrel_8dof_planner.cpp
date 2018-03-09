@@ -88,7 +88,9 @@ void Planner::initializeMessageHandling()
 
   std::string octomapServiceTopic;
   loadParameter("octomap_service_topic", octomapServiceTopic, "/octomap_full");
-  if(octomapServiceTopic[0] != '/')
+  if(octomapServiceTopic.size() == 0)
+    octomapServiceTopic = "/octomap_full";
+  else if(octomapServiceTopic[0] != '/')
     octomapServiceTopic = "/" + octomapServiceTopic;
   serviceClientOctomap = nh.serviceClient<octomap_msgs::GetOctomap>(octomapServiceTopic);
 
