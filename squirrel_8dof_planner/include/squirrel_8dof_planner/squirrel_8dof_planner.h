@@ -359,6 +359,16 @@ private:
    * @param member The member variable to which the parameter should be saved.
    * @param defaultValue The value member is set to in case the parameter could not be loaded.
    */
+  void loadParameter(const string &name, std::string &member, const std::string &defaultValue);
+
+
+  /**
+   * @brief Loads a parameter from the ROS parameter server and saves it to a member varible .
+   * If the parameter could not be found or has an invalid name the default value is used instead.
+   * @param name The name of the paramter to be loaded by the global node handle nh.
+   * @param member The member variable to which the parameter should be saved.
+   * @param defaultValue The value member is set to in case the parameter could not be loaded.
+   */
   void loadParameter(const string &name, std::vector<Real> &member, const std::vector<Real> &defaultValue);
 
   /**

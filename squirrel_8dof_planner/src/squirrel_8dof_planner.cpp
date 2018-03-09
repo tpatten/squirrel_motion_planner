@@ -86,7 +86,11 @@ void Planner::initializeMessageHandling()
   serviceServerGoalPose = nh.advertiseService("find_plan_pose", &Planner::serviceCallbackGoalPose, this);
   serviceServerGoalEndEffector = nh.advertiseService("find_plan_end_effector", &Planner::serviceCallbackGoalEndEffector, this);
 
-  serviceClientOctomap = nh.serviceClient<octomap_msgs::GetOctomap>("/octomap_full");
+  std::string octomapServiceTopic;
+  loadParameter("octomap_service_topic", octomapServiceTopic, "/octomap_full");
+  if(octomapServiceTopic[0] != '/')
+    octomapServiceTopic = "/" + octomapServiceTopic;
+  serviceClientOctomap = nh.serviceClient<octomap_msgs::GetOctomap>(octomapServiceTopic);
 
   publisherOctomap = nh.advertise<octomap_msgs::Octomap>("octomap_planning", 1);
   publisherOccupancyMap = nhPrivate.advertise<nav_msgs::OccupancyGrid>("occupancy_map", 1);
@@ -1412,6 +1416,23 @@ inline void Planner::loadParameter(const string &name, Real &member, const Real 
   catch (ros::InvalidNameException &ex)
   {
     ROS_ERROR("ROS parameter '%s' has an invalid format. Using the default value '%.4f' instead.", (nh.getNamespace() + "/" + name).c_str(), defaultValue);
+    member = defaultValue;
+  }
+}
+
+inline void Planner::loadParameter(const string &name, std::string &member, const std::string &defaultValue)
+{
+  try
+  {
+    if (!nh.getParam(name, member))
+    {
+      ROS_ERROR("Can't find ROS parameter '%s'. Using the default value '%s' instead.", (nh.getNamespace() + "/" + name).c_str(), defaultValue.c_str());
+      member = defaultValue;
+    }
+  }
+  catch (ros::InvalidNameException &ex)
+  {
+    ROS_ERROR("ROS parameter '%s' has an invalid format. Using the default value '%s' instead.", (nh.getNamespace() + "/" + name).c_str(), defaultValue.c_str());
     member = defaultValue;
   }
 }

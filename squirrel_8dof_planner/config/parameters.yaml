@@ -23,6 +23,9 @@ astar_final_smoothed_point_distance: 0.03
 #to avoid collisions between the arm and the floor
 floor_collision_distance: 3.0
 
+#service topic where the planner tries to get the octomap from
+octomap_service_topic: "/octomap_full"
+
 #appox. maximal distance (in m) to final base pose, from where actual 8dof planning starts
 distance_birrt_star_planning: 10.0
 
