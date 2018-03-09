@@ -108,10 +108,10 @@ public:
 
     updateTransforms(jointPositions);
 
-    if (checkSelfCollision && this->checkSelfCollision())
+    if (checkMapCollision && this->checkMapCollision())
       return true;
 
-    if (checkMapCollision && this->checkMapCollision())
+    if (checkSelfCollision && this->checkSelfCollision())
       return true;
 
     return false;
@@ -469,9 +469,7 @@ private:
         fcl::CollisionResult result;
         fcl::collide(octomapCollisionObject, it->collisionObject, request, result);
         if (result.isCollision())
-        {
           return true;
-        }
       }
       return false;
     }
@@ -490,9 +488,7 @@ private:
         fcl::CollisionResult result;
         fcl::collide(octomapCollisionObject, collisionObject, request, result);
         if (result.isCollision())
-        {
           return true;
-        }
       }
       return false;
     }
