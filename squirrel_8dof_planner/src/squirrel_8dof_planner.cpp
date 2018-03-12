@@ -316,6 +316,8 @@ void Planner::publishTrajectoryController()
   /*static float spinCorrection = 0.;
   for (UInt i = 1; i < controllerTrajectory.size(); ++i)
     controllerTrajectory[i][2] += spinCorrection;*/
+
+  /*
   for (UInt i = 1; i < controllerTrajectory.size(); ++i)
   {
     if ((controllerTrajectory[i][2] - controllerTrajectory[i-1][2]) > M_PI)
@@ -323,6 +325,7 @@ void Planner::publishTrajectoryController()
     else if ((controllerTrajectory[i][2] - controllerTrajectory[i-1][2]) < -M_PI)
       controllerTrajectory[i][2] += (2*M_PI);
   }
+  */
 
   ros::Duration time(0.0);
   for (UInt i = 0; i < controllerTrajectory.size(); ++i)
@@ -1105,6 +1108,7 @@ bool Planner::findTrajectory8D(const Pose &poseStart, const Pose &poseGoal, cons
   if (!birrtStarPlanner.init_planner(poseStart, poseGoal, 1, checkSelfCollision, checkMapCollision))
     return false;
 
+  ROS_INFO("Calling birrtStarPlanner.run_planner with planning time %.2f", maxPlanningTime);
   if (!birrtStarPlanner.run_planner(1, 1, maxPlanningTime, false, 0.0, birrtStarPlanningNumber))
     return false;
 
