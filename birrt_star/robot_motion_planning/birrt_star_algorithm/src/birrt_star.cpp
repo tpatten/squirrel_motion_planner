@@ -1078,11 +1078,12 @@ bool BiRRTstarPlanner::run_planner(int search_space, bool flag_iter_or_time, dou
   m_time_planning_start = m_timer.tv_sec + (m_timer.tv_usec / 1000000.0);
 
   //Start planning
+  std::cout << "[BiRRTstarPlanner::run_planner] Starting while loop" << std::endl;
   while (no_planning == false
       && ((flag_iter_or_time == 0 && m_executed_planner_iter < m_max_planner_iter) || (flag_iter_or_time == 1 && m_executed_planner_time < m_max_planner_time)))
   {
 
-    //cout<<"Current iter: "<<m_executed_planner_iter<<endl;
+    cout<<"Current iter: "<<m_executed_planner_iter<<endl;
 
     // -- CARTESIAN SPACE SEARCH
     if (search_space == 0)
@@ -1330,7 +1331,7 @@ bool BiRRTstarPlanner::run_planner(int search_space, bool flag_iter_or_time, dou
     //Stop when current solution path is close enough to theoretical optimal solution path (value stored in start and goal node)
     if ((m_cost_best_solution_path - m_start_tree.nodes[0].cost_h.total) < m_path_optimality_treshold)
     {
-      //cout<<"Optimal Path reached after iteration: "<<m_executed_planner_iter<<endl;
+      cout<<"Optimal Path reached after iteration: "<<m_executed_planner_iter<<endl;
       break;
     }
 
@@ -1341,53 +1342,52 @@ bool BiRRTstarPlanner::run_planner(int search_space, bool flag_iter_or_time, dou
   double time_planning_final = m_timer.tv_sec + (m_timer.tv_usec / 1000000.0);
   m_time_planning_end = time_planning_final - m_time_planning_start;
 
-//  cout << endl;
-//  cout << "****************** Planner Statistics **********************" << endl;
-//
-//  cout << "Planning performed for group: " << m_planning_group << endl << endl;
-//
-//  cout << "Planner result: " << (m_planner_success == 1 ? "success" : "failure") << endl;
-//
-//  //Generate output depending on whether max. iterations or plannig time has been set
-//  if (flag_iter_or_time == 0)
-//  {
-//    cout << "Planner performed: " << m_executed_planner_iter << " out of a maximum of: " << m_max_planner_iter << " iterations" << endl;
-//    cout << "Total Planning Time: " << m_executed_planner_time << " sec" << endl;
-//  }
-//  else
-//  {
-//    cout << "Planner run: " << m_executed_planner_time << "sec out of a maximum available time of: " << m_max_planner_time << "sec" << endl;
-//    cout << "Total Planning Iterations: " << m_executed_planner_iter << " iterations" << endl;
-//  }
-//
-//  cout << "Iterations required to find first Solution Path: " << m_first_solution_iter << endl;
-//  cout << "Time required to find first Solution Path: " << m_time_first_solution << " sec" << endl;
-//  cout << "Iterations required to find last Solution Path: " << m_last_solution_iter << endl;
-//  cout << "Time required to find last Solution Path: " << m_time_last_solution << " sec" << endl << endl;
-//
-//  cout << "Cost of Theoretical Optimal Solution Path (no coll.obj. and constraints): " << m_start_tree.nodes[0].cost_h.total << endl;
-//  cout << "Cost of Final Solution Path (Total): " << m_cost_best_solution_path << endl;
-//  cout << "Cost of Final Solution Path (Revolute): " << m_cost_best_solution_path_revolute << endl;
-//  cout << "Cost of Final Solution Path (Prismatic): " << m_cost_best_solution_path_prismatic << endl << endl;
-//
-//  cout << "Number of nodes generated (start tree): " << m_start_tree.num_nodes << endl;
-//  cout << "Number of nodes generated (goal tree): " << m_goal_tree.num_nodes << endl;
-//  cout << "Total number of nodes generated: " << m_start_tree.num_nodes + m_goal_tree.num_nodes << endl << endl;
-//
-//  cout << "Number of edges in the tree (start tree): " << m_start_tree.num_edges << endl;
-//  cout << "Number of edges in the tree (goal tree): " << m_goal_tree.num_edges << endl;
-//  cout << "Total number of edges in the trees: " << m_start_tree.num_edges + m_goal_tree.num_edges << endl << endl;
-//
-//  cout << "Number of rewire operations (start tree): " << m_start_tree.num_rewire_operations << endl;
-//  cout << "Number of rewire operations (goal tree): " << m_goal_tree.num_rewire_operations << endl;
-//  cout << "Total number of rewire operations : " << m_start_tree.num_rewire_operations + m_goal_tree.num_rewire_operations << endl;
-//
-//  cout << "************************************************************" << endl;
+  cout << endl;
+  cout << "****************** Planner Statistics **********************" << endl;
+  cout << "Planning performed for group: " << m_planning_group << endl << endl;
+  cout << "Planner result: " << (m_planner_success == 1 ? "success" : "failure") << endl;
+
+  //Generate output depending on whether max. iterations or plannig time has been set
+  if (flag_iter_or_time == 0)
+  {
+    cout << "Planner performed: " << m_executed_planner_iter << " out of a maximum of: " << m_max_planner_iter << " iterations" << endl;
+    cout << "Total Planning Time: " << m_executed_planner_time << " sec" << endl;
+  }
+  else
+  {
+    cout << "Planner run: " << m_executed_planner_time << "sec out of a maximum available time of: " << m_max_planner_time << "sec" << endl;
+    cout << "Total Planning Iterations: " << m_executed_planner_iter << " iterations" << endl;
+  }
+
+  cout << "Iterations required to find first Solution Path: " << m_first_solution_iter << endl;
+  cout << "Time required to find first Solution Path: " << m_time_first_solution << " sec" << endl;
+  cout << "Iterations required to find last Solution Path: " << m_last_solution_iter << endl;
+  cout << "Time required to find last Solution Path: " << m_time_last_solution << " sec" << endl << endl;
+
+  cout << "Cost of Theoretical Optimal Solution Path (no coll.obj. and constraints): " << m_start_tree.nodes[0].cost_h.total << endl;
+  cout << "Cost of Final Solution Path (Total): " << m_cost_best_solution_path << endl;
+  cout << "Cost of Final Solution Path (Revolute): " << m_cost_best_solution_path_revolute << endl;
+  cout << "Cost of Final Solution Path (Prismatic): " << m_cost_best_solution_path_prismatic << endl << endl;
+
+  cout << "Number of nodes generated (start tree): " << m_start_tree.num_nodes << endl;
+  cout << "Number of nodes generated (goal tree): " << m_goal_tree.num_nodes << endl;
+  cout << "Total number of nodes generated: " << m_start_tree.num_nodes + m_goal_tree.num_nodes << endl << endl;
+
+  cout << "Number of edges in the tree (start tree): " << m_start_tree.num_edges << endl;
+  cout << "Number of edges in the tree (goal tree): " << m_goal_tree.num_edges << endl;
+  cout << "Total number of edges in the trees: " << m_start_tree.num_edges + m_goal_tree.num_edges << endl << endl;
+
+  cout << "Number of rewire operations (start tree): " << m_start_tree.num_rewire_operations << endl;
+  cout << "Number of rewire operations (goal tree): " << m_goal_tree.num_rewire_operations << endl;
+  cout << "Total number of rewire operations : " << m_start_tree.num_rewire_operations + m_goal_tree.num_rewire_operations << endl;
+
+  cout << "************************************************************" << endl;
 
   //Consistency check
   no_two_parents_check(tree_A);
   no_two_parents_check(tree_B);
 
+  cout << "Computing final solution" << endl;
   if (m_solution_path_available == true)
   {
     //Compute Final joint and endeffector trajectory (and writes them to a file)

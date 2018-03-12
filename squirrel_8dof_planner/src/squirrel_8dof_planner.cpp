@@ -93,6 +93,7 @@ void Planner::initializeMessageHandling()
   else if(octomapServiceTopic[0] != '/')
     octomapServiceTopic = "/" + octomapServiceTopic;
   serviceClientOctomap = nh.serviceClient<octomap_msgs::GetOctomap>(octomapServiceTopic);
+  ROS_WARN("Getting octomap from topic %s", octomapServiceTopic.c_str());
 
   publisherOctomap = nh.advertise<octomap_msgs::Octomap>("octomap_planning", 1);
   publisherOccupancyMap = nhPrivate.advertise<nav_msgs::OccupancyGrid>("occupancy_map", 1);
@@ -311,13 +312,15 @@ void Planner::publishTrajectoryController()
   /*static float spinCorrection = 0.;
   for (UInt i = 1; i < controllerTrajectory.size(); ++i)
     controllerTrajectory[i][2] += spinCorrection;*/
+
+  /*
   for (UInt i = 1; i < controllerTrajectory.size(); ++i)
   {
     if ((controllerTrajectory[i][2] - controllerTrajectory[i-1][2]) > M_PI)
       controllerTrajectory[i][2] -= (2*M_PI);
     else if ((controllerTrajectory[i][2] - controllerTrajectory[i-1][2]) < -M_PI)
       controllerTrajectory[i][2] += (2*M_PI);
-  }
+  }*/
 
   ros::Duration time(0.0);
   for (UInt i = 0; i < controllerTrajectory.size(); ++i)
@@ -1036,6 +1039,7 @@ int Planner::findGoalPose(const Pose &poseEndEffector)
 
   bool foundSinglePose = false;
   Real angleDiff = 0.0;
+  std::cout << "Finding angleDiff" << std::endl;
   while (fabs(angleDiff) < M_PI)
   {
     const Real angle = startingAngle + angleDiff;
@@ -1058,6 +1062,7 @@ int Planner::findGoalPose(const Pose &poseEndEffector)
     if (angleDiff >= 0.0)
       angleDiff += 0.5;
   }
+  std::cout << "Found angleDiff" << std::endl;
 
   poseGoal.clear();
   if (foundSinglePose)
@@ -1100,6 +1105,7 @@ bool Planner::findTrajectory8D(const Pose &poseStart, const Pose &poseGoal, cons
   if (!birrtStarPlanner.init_planner(poseStart, poseGoal, 1, checkSelfCollision, checkMapCollision))
     return false;
 
+  std::cout << "Running birrtStarPlanner.run_planner() with planning time " << maxPlanningTime << std::endl;
   if (!birrtStarPlanner.run_planner(1, 1, maxPlanningTime, false, 0.0, birrtStarPlanningNumber))
     return false;
 
