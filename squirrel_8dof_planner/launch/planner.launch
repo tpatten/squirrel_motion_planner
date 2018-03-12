@@ -10,10 +10,10 @@
   <group ns="$(arg planning_ns)">
     <rosparam command="load" file="$(find squirrel_8dof_planner)/config/parameters.yaml" />
     <rosparam command="load" file="$(find squirrel_8dof_planner)/config/folding_poses_$(arg robot).yaml" />
-    <param name="robot_description" textfile="$(find squirrel_8dof_planner)/config/robotino_plan.urdf"/>
-    <param name="robot_description_semantic" textfile="$(find squirrel_8dof_planner)/config/robotino_plan.srdf"/>
-    <node name="squirrel_8dof_planner_node" pkg="squirrel_8dof_planner" type="squirrel_8dof_planner_node" output="screen"/>
-    <node name="squirrel_8dof_visualizer_node" pkg="squirrel_8dof_visualizer" type="squirrel_8dof_visualizer_node" output="screen"/>
+    <param name="robot_description" textfile="$(find squirrel_8dof_planner)/config/robotino_plan.urdf" />
+    <param name="robot_description_semantic" textfile="$(find squirrel_8dof_planner)/config/robotino_plan.srdf" />
+    <node name="squirrel_8dof_planner_node" pkg="squirrel_8dof_planner" type="squirrel_8dof_planner_node" output="screen" />
+    <node name="squirrel_8dof_visualizer_node" pkg="squirrel_8dof_visualizer" type="squirrel_8dof_visualizer_node" output="screen" />
   </group>
 
 </launch>

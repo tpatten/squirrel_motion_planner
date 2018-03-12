@@ -96,6 +96,8 @@ public:
 
   vector<vector<double> > &getJointTrajectoryRef();
 
+  void setDisabledLinkMapCollisions(const std::vector<std::string> &links);
+
   bool isEdgeValid(const Edge &tree_edge, bool check_self_collision, bool check_map_collision);
   bool isEdgeValid(const Edge &tree_edge, int &last_valid_node_idx, bool check_self_collision, bool check_map_collision);
 

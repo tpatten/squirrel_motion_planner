@@ -1649,33 +1649,33 @@ bool BiRRTstarPlanner::getFullPoseFromEEPose(const vector<double> &endEffectorPo
 //  double initPoseDev = 0.02;
 //  while (trial_counter < 1)
 //  {
-    //Output joint and endeffector trajectory from controller
-    vector<vector<double> > joint_trajectory;
-    vector<vector<double> > ee_trajectory;
+  //Output joint and endeffector trajectory from controller
+  vector<vector<double> > joint_trajectory;
+  vector<vector<double> > ee_trajectory;
 
-    //Get  random start config
-    //vector<double> configurationInit = sampleJointConfig_Vector(poseInit, initPoseDev);
+  //Get  random start config
+  //vector<double> configurationInit = sampleJointConfig_Vector(poseInit, initPoseDev);
 
-    //Set new random start config
-    m_RobotMotionController->setStartConf(poseInit);
+  //Set new random start config
+  m_RobotMotionController->setStartConf(poseInit);
 
-    //Set ee goal pose for numerical IK solver
-    //Note: "set_EE_goal_pose" needs to be called after "setStartConf" since this function also initializes the initial error
-    m_RobotMotionController->set_EE_goal_pose(goalEEPoseQuatOrient);
+  //Set ee goal pose for numerical IK solver
+  //Note: "set_EE_goal_pose" needs to be called after "setStartConf" since this function also initializes the initial error
+  m_RobotMotionController->set_EE_goal_pose(goalEEPoseQuatOrient);
 
-    //control loop execution
-    kuka_motion_controller::Status connector_state = m_RobotMotionController->run_VDLS_Control_Connector(1000, joint_trajectory, ee_trajectory, false, false);
+  //control loop execution
+  kuka_motion_controller::Status connector_state = m_RobotMotionController->run_VDLS_Control_Connector(1000, joint_trajectory, ee_trajectory, false, false);
 
-    //Perform collision check when pose has been reached
-    if (connector_state == kuka_motion_controller::REACHED)
-    {
-      poseSolution = joint_trajectory.back();
-      return true;
-    }
-    else
-    {
-      return false;
-    }
+  //Perform collision check when pose has been reached
+  if (connector_state == kuka_motion_controller::REACHED)
+  {
+    poseSolution = joint_trajectory.back();
+    return true;
+  }
+  else
+  {
+    return false;
+  }
 
 //    ++trial_counter;
 //    initPoseDev += 0.002;
@@ -6902,6 +6902,11 @@ bool BiRRTstarPlanner::isConfigValid(const KDL::JntArray& config, bool check_sel
     configStd[i] = config.data[i];
 
   return !collisionChecker->isInCollision(configStd, check_self_collision, check_map_collision);
+}
+
+void BiRRTstarPlanner::setDisabledLinkMapCollisions(const std::vector<std::string> &links)
+{
+  collisionChecker->setDisabledLinkMapCollisions(links);
 }
 
 } //end of namespace

@@ -65,9 +65,6 @@ void Planner::initializeParameters()
   else
     ROS_ERROR("Parameter list 'trajectory_folding_arm' is not divisible by 5. Folding arm trajectory has not been loaded.");
 
-
-
-
   loadParameter("time_between_poses", timeBetweenPoses, 1.0);
   loadParameter("occupancy_height_min", mapMinZ, 0.0);
   loadParameter("occupancy_height_max", mapMaxZ, 2.0);
@@ -76,6 +73,11 @@ void Planner::initializeParameters()
   loadParameter("astar_smoothing_factor", AStarPathSmoothingFactor, 2.0);
   loadParameter("astar_smoothing_distance", AStarPathSmoothingDistance, 0.2);
   loadParameter("astar_final_smoothed_point_distance", AStarPathSmoothedPointDistance, 0.02);
+  loadParameter("goal_pose_search_discretization", goalPoseSearchDiscretization, 20.0);
+  if(goalPoseSearchDiscretization < 1)
+    goalPoseSearchDiscretization = 1.0;
+  goalPoseSearchDiscretization *= M_PI / 180.0;
+
 }
 
 void Planner::initializeMessageHandling()
@@ -89,7 +91,13 @@ void Planner::initializeMessageHandling()
   serviceServerGoalPose = nh.advertiseService("find_plan_pose", &Planner::serviceCallbackGoalPose, this);
   serviceServerGoalEndEffector = nh.advertiseService("find_plan_end_effector", &Planner::serviceCallbackGoalEndEffector, this);
 
-  serviceClientOctomap = nh.serviceClient<octomap_msgs::GetOctomap>("/octomap_full");
+  std::string octomapServiceTopic;
+  loadParameter("octomap_service_topic", octomapServiceTopic, "/octomap_full");
+  if(octomapServiceTopic.size() == 0)
+    octomapServiceTopic = "/octomap_full";
+  else if(octomapServiceTopic[0] != '/')
+    octomapServiceTopic = "/" + octomapServiceTopic;
+  serviceClientOctomap = nh.serviceClient<octomap_msgs::GetOctomap>(octomapServiceTopic);
 
   publisherOctomap = nh.advertise<octomap_msgs::Octomap>("octomap_planning", 1);
   publisherOccupancyMap = nhPrivate.advertise<nav_msgs::OccupancyGrid>("occupancy_map", 1);
@@ -301,6 +309,21 @@ void Planner::publishTrajectoryController()
     controllerTrajectory[i] = transformedPose;
   }
 
+  // Avoid +pi -> -pi jumps (and vice versa) for base_jointz as this screws trajecrories and leads
+  // to weird 360 deg spinning for trajectories crossing the +pi/-pi border.
+  // This is because roscontrol can not know that for this joint +pi and -pi are the same and thus
+  // creates control commands to go from +pi to -pi
+  /*static float spinCorrection = 0.;
+  for (UInt i = 1; i < controllerTrajectory.size(); ++i)
+    controllerTrajectory[i][2] += spinCorrection;*/
+  for (UInt i = 1; i < controllerTrajectory.size(); ++i)
+  {
+    if ((controllerTrajectory[i][2] - controllerTrajectory[i-1][2]) > M_PI)
+      controllerTrajectory[i][2] -= (2*M_PI);
+    else if ((controllerTrajectory[i][2] - controllerTrajectory[i-1][2]) < -M_PI)
+      controllerTrajectory[i][2] += (2*M_PI);
+  }
+
   ros::Duration time(0.0);
   for (UInt i = 0; i < controllerTrajectory.size(); ++i)
   {
@@ -337,6 +360,7 @@ void Planner::subscriberPoseHandler(const sensor_msgs::JointState &msg)
   // Transform the position to map
   Pose poseInMap = transformBase(CONTROLLER_FRAME_, PLANNING_FRAME_, poseCurrent);
   poseCurrent = poseInMap;
+  //std::cout << poseCurrent[0] << "  " << poseCurrent[1] << " " << poseCurrent[2] << std::endl;
 }
 
 bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequest &req, squirrel_motion_planner_msgs::PlanPoseResponse &res)
@@ -356,6 +380,8 @@ bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequ
     return true;
   }
 
+  birrtStarPlanner.setDisabledLinkMapCollisions(req.disabled_octomap_link_collision);
+  
   // Check the frame of the goal
   if (req.frame_id.size() == 0)
   {
@@ -436,6 +462,8 @@ bool Planner::serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanE
     return true;
   }
 
+  birrtStarPlanner.setDisabledLinkMapCollisions(req.disabled_octomap_link_collision);
+  
   // Check the frame of the goal
   if (req.frame_id.size() == 0)
   {
@@ -518,6 +546,8 @@ bool Planner::serviceCallbackGoalMarker(squirrel_motion_planner_msgs::PlanEndEff
     return true;
   }
 
+  birrtStarPlanner.setDisabledLinkMapCollisions(req.disabled_octomap_link_collision);
+  
   ROS_INFO("Requested interactive marker goal:\nframe %s \nposition %.2f %.2f %.2f %.2f %.2f %.2f", req.frame_id.c_str(),
            poseInteractiveMarker[0], poseInteractiveMarker[1], poseInteractiveMarker[2],
            poseInteractiveMarker[3], poseInteractiveMarker[4], poseInteractiveMarker[5]);
@@ -611,6 +641,7 @@ bool Planner::serviceCallbackFoldArm(squirrel_motion_planner_msgs::FoldArmReques
     return true;
   }
 
+  birrtStarPlanner.setDisabledLinkMapCollisions(req.disabled_octomap_link_collision);
   posesTrajectoryNormalized.clear();
 
   if (!isArmStretched())
@@ -634,6 +665,7 @@ bool Planner::serviceCallbackFoldArm(squirrel_motion_planner_msgs::FoldArmReques
     for (Trajectory::reverse_iterator it = posesFolding.rbegin() + 1; it != posesFolding.rend(); ++it)
     {
       copyArmToRobotPose(*it, poseTmp);
+      //std::cout << poseTmp[0] << " " << poseTmp[1] << " " << poseTmp[2] << std::endl;
       if (!birrtStarPlanner.isConfigValid(poseTmp, checkSelfCollision, checkMapCollision))
       {
         res.result = squirrel_motion_planner_msgs::FoldArmResponse::COLLISION_FOLDING;
@@ -648,6 +680,7 @@ bool Planner::serviceCallbackFoldArm(squirrel_motion_planner_msgs::FoldArmReques
     for (Trajectory::reverse_iterator it = posesFolding.rbegin(); it != posesFolding.rend(); ++it)
     {
       copyArmToRobotPose(*it, poseTmp);
+      //std::cout << poseTmp[0] << " " << poseTmp[1] << " " << poseTmp[2] << std::endl;
       if (!birrtStarPlanner.isConfigValid(poseTmp, checkSelfCollision, checkMapCollision))
       {
         res.result = squirrel_motion_planner_msgs::FoldArmResponse::COLLISION_FOLDING;
@@ -679,6 +712,7 @@ bool Planner::serviceCallbackUnfoldArm(squirrel_motion_planner_msgs::UnfoldArmRe
     return true;
   }
 
+  birrtStarPlanner.setDisabledLinkMapCollisions(req.disabled_octomap_link_collision);
   posesTrajectoryNormalized.clear();
   Pose poseTmp = poseCurrent;
 
@@ -982,11 +1016,11 @@ int Planner::findGoalPose(const Pose &poseEndEffector)
   {
     dist = 0.44;
 
-      poseInitializer[3] = -0.8;
-      poseInitializer[4] = 0.8;
-      poseInitializer[5] = 0.0;
-      poseInitializer[6] = -1.5;
-      poseInitializer[7] = 0.0;
+    poseInitializer[3] = -0.8;
+    poseInitializer[4] = 0.8;
+    poseInitializer[5] = 0.0;
+    poseInitializer[6] = -1.5;
+    poseInitializer[7] = 0.0;
   }
   else
   {
@@ -999,10 +1033,17 @@ int Planner::findGoalPose(const Pose &poseEndEffector)
     poseInitializer[7] = -1.5;
   }
 
-  Real angle = 0.0;
+  const Real poseToGoalX = poseEndEffector[0] - poseCurrent[0];
+  const Real poseToGoalY = poseEndEffector[1] - poseCurrent[1];
+  const Real startingAngle =
+      poseToGoalY > 0 ? acos(poseToGoalX / sqrt(pow(poseToGoalX, 2) + pow(poseToGoalY, 2))) :
+          -acos(poseToGoalX / sqrt(pow(poseToGoalX, 2) + pow(poseToGoalY, 2)));
+
   bool foundSinglePose = false;
-  while (angle < 2 * M_PI)
+  Real angleDiff = 0.0;
+  while (fabs(angleDiff) < M_PI)
   {
+    const Real angle = startingAngle + angleDiff;
     poseInitializer[0] = poseEndEffector[0] - dist * cos(angle);
     poseInitializer[1] = poseEndEffector[1] - dist * sin(angle);
     poseInitializer[2] = isDownward ? angle + 0.99 : angle + 0.99;
@@ -1017,7 +1058,10 @@ int Planner::findGoalPose(const Pose &poseEndEffector)
       }
     }
 
-    angle += 0.5;
+    angleDiff *= -1;
+    angleDiff += 0.0;
+    if (angleDiff >= 0.0)
+      angleDiff += goalPoseSearchDiscretization;
   }
 
   poseGoal.clear();
@@ -1433,26 +1477,26 @@ void Planner::normalizeTrajectory(const Trajectory &trajectory, Trajectory &traj
 
 Tuple3D Planner::getEndEffectorDirection(const Pose &poseEndEffector)
 {
- tf::StampedTransform transform;
- transform.frame_id_ = "zero";
- transform.child_frame_id_ = "pose_goal_end_effector";
- transform.stamp_ = ros::Time::now();
- transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
- tf::Quaternion quaternion;
- quaternion.setRPY(poseEndEffector[3], poseEndEffector[4], poseEndEffector[5]);
- transform.setRotation(quaternion);
- transformer.setTransform(transform);
+  tf::StampedTransform transform;
+  transform.frame_id_ = "zero";
+  transform.child_frame_id_ = "pose_goal_end_effector";
+  transform.stamp_ = ros::Time::now();
+  transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
+  tf::Quaternion quaternion;
+  quaternion.setRPY(poseEndEffector[3], poseEndEffector[4], poseEndEffector[5]);
+  transform.setRotation(quaternion);
+  transformer.setTransform(transform);
 
- tf::Stamped<tf::Vector3> axisOrig, axis;
- axisOrig[0] = 0.0;
- axisOrig[1] = 1.0;
- axisOrig[2] = 0.0;
- axisOrig.frame_id_ = "pose_goal_end_effector";
- axisOrig.stamp_ = ros::Time(0.0);
- axis.stamp_ = ros::Time(0.0);
- transformer.transformVector("zero", axisOrig, axis);
+  tf::Stamped<tf::Vector3> axisOrig, axis;
+  axisOrig[0] = 0.0;
+  axisOrig[1] = 1.0;
+  axisOrig[2] = 0.0;
+  axisOrig.frame_id_ = "pose_goal_end_effector";
+  axisOrig.stamp_ = ros::Time(0.0);
+  axis.stamp_ = ros::Time(0.0);
+  transformer.transformVector("zero", axisOrig, axis);
 
- return Tuple3D(axis[0], axis[1], axis[2]);
+  return Tuple3D(axis[0], axis[1], axis[2]);
 }
 
 Pose Planner::transformBase(const std::string &sourceFrame, const std::string &targetFrame, const Pose &pose) const
@@ -1553,6 +1597,23 @@ inline void Planner::loadParameter(const string &name, Real &member, const Real 
   catch (ros::InvalidNameException &ex)
   {
     ROS_ERROR("ROS parameter '%s' has an invalid format. Using the default value '%.4f' instead.", (nh.getNamespace() + "/" + name).c_str(), defaultValue);
+    member = defaultValue;
+  }
+}
+
+inline void Planner::loadParameter(const string &name, std::string &member, const std::string &defaultValue)
+{
+  try
+  {
+    if (!nh.getParam(name, member))
+    {
+      ROS_ERROR("Can't find ROS parameter '%s'. Using the default value '%s' instead.", (nh.getNamespace() + "/" + name).c_str(), defaultValue.c_str());
+      member = defaultValue;
+    }
+  }
+  catch (ros::InvalidNameException &ex)
+  {
+    ROS_ERROR("ROS parameter '%s' has an invalid format. Using the default value '%s' instead.", (nh.getNamespace() + "/" + name).c_str(), defaultValue.c_str());
     member = defaultValue;
   }
 }

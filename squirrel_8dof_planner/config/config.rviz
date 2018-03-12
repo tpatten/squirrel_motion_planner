@@ -55,7 +55,7 @@ Visualization Manager:
       Marker Topic: /occupied_cells_vis_array
       Name: Octomap
       Namespaces:
-        map: true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 1

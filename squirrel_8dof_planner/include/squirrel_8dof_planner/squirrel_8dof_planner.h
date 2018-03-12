@@ -81,6 +81,7 @@ class Planner
   Real timeBetweenPoses;     ///< Time that is set between trajectory poses, determines how long the controller has to reach each pose.
   Real obstacleInflationRadius;     ///< Inflation radius around occupied cells in occupancyMap.
   Real distance8DofPlanning;     ///< Distance along 2D path from the goal from where the 8dof planning should start.
+  Real goalPoseSearchDiscretization;     ///< Discreziation of the angle around the end effector when looking for a valid goal pose.
   bool checkSelfCollision;     ///< Is set on a service call request and determines if self collisions are considered during planning.
   bool checkMapCollision;     ///< Is set on a service call request and determines if octomap collisions are considered during planning.
 
@@ -360,6 +361,16 @@ private:
    * @param defaultValue The value member is set to in case the parameter could not be loaded.
    */
   void loadParameter(const string &name, Real &member, const Real &defaultValue);
+
+  /**
+   * @brief Loads a parameter from the ROS parameter server and saves it to a member varible .
+   * If the parameter could not be found or has an invalid name the default value is used instead.
+   * @param name The name of the paramter to be loaded by the global node handle nh.
+   * @param member The member variable to which the parameter should be saved.
+   * @param defaultValue The value member is set to in case the parameter could not be loaded.
+   */
+  void loadParameter(const string &name, std::string &member, const std::string &defaultValue);
+
 
   /**
    * @brief Loads a parameter from the ROS parameter server and saves it to a member varible .
