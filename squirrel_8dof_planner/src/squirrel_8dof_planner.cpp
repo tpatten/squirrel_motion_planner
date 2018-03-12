@@ -298,6 +298,21 @@ void Planner::publishTrajectoryController()
     controllerTrajectory[i] = transformedPose;
   }
 
+  // Avoid +pi -> -pi jumps (and vice versa) for base_jointz as this screws trajecrories and leads
+  // to weird 360 deg spinning for trajectories crossing the +pi/-pi border.
+  // This is because roscontrol can not know that for this joint +pi and -pi are the same and thus
+  // creates control commands to go from +pi to -pi
+  /*static float spinCorrection = 0.;
+  for (UInt i = 1; i < controllerTrajectory.size(); ++i)
+    controllerTrajectory[i][2] += spinCorrection;*/
+  for (UInt i = 1; i < controllerTrajectory.size(); ++i)
+  {
+    if ((controllerTrajectory[i][2] - controllerTrajectory[i-1][2]) > M_PI)
+      controllerTrajectory[i][2] -= (2*M_PI);
+    else if ((controllerTrajectory[i][2] - controllerTrajectory[i-1][2]) < -M_PI)
+      controllerTrajectory[i][2] += (2*M_PI);
+  }
+
   ros::Duration time(0.0);
   for (UInt i = 0; i < controllerTrajectory.size(); ++i)
   {
