@@ -180,6 +180,8 @@ private:
     links.back().transformToParent = KDL::Frame::Identity();
     octomapCollisionLinks[links.back().name] = std::make_pair(&links.back(), true);
 
+    std::cout << "Loaded " << links.size() << " into the collision modell." << std::endl;
+
     expandTreeKDL(kdlTree.getRootSegment(), 0);
   }
 
