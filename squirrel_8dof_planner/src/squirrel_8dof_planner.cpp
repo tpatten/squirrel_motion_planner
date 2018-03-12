@@ -73,6 +73,11 @@ void Planner::initializeParameters()
   loadParameter("astar_smoothing_factor", AStarPathSmoothingFactor, 2.0);
   loadParameter("astar_smoothing_distance", AStarPathSmoothingDistance, 0.2);
   loadParameter("astar_final_smoothed_point_distance", AStarPathSmoothedPointDistance, 0.02);
+  loadParameter("goal_pose_search_discretization", goalPoseSearchDiscretization, 20.0);
+  if(goalPoseSearchDiscretization < 1)
+    goalPoseSearchDiscretization = 1.0;
+  goalPoseSearchDiscretization *= M_PI / 180.0;
+
 }
 
 void Planner::initializeMessageHandling()
@@ -965,7 +970,7 @@ int Planner::findGoalPose(const Pose &poseEndEffector)
     angleDiff *= -1;
     angleDiff += 0.0;
     if (angleDiff >= 0.0)
-      angleDiff += 0.5;
+      angleDiff += goalPoseSearchDiscretization;
   }
 
   poseGoal.clear();
