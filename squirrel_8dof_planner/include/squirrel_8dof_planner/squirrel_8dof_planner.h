@@ -81,6 +81,7 @@ class Planner
   Real timeBetweenPoses;     ///< Time that is set between trajectory poses, determines how long the controller has to reach each pose.
   Real obstacleInflationRadius;     ///< Inflation radius around occupied cells in occupancyMap.
   Real distance8DofPlanning;     ///< Distance along 2D path from the goal from where the 8dof planning should start.
+  Real goalPoseSearchDiscretization;     ///< Discreziation of the angle around the end effector when looking for a valid goal pose.
   bool checkSelfCollision;     ///< Is set on a service call request and determines if self collisions are considered during planning.
   bool checkMapCollision;     ///< Is set on a service call request and determines if octomap collisions are considered during planning.
 
