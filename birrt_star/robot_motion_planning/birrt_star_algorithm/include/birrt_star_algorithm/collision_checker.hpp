@@ -168,6 +168,10 @@ private:
     jointPositions.resize(8, 0.0);
     createLinksKDL();
 
+    for(std::vector<Link>::iterator it = links.begin(); it != links.end(); ++it)
+      octomapCollisionLinks[it->name] = std::make_pair(&(*it), true);
+    std::cout << "Loaded " << links.size() << " links into the collision modell." << std::endl;
+
     return true;
   }
 
@@ -178,9 +182,6 @@ private:
     links.back().name = kdlTree.getRootSegment()->second.segment.getName();
     links.back().transform = KDL::Frame::Identity();
     links.back().transformToParent = KDL::Frame::Identity();
-    octomapCollisionLinks[links.back().name] = std::make_pair(&links.back(), true);
-
-    std::cout << "Loaded " << links.size() << " links into the collision modell." << std::endl;
 
     expandTreeKDL(kdlTree.getRootSegment(), 0);
   }
