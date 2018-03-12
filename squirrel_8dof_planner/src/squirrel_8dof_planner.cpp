@@ -184,7 +184,7 @@ void Planner::publishOccupancyMap() const
   msg.info.origin.position.z = 0.0;
   msg.info.map_load_time = ros::Time::now();
   msg.header.seq = 0;
-  msg.header.frame_id = "map";
+  msg.header.frame_id = PLANNING_FRAME_;
   msg.header.stamp = ros::Time::now();
 
   msg.data.resize(msg.info.width * msg.info.height);
@@ -208,7 +208,7 @@ void Planner::publish2DPath() const
 
   nav_msgs::Path msg;
 
-  msg.header.frame_id = "map";
+  msg.header.frame_id = PLANNING_FRAME_;
   msg.header.seq = 0;
 
   geometry_msgs::PoseStamped poseStamped;
@@ -292,11 +292,38 @@ void Planner::publishTrajectoryController()
   msg.joint_names[7] = "arm_joint5";
   msg.points.resize(posesTrajectoryNormalized.size());
 
+  // Transform the base positions to odom commands
+  Trajectory controllerTrajectory = posesTrajectoryNormalized;
+  Pose originalPose, transformedPose;
+  originalPose.resize(3);
+  for (UInt i = 0; i < controllerTrajectory.size(); ++i)
+  {
+    transformedPose = transformBase(PLANNING_FRAME_, CONTROLLER_FRAME_, posesTrajectoryNormalized[i]);
+    //std::cout << i << " " << controllerTrajectory[i][0] << " " << controllerTrajectory[i][1] << " " << controllerTrajectory[i][2] << " -> "
+    //          << transformedPose[0] << " " << transformedPose[1] << " " << transformedPose[2] << std::endl;
+    controllerTrajectory[i] = transformedPose;
+  }
+
+  // Avoid +pi -> -pi jumps (and vice versa) for base_jointz as this screws trajecrories and leads
+  // to weird 360 deg spinning for trajectories crossing the +pi/-pi border.
+  // This is because roscontrol can not know that for this joint +pi and -pi are the same and thus
+  // creates control commands to go from +pi to -pi
+  /*static float spinCorrection = 0.;
+  for (UInt i = 1; i < controllerTrajectory.size(); ++i)
+    controllerTrajectory[i][2] += spinCorrection;*/
+  for (UInt i = 1; i < controllerTrajectory.size(); ++i)
+  {
+    if ((controllerTrajectory[i][2] - controllerTrajectory[i-1][2]) > M_PI)
+      controllerTrajectory[i][2] -= (2*M_PI);
+    else if ((controllerTrajectory[i][2] - controllerTrajectory[i-1][2]) < -M_PI)
+      controllerTrajectory[i][2] += (2*M_PI);
+  }
+
   ros::Duration time(0.0);
-  for (UInt i = 0; i < posesTrajectoryNormalized.size(); ++i)
+  for (UInt i = 0; i < controllerTrajectory.size(); ++i)
   {
     time += ros::Duration(timeBetweenPoses);
-    msg.points[i].positions = posesTrajectoryNormalized[i];
+    msg.points[i].positions = controllerTrajectory[i];
     msg.points[i].time_from_start = time;
   }
 
@@ -324,6 +351,11 @@ void Planner::subscriberPoseHandler(const sensor_msgs::JointState &msg)
     else if (msg.name[i] == "base_jointz")
       poseCurrent[2] = msg.position[i];
   }
+
+  // Transform the position to map
+  Pose poseInMap = transformBase(CONTROLLER_FRAME_, PLANNING_FRAME_, poseCurrent);
+  poseCurrent = poseInMap;
+  //std::cout << poseCurrent[0] << "  " << poseCurrent[1] << " " << poseCurrent[2] << std::endl;
 }
 
 bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequest &req, squirrel_motion_planner_msgs::PlanPoseResponse &res)
@@ -344,7 +376,29 @@ bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequ
   }
 
   birrtStarPlanner.setDisabledLinkMapCollisions(req.disabled_octomap_link_collision);
-  poseGoal = req.joints;
+  
+  // Check the frame of the goal
+  if (req.frame_id.size() == 0)
+  {
+    ROS_WARN("Requested joint goal has no frame id");
+    res.result = squirrel_motion_planner_msgs::PlanPoseResponse::INVALID_GOAL_POSE;
+    return true;
+  }
+
+  ROS_INFO("Requested joint goal:\nframe %s joints %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f", req.frame_id.c_str(),
+           req.joints[0], req.joints[1], req.joints[2], req.joints[3], req.joints[4], req.joints[5], req.joints[6], req.joints[7]);
+
+  // Transform the pose to the map frame
+  Pose transformedJoints = transformBase(req.frame_id, PLANNING_FRAME_, req.joints);
+  poseGoal = transformedJoints;
+
+  ROS_INFO_STREAM("From " <<
+                  poseCurrent[0] << " " << poseCurrent[1] << " " << poseCurrent[2] << " " << poseCurrent[3] << " " <<
+                  poseCurrent[4] << " " << poseCurrent[5] << " " << poseCurrent[6] << " " << poseCurrent[7] << "\nto " <<
+                  poseGoal[0] << " " << poseGoal[1] << " " << poseGoal[2] << " " << poseGoal[3] << " " <<
+                  poseGoal[4] << " " << poseGoal[5] << " " << poseGoal[6] << " " << poseGoal[7]);
+
+  //poseGoal = req.joints;
   posesTrajectory.clear();
 
   if (req.fold_arm && Tuple2D(poseGoal[0], poseGoal[1]).distance(Tuple2D(poseCurrent[0], poseCurrent[1])) > req.min_distance_before_folding)
@@ -352,21 +406,21 @@ bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequ
     ROS_ERROR("COMBINED 2DOF AND 8DOF PLANNING NOT IMPLEMENTED!");
     return false;
 
-    createOccupancyMapFromOctomap();
-    inflateOccupancyMap();
-    createAStarNodesMap();
+//    createOccupancyMapFromOctomap();
+//    inflateOccupancyMap();
+//    createAStarNodesMap();
 
-    if (!findTrajectory2D())
-    {
-      res.result = squirrel_motion_planner_msgs::PlanPoseResponse::ERROR_2DOF_PLANNING;
-      return true;
-    }
+//    if (!findTrajectory2D())
+//    {
+//      res.result = squirrel_motion_planner_msgs::PlanPoseResponse::ERROR_2DOF_PLANNING;
+//      return true;
+//    }
 
-    if (!findTrajectory8D(posesTrajectory.back(), poseGoal, req.max_planning_time))
-    {
-      res.result = squirrel_motion_planner_msgs::PlanPoseResponse::ERROR_8DOF_PLANNING;
-      return true;
-    }
+//    if (!findTrajectory8D(posesTrajectory.back(), poseGoal, req.max_planning_time))
+//    {
+//      res.result = squirrel_motion_planner_msgs::PlanPoseResponse::ERROR_8DOF_PLANNING;
+//      return true;
+//    }
   }
   else
   {
@@ -404,7 +458,22 @@ bool Planner::serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanE
   }
 
   birrtStarPlanner.setDisabledLinkMapCollisions(req.disabled_octomap_link_collision);
-  int goalPoseResult = findGoalPose(req.positions);
+  
+  // Check the frame of the goal
+  if (req.frame_id.size() == 0)
+  {
+    ROS_WARN("Requested end effector goal has no frame id");
+    res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::INVALID_END_EFFECTOR_POSE;
+    return true;
+  }
+
+  ROS_INFO("Requested end effector goal:\nframe %s \nposition %.2f %.2f %.2f %.2f %.2f %.2f", req.frame_id.c_str(),
+           req.positions[0], req.positions[1], req.positions[2], req.positions[3], req.positions[4], req.positions[5]);
+
+  // Transform the pose to the planning frame
+  Pose transformedPositions = transformBase(req.frame_id, PLANNING_FRAME_, req.positions);
+  int goalPoseResult = findGoalPose(transformedPositions);
+  //int goalPoseResult = findGoalPose(req.positions);
   if (goalPoseResult == 1)
   {
     res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::COLLISION_GOAL_POSE;
@@ -416,27 +485,33 @@ bool Planner::serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanE
     return true;
   }
 
+  ROS_INFO_STREAM("From " <<
+                  poseCurrent[0] << " " << poseCurrent[1] << " " << poseCurrent[2] << " " << poseCurrent[3] << " " <<
+                  poseCurrent[4] << " " << poseCurrent[5] << " " << poseCurrent[6] << " " << poseCurrent[7] << "\nto " <<
+                  poseGoal[0] << " " << poseGoal[1] << " " << poseGoal[2] << " " << poseGoal[3] << " " <<
+                  poseGoal[4] << " " << poseGoal[5] << " " << poseGoal[6] << " " << poseGoal[7]);
+
   posesTrajectory.clear();
   if (req.fold_arm && Tuple2D(poseGoal[0], poseGoal[1]).distance(Tuple2D(poseCurrent[0], poseCurrent[1])) > req.min_distance_before_folding)
   {
     ROS_ERROR("COMBINED 2DOF AND 8DOF PLANNING NOT IMPLEMENTED!");
     return false;
 
-    createOccupancyMapFromOctomap();
-    inflateOccupancyMap();
-    createAStarNodesMap();
+//    createOccupancyMapFromOctomap();
+//    inflateOccupancyMap();
+//    createAStarNodesMap();
 
-    if (!findTrajectory2D())
-    {
-      res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_2DOF_PLANNING;
-      return true;
-    }
+//    if (!findTrajectory2D())
+//    {
+//      res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_2DOF_PLANNING;
+//      return true;
+//    }
 
-    if (!findTrajectory8D(posesTrajectory.back(), poseGoal, req.max_planning_time))
-    {
-      res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_8DOF_PLANNING;
-      return true;
-    }
+//    if (!findTrajectory8D(posesTrajectory.back(), poseGoal, req.max_planning_time))
+//    {
+//      res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_8DOF_PLANNING;
+//      return true;
+//    }
   }
   else
   {
@@ -467,6 +542,11 @@ bool Planner::serviceCallbackGoalMarker(squirrel_motion_planner_msgs::PlanEndEff
   }
 
   birrtStarPlanner.setDisabledLinkMapCollisions(req.disabled_octomap_link_collision);
+  
+  ROS_INFO("Requested interactive marker goal:\nframe %s \nposition %.2f %.2f %.2f %.2f %.2f %.2f", req.frame_id.c_str(),
+           poseInteractiveMarker[0], poseInteractiveMarker[1], poseInteractiveMarker[2],
+           poseInteractiveMarker[3], poseInteractiveMarker[4], poseInteractiveMarker[5]);
+
   int goalPoseResult = findGoalPose(poseInteractiveMarker);
   if (goalPoseResult == 1)
   {
@@ -479,27 +559,34 @@ bool Planner::serviceCallbackGoalMarker(squirrel_motion_planner_msgs::PlanEndEff
     return true;
   }
 
+  ROS_INFO_STREAM("From " <<
+                  poseCurrent[0] << " " << poseCurrent[1] << " " << poseCurrent[2] << " " << poseCurrent[3] << " " <<
+                  poseCurrent[4] << " " << poseCurrent[5] << " " << poseCurrent[6] << " " << poseCurrent[7] << "\nto " <<
+                  poseGoal[0] << " " << poseGoal[1] << " " << poseGoal[2] << " " << poseGoal[3] << " " <<
+                  poseGoal[4] << " " << poseGoal[5] << " " << poseGoal[6] << " " << poseGoal[7]);
+
+
   posesTrajectory.clear();
   if (req.fold_arm && Tuple2D(poseGoal[0], poseGoal[1]).distance(Tuple2D(poseCurrent[0], poseCurrent[1])) > req.min_distance_before_folding)
   {
     ROS_ERROR("COMBINED 2DOF AND 8DOF PLANNING NOT IMPLEMENTED!");
     return false;
 
-    createOccupancyMapFromOctomap();
-    inflateOccupancyMap();
-    createAStarNodesMap();
+//    createOccupancyMapFromOctomap();
+//    inflateOccupancyMap();
+//    createAStarNodesMap();
 
-    if (!findTrajectory2D())
-    {
-      res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_2DOF_PLANNING;
-      return true;
-    }
+//    if (!findTrajectory2D())
+//    {
+//      res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_2DOF_PLANNING;
+//      return true;
+//    }
 
-    if (!findTrajectory8D(posesTrajectory.back(), poseGoal, req.max_planning_time))
-    {
-      res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_8DOF_PLANNING;
-      return true;
-    }
+//    if (!findTrajectory8D(posesTrajectory.back(), poseGoal, req.max_planning_time))
+//    {
+//      res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::ERROR_8DOF_PLANNING;
+//      return true;
+//    }
   }
   else
   {
@@ -573,6 +660,7 @@ bool Planner::serviceCallbackFoldArm(squirrel_motion_planner_msgs::FoldArmReques
     for (Trajectory::reverse_iterator it = posesFolding.rbegin() + 1; it != posesFolding.rend(); ++it)
     {
       copyArmToRobotPose(*it, poseTmp);
+      //std::cout << poseTmp[0] << " " << poseTmp[1] << " " << poseTmp[2] << std::endl;
       if (!birrtStarPlanner.isConfigValid(poseTmp, checkSelfCollision, checkMapCollision))
       {
         res.result = squirrel_motion_planner_msgs::FoldArmResponse::COLLISION_FOLDING;
@@ -587,6 +675,7 @@ bool Planner::serviceCallbackFoldArm(squirrel_motion_planner_msgs::FoldArmReques
     for (Trajectory::reverse_iterator it = posesFolding.rbegin(); it != posesFolding.rend(); ++it)
     {
       copyArmToRobotPose(*it, poseTmp);
+      //std::cout << poseTmp[0] << " " << poseTmp[1] << " " << poseTmp[2] << std::endl;
       if (!birrtStarPlanner.isConfigValid(poseTmp, checkSelfCollision, checkMapCollision))
       {
         res.result = squirrel_motion_planner_msgs::FoldArmResponse::COLLISION_FOLDING;
@@ -684,7 +773,7 @@ bool Planner::serviceCallGetOctomap()
   {
     octomap_msgs::Octomap msgOctomap;
     octomap_msgs::fullMapToMsg(*octree, msgOctomap);
-    msgOctomap.header.frame_id = "map";
+    msgOctomap.header.frame_id = PLANNING_FRAME_;
     msgOctomap.header.stamp = ros::Time::now();
     publisherOctomap.publish(msgOctomap);
   }
@@ -704,6 +793,8 @@ void Planner::interactiveMarkerHandler(const visualization_msgs::InteractiveMark
   poseInteractiveMarker[3] = r;
   poseInteractiveMarker[4] = p;
   poseInteractiveMarker[5] = y;
+  Pose transformedPose = transformBase(msg->header.frame_id, PLANNING_FRAME_, poseInteractiveMarker);
+  poseInteractiveMarker = transformedPose;
 }
 
 void Planner::createOccupancyMapFromOctomap()
@@ -1403,6 +1494,89 @@ Tuple3D Planner::getEndEffectorDirection(const Pose &poseEndEffector)
   return Tuple3D(axis[0], axis[1], axis[2]);
 }
 
+Pose Planner::transformBase(const std::string &sourceFrame, const std::string &targetFrame, const Pose &pose) const
+{
+  if (sourceFrame == targetFrame)
+  {
+//    ROS_WARN("The source frame '%s' is the same as the target frame '%s'",
+//             sourceFrame.c_str(), targetFrame.c_str());
+    return pose;
+  }
+
+  Pose transformedPose = pose;
+  if (pose.size() != 3 && pose.size() != 6 && pose.size() != 8)
+  {
+    ROS_WARN("Input pose must have size 3, 6 or 8");
+    return transformedPose;
+  }
+
+  // Get the orientation as a quaternion
+  tf::Matrix3x3 ypr;
+  if (pose.size() == 6)
+    ypr.setEulerYPR(pose[5], pose[4], pose[3]);
+  else
+    ypr.setEulerYPR(pose[2], 0.0, 0.0);
+  tf::Quaternion quat;
+  ypr.getRotation(quat);
+
+  // Create a geometry_msgs::PoseStamped for the transform
+  geometry_msgs::PoseStamped poseSource;
+  poseSource.header.frame_id = sourceFrame;
+  poseSource.pose.position.x = pose[0];
+  poseSource.pose.position.y = pose[1];
+  poseSource.pose.position.z = 0.0;
+  poseSource.pose.orientation.x = quat.getX();
+  poseSource.pose.orientation.y = quat.getY();
+  poseSource.pose.orientation.z = quat.getZ();
+  poseSource.pose.orientation.w = quat.getW();
+
+  // Transform using the listerner
+  ros::Time commonTime;
+  std::string* error;
+  geometry_msgs::PoseStamped poseTarget;
+  try
+  {
+    tfListener.getLatestCommonTime(sourceFrame, targetFrame, commonTime, error);
+    poseSource.header.stamp = commonTime;
+    tfListener.transformPose(targetFrame, poseSource, poseTarget);
+  }
+  catch(tf::TransformException ex)
+  {
+    // Error occured!
+    ROS_ERROR("Tf listener exception thrown with message '%s'", ex.what());
+    // Need to set poseCurrent to something invalid that would prevent planning
+    return transformedPose;
+  }
+
+  // Set the x and y
+  transformedPose[0] = poseTarget.pose.position.x;
+  transformedPose[1] = poseTarget.pose.position.y;
+
+  // Get the roll, pitch and yaw
+  tf::Matrix3x3 mat(tf::Quaternion(poseTarget.pose.orientation.x,
+                                   poseTarget.pose.orientation.y,
+                                   poseTarget.pose.orientation.z,
+                                   poseTarget.pose.orientation.w) );
+  double roll, pitch, yaw;
+  mat.getEulerYPR(yaw, pitch, roll);
+
+  if (pose.size() == 6)
+  {
+    //transformedPose[2] = poseTarget.pose.position.z;
+    transformedPose[3] = roll;
+    transformedPose[4] = pitch;
+    transformedPose[5] = yaw;
+  }
+  else
+  {
+    transformedPose[2] = yaw;
+  }
+
+  // Return the values
+  return transformedPose;
+}
+
+
 // ******************** INLINES ********************
 
 inline void Planner::loadParameter(const string &name, Real &member, const Real &defaultValue)
@@ -1516,10 +1690,13 @@ inline bool Planner::isArmStretched() const
 
 inline bool Planner::isRobotAtTrajectoryStart() const
 {
-  if (fabs(poseCurrent[0] - posesTrajectoryNormalized.front()[0] > 0.02) || fabs(poseCurrent[1] - posesTrajectoryNormalized.front()[1] > 0.02)
-      || fabs(poseCurrent[2] - posesTrajectoryNormalized.front()[2] > 0.05236) || fabs(poseCurrent[3] - posesTrajectoryNormalized.front()[3] > 0.05236)
-      || fabs(poseCurrent[4] - posesTrajectoryNormalized.front()[4] > 0.05236) || fabs(poseCurrent[5] - posesTrajectoryNormalized.front()[5] > 0.05236)
-      || fabs(poseCurrent[6] - posesTrajectoryNormalized.front()[6] > 0.05236) || fabs(poseCurrent[7] - posesTrajectoryNormalized.front()[7] > 0.05236))
+  // Transform the start position
+  //Pose startTrajectory = transformBase(CONTROLLER_FRAME_, PLANNING_FRAME_, posesTrajectoryNormalized.front());
+  Pose startTrajectory = posesTrajectoryNormalized.front();
+  if (fabs(poseCurrent[0] - startTrajectory[0] > 0.02) || fabs(poseCurrent[1] - startTrajectory[1] > 0.02)
+      || fabs(poseCurrent[2] - startTrajectory[2] > 0.05236) || fabs(poseCurrent[3] - startTrajectory[3] > 0.05236)
+      || fabs(poseCurrent[4] - startTrajectory[4] > 0.05236) || fabs(poseCurrent[5] - startTrajectory[5] > 0.05236)
+      || fabs(poseCurrent[6] - startTrajectory[6] > 0.05236) || fabs(poseCurrent[7] - startTrajectory[7] > 0.05236))
     return false;
 
   return true;
