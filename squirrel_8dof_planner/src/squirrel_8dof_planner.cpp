@@ -90,6 +90,7 @@ void Planner::initializeMessageHandling()
   serviceServerUnfoldArm = nh.advertiseService("unfold_arm", &Planner::serviceCallbackUnfoldArm, this);
   serviceServerGoalPose = nh.advertiseService("find_plan_pose", &Planner::serviceCallbackGoalPose, this);
   serviceServerGoalEndEffector = nh.advertiseService("find_plan_end_effector", &Planner::serviceCallbackGoalEndEffector, this);
+  serviceServerPrintCurrentCollisions = nh.advertiseService("print_collisions", &Planner::serviceCallBackPrintCollisions, this);
 
   std::string octomapServiceTopic;
   loadParameter("octomap_service_topic", octomapServiceTopic, "/octomap_full");
@@ -731,6 +732,11 @@ bool Planner::serviceCallbackUnfoldArm(squirrel_motion_planner_msgs::UnfoldArmRe
 
   publishTrajectoryController();
   return true;
+}
+
+bool Planner::serviceCallBackPrintCollisions(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res)
+{
+
 }
 
 bool Planner::serviceCallGetOctomap()
@@ -1545,7 +1551,7 @@ Pose Planner::transformBase(const std::string &sourceFrame, const std::string &t
     poseSource.header.stamp = commonTime;
     tfListener.transformPose(targetFrame, poseSource, poseTarget);
   }
-  catch(tf::TransformException ex)
+  catch(tf::TransformException &ex)
   {
     // Error occured!
     ROS_ERROR("Tf listener exception thrown with message '%s'", ex.what());

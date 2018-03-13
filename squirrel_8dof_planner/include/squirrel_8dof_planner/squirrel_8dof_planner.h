@@ -67,6 +67,7 @@ class Planner
   ros::ServiceServer serviceServerFoldArm;     ///< ROS service server. When called, sends a trajectory to the controller to fold the arm into the case.
   ros::ServiceServer serviceServerSendControlCommand;     //<< ROS service server. When called, sends the latest trajectory to the controller.
   ros::ServiceServer serviceServerUnfoldArm;     ///< ROS service server. When called, sends a trajectory to the controller to unfold the arm.
+  ros::ServiceServer serviceServerPrintCurrentCollisions;     ///< Takes the current robot pose and prints all detected self and octomap collisions.
   ros::ServiceClient serviceClientOctomap;     ///< ROS service client. Receives a full octomap from octomap_server_node.
   tf::Transformer transformer;     ///< tf transformer. Finds transforms between any two given frames.
   interactive_markers::InteractiveMarkerServer interactiveMarkerServer;     ///< Server that commuincates with Rviz to receive 6D end effector poses.
@@ -230,6 +231,13 @@ private:
    * @param res Empty service response, contains no data.
    */
   bool serviceCallbackUnfoldArm(squirrel_motion_planner_msgs::UnfoldArmRequest &req, squirrel_motion_planner_msgs::UnfoldArmResponse &res);
+
+  /**
+   * @brief Service call that responds by printing all currently detected collisions.
+   * @param req Empty service request, contains no data.
+   * @param res Empty service response, contains no data.
+   */
+  bool serviceCallBackPrintCollisions(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res);
 
   /**
    * @brief Calls for and updates internal octomap from octomap_server_node.

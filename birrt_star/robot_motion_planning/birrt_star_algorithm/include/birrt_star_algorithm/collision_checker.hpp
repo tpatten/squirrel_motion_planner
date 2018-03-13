@@ -117,6 +117,14 @@ public:
     return false;
   }
 
+  void getCollisions(const std::vector<Real> &jointPositions, std::vector<std::pair<std::string, std::string> > &selfCollisions,
+                     std::vector<std::string> &mapCollisions)
+  {
+    updateTransforms(jointPositions);
+    getSelfCollisions(selfCollisions);
+    getMapCollisions(mapCollisions);
+  }
+
 private:
 
   ros::NodeHandle nh;
@@ -168,7 +176,7 @@ private:
     jointPositions.resize(8, 0.0);
     createLinksKDL();
 
-    for(std::vector<Link>::iterator it = links.begin(); it != links.end(); ++it)
+    for (std::vector<Link>::iterator it = links.begin(); it != links.end(); ++it)
       octomapCollisionLinks[it->name] = std::make_pair(&(*it), true);
     std::cout << "Loaded " << links.size() << " links into the collision modell." << std::endl;
 
@@ -480,7 +488,7 @@ private:
     {
       for (std::map<std::string, std::pair<Link*, bool> >::const_iterator it = octomapCollisionLinks.begin(); it != octomapCollisionLinks.end(); ++it)
       {
-        if(!it->second.second)
+        if (!it->second.second)
           continue;
 
         const fcl::CollisionObject* collisionObject = it->second.first->collisionObject;
@@ -494,6 +502,32 @@ private:
           return true;
       }
       return false;
+    }
+  }
+
+  void getSelfCollisions(std::vector<std::pair<std::string, std::string> > &selfCollisions)
+  {
+    for (std::vector<std::pair<Link*, Link*> >::const_iterator it = selfCollisionPairs.begin(); it != selfCollisionPairs.end(); ++it)
+    {
+      fcl::CollisionRequest request;
+      fcl::CollisionResult result;
+      fcl::collide(it->first->collisionObject, it->second->collisionObject, request, result);
+      if (result.isCollision())
+        selfCollisions.push_back(std::make_pair(it->first->name, it->second->name));
+    }
+  }
+
+  void getMapCollisions(std::vector<std::string> &mapCollisions)
+  {
+    for (std::vector<Link>::const_iterator it = links.begin(); it != links.end(); ++it)
+    {
+      if (!it->collisionObject)
+        continue;
+      fcl::CollisionRequest request;
+      fcl::CollisionResult result;
+      fcl::collide(octomapCollisionObject, it->collisionObject, request, result);
+      if (result.isCollision())
+        mapCollisions.push_back(it->name);
     }
   }
 };
