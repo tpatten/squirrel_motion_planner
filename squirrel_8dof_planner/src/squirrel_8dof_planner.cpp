@@ -736,7 +736,30 @@ bool Planner::serviceCallbackUnfoldArm(squirrel_motion_planner_msgs::UnfoldArmRe
 
 bool Planner::serviceCallBackPrintCollisions(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res)
 {
+  std::vector<std::string> mapCollisions;
+  std::vector<std::pair<std::string, std::string> > selfCollisions;
 
+  birrtStarPlanner.getCollisions(poseCurrent, selfCollisions, mapCollisions);
+
+  if(selfCollisions.size() > 0)
+  {
+    std::cout << "Found self collisions between joints:" << std::endl;
+    for(UInt i = 0; i < selfCollisions.size(); ++i)
+      std::cout << "   - " << selfCollisions[i].first << " - " << selfCollisions[i].second << std::endl;
+  }
+  else
+    std::cout << "No self collisions found." << std::endl;
+
+  if(mapCollisions.size() > 0)
+  {
+    std::cout << "Found map collisions for joints:" << std::endl;
+    for(UInt i = 0; i < mapCollisions.size(); ++i)
+      std::cout << "   - " << mapCollisions[i] << std::endl;
+  }
+  else
+    std::cout << "No map collisions found." << std::endl;
+
+  return true;
 }
 
 bool Planner::serviceCallGetOctomap()
