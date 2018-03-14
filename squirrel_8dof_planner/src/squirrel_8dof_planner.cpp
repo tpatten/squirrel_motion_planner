@@ -98,6 +98,7 @@ void Planner::initializeMessageHandling()
   else if(octomapServiceTopic[0] != '/')
     octomapServiceTopic = "/" + octomapServiceTopic;
   serviceClientOctomap = nh.serviceClient<octomap_msgs::GetOctomap>(octomapServiceTopic);
+  ROS_INFO("Retrieving octomap from service topic '%s'", octomapServiceTopic.c_str());
 
   publisherOctomap = nh.advertise<octomap_msgs::Octomap>("octomap_planning", 1);
   publisherOccupancyMap = nhPrivate.advertise<nav_msgs::OccupancyGrid>("occupancy_map", 1);
@@ -749,7 +750,10 @@ bool Planner::serviceCallGetOctomap()
   if (octree)
     delete octree;
 
-  octree = dynamic_cast<octomap::OcTree*>(octomap_msgs::fullMsgToMap(res.map));
+  if(res.map.binary)
+    octree = dynamic_cast<octomap::OcTree*>(octomap_msgs::binaryMsgToMap(res.map));
+  else
+    octree = dynamic_cast<octomap::OcTree*>(octomap_msgs::fullMsgToMap(res.map));
   if (octree == NULL)
   {
     ROS_ERROR("Received octomap is empty, planning will not be executed.");
