@@ -90,6 +90,7 @@ void Planner::initializeMessageHandling()
   serviceServerUnfoldArm = nh.advertiseService("unfold_arm", &Planner::serviceCallbackUnfoldArm, this);
   serviceServerGoalPose = nh.advertiseService("find_plan_pose", &Planner::serviceCallbackGoalPose, this);
   serviceServerGoalEndEffector = nh.advertiseService("find_plan_end_effector", &Planner::serviceCallbackGoalEndEffector, this);
+  serviceServerPrintCurrentCollisions = nh.advertiseService("print_and_show_collisions", &Planner::serviceCallbackPrintAndShowCollisions, this);
 
   std::string octomapServiceTopic;
   loadParameter("octomap_service_topic", octomapServiceTopic, "/octomap_full");
@@ -734,6 +735,36 @@ bool Planner::serviceCallbackUnfoldArm(squirrel_motion_planner_msgs::UnfoldArmRe
   res.result = squirrel_motion_planner_msgs::UnfoldArmResponse::SUCCESS;
 
   publishTrajectoryController();
+  return true;
+}
+
+bool Planner::serviceCallbackPrintAndShowCollisions(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res)
+{
+  serviceCallGetOctomap();
+
+  std::vector<std::string> mapCollisions;
+  std::vector<std::pair<std::string, std::string> > selfCollisions;
+
+  birrtStarPlanner.getCollisions(poseCurrent, selfCollisions, mapCollisions);
+
+  if(selfCollisions.size() > 0)
+  {
+    std::cout << "Found self collisions between joints:" << std::endl;
+    for(UInt i = 0; i < selfCollisions.size(); ++i)
+      std::cout << "   - " << selfCollisions[i].first << " - " << selfCollisions[i].second << std::endl;
+  }
+  else
+    std::cout << "No self collisions found." << std::endl;
+
+  if(mapCollisions.size() > 0)
+  {
+    std::cout << "Found map collisions for joints:" << std::endl;
+    for(UInt i = 0; i < mapCollisions.size(); ++i)
+      std::cout << "   - " << mapCollisions[i] << std::endl;
+  }
+  else
+    std::cout << "No map collisions found." << std::endl;
+
   return true;
 }
 
@@ -1553,7 +1584,7 @@ Pose Planner::transformBase(const std::string &sourceFrame, const std::string &t
     poseSource.header.stamp = commonTime;
     tfListener.transformPose(targetFrame, poseSource, poseTarget);
   }
-  catch(tf::TransformException ex)
+  catch(tf::TransformException &ex)
   {
     // Error occured!
     ROS_ERROR("Tf listener exception thrown with message '%s'", ex.what());

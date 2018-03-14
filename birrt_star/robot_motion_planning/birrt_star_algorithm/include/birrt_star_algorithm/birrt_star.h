@@ -104,6 +104,9 @@ public:
   bool isConfigValid(const vector<double> &config, bool check_self_collision, bool check_map_collision);
   bool isConfigValid(const KDL::JntArray& config, bool check_self_collision, bool check_map_collision);
 
+  void getCollisions(const std::vector<double> &jointPositions, std::vector<std::pair<std::string, std::string> > &selfCollisions,
+                            std::vector<std::string> &mapCollisions);
+
 private:
 
   //-- Class Objects --

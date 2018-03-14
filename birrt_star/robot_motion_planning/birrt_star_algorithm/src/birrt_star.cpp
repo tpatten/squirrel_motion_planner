@@ -6904,6 +6904,12 @@ bool BiRRTstarPlanner::isConfigValid(const KDL::JntArray& config, bool check_sel
   return !collisionChecker->isInCollision(configStd, check_self_collision, check_map_collision);
 }
 
+void BiRRTstarPlanner::getCollisions(const std::vector<double> &jointPositions, std::vector<std::pair<std::string, std::string> > &selfCollisions,
+                                     std::vector<std::string> &mapCollisions)
+{
+  collisionChecker->getCollisions(jointPositions, selfCollisions, mapCollisions);
+}
+
 void BiRRTstarPlanner::setDisabledLinkMapCollisions(const std::vector<std::string> &links)
 {
   collisionChecker->setDisabledLinkMapCollisions(links);
