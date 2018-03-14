@@ -359,8 +359,8 @@ void Planner::subscriberPoseHandler(const sensor_msgs::JointState &msg)
   }
 
   // Transform the position to map
-  Pose poseInMap = transformBase(CONTROLLER_FRAME_, PLANNING_FRAME_, poseCurrent);
-  poseCurrent = poseInMap;
+  //Pose poseInMap = transformBase(CONTROLLER_FRAME_, PLANNING_FRAME_, poseCurrent);
+  //poseCurrent = poseInMap;
   //std::cout << poseCurrent[0] << "  " << poseCurrent[1] << " " << poseCurrent[2] << std::endl;
 }
 
@@ -736,6 +736,8 @@ bool Planner::serviceCallbackUnfoldArm(squirrel_motion_planner_msgs::UnfoldArmRe
 
 bool Planner::serviceCallBackPrintCollisions(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res)
 {
+  serviceCallGetOctomap();
+
   std::vector<std::string> mapCollisions;
   std::vector<std::pair<std::string, std::string> > selfCollisions;
 
