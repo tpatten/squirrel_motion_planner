@@ -188,12 +188,12 @@
         <mesh filename="package://robotino_description/meshes/RobotinoWheel.dae" scale="0.01 0.01 0.01"/>
       </geometry>
     </visual>
-    <collision>
+    <!--collision>
       <origin rpy="0 1.570795 0" xyz="0 0 0"/>
       <geometry>
         <cylinder length="0.04" radius="0.04"/>
       </geometry>
-    </collision>
+    </collision-->
   </link>
   <transmission name="wheel0_trans">
     <type>transmission_interface/SimpleTransmission</type>
@@ -225,12 +225,12 @@
         <mesh filename="package://robotino_description/meshes/RobotinoWheel.dae" scale="0.01 0.01 0.01"/>
       </geometry>
     </visual>
-    <collision>
+    <!--collision>
       <origin rpy="0 1.570795 0" xyz="0 0 0"/>
       <geometry>
         <cylinder length="0.04" radius="0.04"/>
       </geometry>
-    </collision>
+    </collision-->
   </link>
   <transmission name="wheel1_trans">
     <type>transmission_interface/SimpleTransmission</type>
@@ -262,12 +262,12 @@
         <mesh filename="package://robotino_description/meshes/RobotinoWheel.dae" scale="0.01 0.01 0.01"/>
       </geometry>
     </visual>
-    <collision>
+    <!--collision>
       <origin rpy="0 1.570795 0" xyz="0 0 0"/>
       <geometry>
         <cylinder length="0.04" radius="0.04"/>
       </geometry>
-    </collision>
+    </collision-->
   </link>
   <transmission name="wheel2_trans">
     <type>transmission_interface/SimpleTransmission</type>

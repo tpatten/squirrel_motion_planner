@@ -11,6 +11,7 @@
 
 #include <ros/ros.h>
 #include <ros/package.h>
+#include <visualization_msgs/MarkerArray.h>
 
 #include <kdl_parser/kdl_parser.hpp>
 #include <kdl/chainiksolvervel_wdls.hpp>
@@ -48,6 +49,8 @@ class CollisionChecker
     Real* jointValue;
 
     fcl::CollisionObject* collisionObject;
+    std::string mesh;
+    bool isInCollision;
 
     Link() :
         collisionObject(NULL), transformParent(NULL), joint(NULL), jointValue(NULL)
@@ -121,14 +124,18 @@ public:
                      std::vector<std::string> &mapCollisions)
   {
     updateTransforms(jointPositions);
+
+    for (std::vector<Link>::iterator it = links.begin(); it != links.end(); ++it)
+      it->isInCollision = false;
     getSelfCollisions(selfCollisions);
     getMapCollisions(mapCollisions);
+    publishCollisionModell();
   }
 
 private:
-
-  ros::NodeHandle nh;
   bool initialized;
+  ros::NodeHandle nh;
+  ros::Publisher publisherCollisionModell;
 
   KDL::Tree kdlTree;
   std::vector<Real> jointPositions;
@@ -156,6 +163,8 @@ private:
 
     checkAllOcotmapLinkCollisions = true;
     findSelfCollisionPairs();
+
+    publisherCollisionModell = nh.advertise<visualization_msgs::MarkerArray>("collision_modell", -1);
 
     return true;
   }
@@ -189,6 +198,7 @@ private:
     links.push_back(Link());
     links.back().name = kdlTree.getRootSegment()->second.segment.getName();
     links.back().transform = KDL::Frame::Identity();
+    links.back().transform.p.data[2] = 0.02;
     links.back().transformToParent = KDL::Frame::Identity();
 
     expandTreeKDL(kdlTree.getRootSegment(), 0);
@@ -314,9 +324,23 @@ private:
         {
           for (std::vector<Link>::iterator it = this->links.begin(); it != this->links.end(); ++it)
           {
-            if ((*link)->name == (*it).name)
+            if ((*link)->name == it->name)
             {
-              (*it).collisionObject = new fcl::CollisionObject(cGeometry);
+              KDL::Frame frameAdjust;
+              urdf::Pose &pose = (*link)->collision->origin;
+              frameAdjust.p.data[0] = pose.position.x;
+              frameAdjust.p.data[1] = pose.position.y;
+              frameAdjust.p.data[2] = pose.position.z;
+              frameAdjust.M = KDL::Rotation::Quaternion(pose.rotation.x, pose.rotation.y, pose.rotation.z, pose.rotation.w);
+
+              it->transformToParent = it->transformToParent * frameAdjust;
+
+              it->collisionObject = new fcl::CollisionObject(cGeometry);
+              if (cGeometry->getNodeType() == fcl::NODE_TYPE::BV_OBBRSS)
+              {
+                const urdf::Mesh *urdfMesh(static_cast<urdf::Mesh*>(&*geometry));
+                it->mesh = urdfMesh->filename;
+              }
               break;
             }
           }
@@ -423,6 +447,73 @@ private:
     link2 = line.substr(posStart, nameLength);
   }
 
+  void publishCollisionModell()
+  {
+    if (publisherCollisionModell.getNumSubscribers() == 0)
+      return;
+
+    visualization_msgs::MarkerArray msg;
+    visualization_msgs::Marker marker;
+
+    marker.header.frame_id = "map";
+    marker.header.stamp = ros::Time::now();
+    marker.id = 500;
+    for (std::vector<Link>::const_iterator it = links.begin(); it != links.end(); ++it)
+    {
+      const Link &link = *it;
+      if (link.collisionObject == nullptr)
+        continue;
+
+      marker.pose.position.x = link.transform.p.data[0];
+      marker.pose.position.y = link.transform.p.data[1];
+      marker.pose.position.z = link.transform.p.data[2];
+      link.transform.M.GetQuaternion(marker.pose.orientation.x, marker.pose.orientation.y, marker.pose.orientation.z, marker.pose.orientation.w);
+      marker.color.a = 0.3;
+      marker.color.b = 0.2;
+      marker.color.r = link.isInCollision ? 0.8 : 0.2;
+      marker.color.g = link.isInCollision ? 0.2 : 0.8;
+
+      switch (link.collisionObject->getNodeType())
+      {
+        case fcl::NODE_TYPE::BV_OBBRSS:
+        {
+          marker.type = visualization_msgs::Marker::MESH_RESOURCE;
+          boost::shared_ptr<const fcl::Box> obj(boost::static_pointer_cast<const fcl::Box>(link.collisionObject->collisionGeometry()));
+          marker.mesh_resource = link.mesh;
+          marker.scale.x = 1.0;
+          marker.scale.y = 1.0;
+          marker.scale.z = 1.0;
+        }
+          break;
+        case fcl::NODE_TYPE::GEOM_BOX:
+        {
+          marker.type = visualization_msgs::Marker::CUBE;
+          boost::shared_ptr<const fcl::Box> obj(boost::static_pointer_cast<const fcl::Box>(link.collisionObject->collisionGeometry()));
+          marker.scale.x = obj->side[0];
+          marker.scale.y = obj->side[1];
+          marker.scale.z = obj->side[2];
+        }
+          break;
+        case fcl::NODE_TYPE::GEOM_CYLINDER:
+        {
+          marker.type = visualization_msgs::Marker::CYLINDER;
+          boost::shared_ptr<const fcl::Cylinder> obj(boost::static_pointer_cast<const fcl::Cylinder>(link.collisionObject->collisionGeometry()));
+          marker.scale.x = 2.0 * obj->radius;
+          marker.scale.y = marker.scale.x;
+          marker.scale.z = obj->lz;
+        }
+          break;
+        default:
+          continue;
+      }
+      msg.markers.push_back(marker);
+
+      ++marker.id;
+    }
+
+    publisherCollisionModell.publish(msg);
+  }
+
   // ******************** COLLISION CHECKING ********************
 
   void updateTransforms(const std::vector<Real> &jointPositions)
@@ -449,20 +540,15 @@ private:
 
   bool checkSelfCollision()
   {
-    bool foundCollision = false;
     for (std::vector<std::pair<Link*, Link*> >::const_iterator it = selfCollisionPairs.begin(); it != selfCollisionPairs.end(); ++it)
     {
       fcl::CollisionRequest request;
       fcl::CollisionResult result;
       fcl::collide(it->first->collisionObject, it->second->collisionObject, request, result);
       if (result.isCollision())
-      {
         return true;
-        foundCollision = true;
-        std::cout << "Collision between '" << it->first->name << "' and '" << it->second->name << "'." << std::endl;
-      }
     }
-    return foundCollision;
+    return false;
   }
 
   bool checkMapCollision()
@@ -513,21 +599,33 @@ private:
       fcl::CollisionResult result;
       fcl::collide(it->first->collisionObject, it->second->collisionObject, request, result);
       if (result.isCollision())
+      {
+        it->first->isInCollision = true;
+        it->second->isInCollision = true;
         selfCollisions.push_back(std::make_pair(it->first->name, it->second->name));
+      }
     }
   }
 
   void getMapCollisions(std::vector<std::string> &mapCollisions)
   {
-    for (std::vector<Link>::const_iterator it = links.begin(); it != links.end(); ++it)
+    if (!octomapCollisionObject)
+      return;
+
+    for (std::map<std::string, std::pair<Link*, bool> >::const_iterator it = octomapCollisionLinks.begin(); it != octomapCollisionLinks.end(); ++it)
     {
-      if (!it->collisionObject)
+      const fcl::CollisionObject* collisionObject = it->second.first->collisionObject;
+
+      if (!collisionObject)
         continue;
       fcl::CollisionRequest request;
       fcl::CollisionResult result;
-      fcl::collide(octomapCollisionObject, it->collisionObject, request, result);
+      fcl::collide(octomapCollisionObject, collisionObject, request, result);
       if (result.isCollision())
-        mapCollisions.push_back(it->name);
+      {
+        it->second.first->isInCollision = true;
+        mapCollisions.push_back(it->first);
+      }
     }
   }
 };

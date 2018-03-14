@@ -237,7 +237,7 @@ private:
    * @param req Empty service request, contains no data.
    * @param res Empty service response, contains no data.
    */
-  bool serviceCallBackPrintCollisions(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res);
+  bool serviceCallbackPrintAndShowCollisions(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res);
 
   /**
    * @brief Calls for and updates internal octomap from octomap_server_node.

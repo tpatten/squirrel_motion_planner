@@ -90,7 +90,7 @@ void Planner::initializeMessageHandling()
   serviceServerUnfoldArm = nh.advertiseService("unfold_arm", &Planner::serviceCallbackUnfoldArm, this);
   serviceServerGoalPose = nh.advertiseService("find_plan_pose", &Planner::serviceCallbackGoalPose, this);
   serviceServerGoalEndEffector = nh.advertiseService("find_plan_end_effector", &Planner::serviceCallbackGoalEndEffector, this);
-  serviceServerPrintCurrentCollisions = nh.advertiseService("print_collisions", &Planner::serviceCallBackPrintCollisions, this);
+  serviceServerPrintCurrentCollisions = nh.advertiseService("print_and_show_collisions", &Planner::serviceCallbackPrintAndShowCollisions, this);
 
   std::string octomapServiceTopic;
   loadParameter("octomap_service_topic", octomapServiceTopic, "/octomap_full");
@@ -359,8 +359,8 @@ void Planner::subscriberPoseHandler(const sensor_msgs::JointState &msg)
   }
 
   // Transform the position to map
-  //Pose poseInMap = transformBase(CONTROLLER_FRAME_, PLANNING_FRAME_, poseCurrent);
-  //poseCurrent = poseInMap;
+  Pose poseInMap = transformBase(CONTROLLER_FRAME_, PLANNING_FRAME_, poseCurrent);
+  poseCurrent = poseInMap;
   //std::cout << poseCurrent[0] << "  " << poseCurrent[1] << " " << poseCurrent[2] << std::endl;
 }
 
@@ -734,7 +734,7 @@ bool Planner::serviceCallbackUnfoldArm(squirrel_motion_planner_msgs::UnfoldArmRe
   return true;
 }
 
-bool Planner::serviceCallBackPrintCollisions(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res)
+bool Planner::serviceCallbackPrintAndShowCollisions(std_srvs::EmptyRequest &req, std_srvs::EmptyResponse &res)
 {
   serviceCallGetOctomap();
 
