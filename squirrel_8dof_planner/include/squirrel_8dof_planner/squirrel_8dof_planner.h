@@ -364,18 +364,54 @@ private:
 
   // ******************** PLANNING DESCRIPTION ********************
 
+  /**
+   * @brief Loads the ros parameter /robot_description and restructures it to work with the 8dof planner and sends it to ~/robot_description.
+   */
   void createPlanningDescription();
 
+  /**
+   * @brief Removes all XML elements of type 'element' from 'description'.
+   * @param element The element type to be removed.
+   * @param description The robot description from where the elements are to be removed.
+   */
   void removeAllElements(const std::string &element, std::string &description);
 
+  /**
+   * @brief Removes the first XML element of type 'element' from 'description'.
+   * @param element The element type to be removed.
+   * @param description The robot description from where the element is to be removed.
+   */
   bool removeElement(const std::string &element, std::string &description);
 
+  /**
+   * @brief Removes the first XML element of type 'element' with the name attribute set to 'name' from 'description'.
+   * @param element The element type to be removed.
+   * @param name The value of the name attribute.
+   * @param description The robot description from where the element is to be removed.
+   */
   bool removeElement(const std::string &element, const std::string &name, std::string &description);
 
+  /**
+   * @brief Removes every occurence of a string sequence between and including the string sequences 'start' and 'end' from 'description'.
+   * @param start The starting sequence.
+   * @param end The ending sequence.
+   * @param description The robot description from where the sections are to be removed.
+   */
   void removeAllSections(const std::string &start, const std::string &end, std::string &description);
 
+  /**
+   * @brief Removes the first occurence of a string sequence between and including the string sequences 'start' and 'end' from 'description'.
+   * @param start The starting sequence.
+   * @param end The ending sequence.
+   * @param description The robot description from where the section is to be removed.
+   */
   bool removeSection(const std::string &start, const std::string &end, std::string &description);
 
+  /**
+   * @brief Inserts the necessary planning elements into 'description' after the first occurence of 'previousElement'.
+   * @param previousElement The element after which the planning elements are to be inserted.
+   * @param description The robot description wo which the planning elements are to be inserted.
+   */
   void insertPlannerDescription(const std::string &previousElement, std::string &description);
 
 
