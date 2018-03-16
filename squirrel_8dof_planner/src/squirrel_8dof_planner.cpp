@@ -1634,8 +1634,6 @@ void Planner::createPlanningDescription()
   boost::replace_all(robotDescription, "base_linkz", "base_link");
   insertPlannerDescription("robot", robotDescription);
 
-  std::cout << robotDescription  << std::endl;
-
   ros::param::set("robot_description", robotDescription);
 }
 
