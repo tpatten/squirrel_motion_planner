@@ -8,6 +8,8 @@
 #include <fstream>
 #include <iostream>
 
+#include <boost/algorithm/string/replace.hpp>
+
 #include <ros/ros.h>
 #include <ros/package.h>
 
@@ -34,6 +36,7 @@
 #include <octomap_msgs/conversions.h>
 #include <octomap_server/OctomapServer.h>
 #include <squirrel_8dof_planner/squirrel_8dof_planner_structures.hpp>
+
 
 #define PLANNING_FRAME_ "map"
 #define CONTROLLER_FRAME_ "odom"
@@ -358,6 +361,23 @@ private:
    * @return 3D vector of the y-axis of frameChild in frameParent.
    */
   Tuple3D getEndEffectorDirection(const Pose &poseEndEffector);
+
+  // ******************** PLANNING DESCRIPTION ********************
+
+  void createPlanningDescription();
+
+  void removeAllElements(const std::string &element, std::string &description);
+
+  bool removeElement(const std::string &element, std::string &description);
+
+  bool removeElement(const std::string &element, const std::string &name, std::string &description);
+
+  void removeAllSections(const std::string &start, const std::string &end, std::string &description);
+
+  bool removeSection(const std::string &start, const std::string &end, std::string &description);
+
+  void insertPlannerDescription(const std::string &previousElement, std::string &description);
+
 
   // ******************** INLINES ********************
 
