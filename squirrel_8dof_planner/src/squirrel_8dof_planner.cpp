@@ -1458,7 +1458,7 @@ bool Planner::isConnectionLineFree(const Tuple2D &pointStart, const Tuple2D &poi
 
 void Planner::normalizeTrajectory(const Trajectory &trajectory, Trajectory &trajectoryNormalized, const Pose &normalizedPose)
 {
-  UInt poseDimension = normalizedPose.size();
+  const UInt poseDimension = normalizedPose.size();
 
   if (poseDimension < 1 || trajectory.size() <= 1 || trajectory[0].size() != poseDimension)
     return;
@@ -1475,7 +1475,12 @@ void Planner::normalizeTrajectory(const Trajectory &trajectory, Trajectory &traj
     Real frac = fabs(poseNext[0] - poseLast[0]) / normalizedPose[0];
     for (UInt i = 1; i < poseDimension; ++i)
     {
-      const Real fracNew = fabs(poseNext[i] - poseLast[i]) / normalizedPose[i];
+      Real fracNew;
+      if (poseDimension == 8 && i == 2)
+        fracNew = findAngularDistance(poseNext[i], poseLast[i]) / normalizedPose[i];
+      else
+        fracNew = fabs(poseNext[i] - poseLast[i]) / normalizedPose[i];
+
       if (fracNew > frac)
         frac = fracNew;
     }
@@ -1493,12 +1498,28 @@ void Planner::normalizeTrajectory(const Trajectory &trajectory, Trajectory &traj
 
     UInt counterMax = (UInt)frac + 1;
     frac = std::ceil(frac);
+    const Real fracRecip = 1.0 / frac;
     const Pose poseLastCopy = trajectoryNormalized.back();
+
+    Pose poseDifference(poseDimension);
+    for (UInt i = 0; i < poseDimension; ++i)
+    {
+      if (poseDimension == 8 && i == 2)
+        poseDifference[i] = findAngularDistanceSigned(poseLastCopy[i], poseNext[i]);
+      else
+        poseDifference[i] = poseNext[i] - poseLastCopy[i];
+    }
+
     for (UInt i = 1; i <= counterMax; ++i)
     {
       trajectoryNormalized.push_back(poseLastCopy);
       for (UInt j = 0; j < poseDimension; ++j)
-        trajectoryNormalized.back()[j] += i * (poseNext[j] - trajectoryNormalized.back()[j]) / frac;
+      {
+        trajectoryNormalized.back()[j] += i * poseDifference[j] * fracRecip;
+        if (poseDimension == 8 && j == 2)
+          normalizeAngle(trajectoryNormalized.back()[j]);
+      }
+
     }
 
     ++poseNextIndex;
@@ -1894,4 +1915,35 @@ inline void Planner::waitAndSpin(const Real seconds)
   }
 }
 
-} //namespace SquirrelMotionPlanner
+inline Real Planner::findAngularDistance(const Real angle1, const Real angle2)
+{
+  const Real dist = fabs(angle2 - angle1);
+  if (dist <= M_PI)
+    return dist;
+  else
+    return 2 * M_PI - dist;
+}
+
+inline Real Planner::findAngularDistanceSigned(const Real angle1, const Real angle2)
+{
+  const Real distSigned = angle2 - angle1;
+  if (fabs(distSigned) <= M_PI)
+    return distSigned;
+  else
+  {
+    if (distSigned > 0.0)
+      return -2.0 * M_PI + distSigned;
+    else
+      return 2.0 * M_PI + distSigned;
+  }
+}
+
+inline void Planner::normalizeAngle(Real &angle)
+{
+  if (angle < -M_PI)
+    angle += 2.0 * M_PI;
+  else if (angle > M_PI)
+    angle -= 2.0 * M_PI;
+}
+
+} //namespace SquirrelMotionPlanne

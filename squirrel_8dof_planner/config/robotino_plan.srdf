@@ -268,5 +268,5 @@
     <disable_collisions link1="arm_link2" link2="door_link" reason="Never" />
     <disable_collisions link1="base_body_link" link2="door_link" reason="Never" />
     <disable_collisions link1="shell_base_link_front" link2="door_link" reason="Never" />
-    <disable_collisions link1="base_body_link" link2="shel_base_link_front" reason="Never" />
+    <disable_collisions link1="base_body_link" link2="shell_base_link_front" reason="Never" />
 </robot>

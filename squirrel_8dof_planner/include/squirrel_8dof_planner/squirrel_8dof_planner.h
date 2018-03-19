@@ -519,6 +519,28 @@ private:
    * @param seconds The amount of seconds the loop should run for.
    */
   void waitAndSpin(const Real seconds);
+
+  /**
+   * @brief Finds the angular distance between two values in the range -pi to pi.
+   * @param angle1 First angle.
+   * @param angle2 Second angle.
+   * @return The angular distance between angle1 and angle2.
+   */
+  Real findAngularDistance(const Real angle1, const Real angle2);
+
+  /**
+   * @brief Finds the angular distance in between two values in the range -pi to pi including the sign that points from angle1 to angle2.
+   * @param angle1 First angle.
+   * @param angle2 Second angle.
+   * @return The signed angular distance between angle1 and angle2.
+   */
+  Real findAngularDistanceSigned(const Real angle1, const Real angle2);
+
+  /**
+   * @brief Normalizes an angle to the range -pi to pi, if it was from the range -2pi to 2pi.
+   * @param angle The angle to normalize.
+   */
+  void normalizeAngle(Real &angle);
 };
 
 } //namespace SquirrelMotionPlanner
