@@ -4,28 +4,32 @@ namespace SquirrelMotionPlanner
 {
 
 // ********************************************************
+
 // ******************** PUBLIC MEMBERS ********************
+
 // ********************************************************
 
 Planner::Planner() :
-    nhPrivate("~"), birrtStarPlanner("robotino_robot"), interactiveMarkerServer("endeffector_goal"), octree(NULL)
+    nhPrivate("~"), interactiveMarkerServer("endeffector_goal"), octree(NULL)
 {
+  createPlanningDescription();
+  birrtStarPlanner.initialize("robotino_robot");
+
   initializeParameters();
   if (posesFolding.size() == 0)
   {
     ros::shutdown();
     return;
   }
-
   initializeMessageHandling();
-
   waitAndSpin(3.0);
-
   initializeInteractiveMarker();
 }
 
 // *********************************************************
+
 // ******************** PRIVATE MEMBERS ********************
+
 // *********************************************************
 
 void Planner::initializeParameters()
@@ -74,7 +78,7 @@ void Planner::initializeParameters()
   loadParameter("astar_smoothing_distance", AStarPathSmoothingDistance, 0.2);
   loadParameter("astar_final_smoothed_point_distance", AStarPathSmoothedPointDistance, 0.02);
   loadParameter("goal_pose_search_discretization", goalPoseSearchDiscretization, 20.0);
-  if(goalPoseSearchDiscretization < 1)
+  if (goalPoseSearchDiscretization < 1)
     goalPoseSearchDiscretization = 1.0;
   goalPoseSearchDiscretization *= M_PI / 180.0;
 
@@ -94,9 +98,9 @@ void Planner::initializeMessageHandling()
 
   std::string octomapServiceTopic;
   loadParameter("octomap_service_topic", octomapServiceTopic, "/octomap_full");
-  if(octomapServiceTopic.size() == 0)
+  if (octomapServiceTopic.size() == 0)
     octomapServiceTopic = "/octomap_full";
-  else if(octomapServiceTopic[0] != '/')
+  else if (octomapServiceTopic[0] != '/')
     octomapServiceTopic = "/" + octomapServiceTopic;
   serviceClientOctomap = nh.serviceClient<octomap_msgs::GetOctomap>(octomapServiceTopic);
   ROS_INFO("Retrieving octomap from service topic '%s'", octomapServiceTopic.c_str());
@@ -316,18 +320,18 @@ void Planner::publishTrajectoryController()
   // This is because roscontrol can not know that for this joint +pi and -pi are the same and thus
   // creates control commands to go from +pi to -pi
   /*static float spinCorrection = 0.;
-  for (UInt i = 1; i < controllerTrajectory.size(); ++i)
-    controllerTrajectory[i][2] += spinCorrection;*/
+   for (UInt i = 1; i < controllerTrajectory.size(); ++i)
+   controllerTrajectory[i][2] += spinCorrection;*/
 
   /*
-  for (UInt i = 1; i < controllerTrajectory.size(); ++i)
-  {
-    if ((controllerTrajectory[i][2] - controllerTrajectory[i-1][2]) > M_PI)
-      controllerTrajectory[i][2] -= (2*M_PI);
-    else if ((controllerTrajectory[i][2] - controllerTrajectory[i-1][2]) < -M_PI)
-      controllerTrajectory[i][2] += (2*M_PI);
-  }
-  */
+   for (UInt i = 1; i < controllerTrajectory.size(); ++i)
+   {
+   if ((controllerTrajectory[i][2] - controllerTrajectory[i-1][2]) > M_PI)
+   controllerTrajectory[i][2] -= (2*M_PI);
+   else if ((controllerTrajectory[i][2] - controllerTrajectory[i-1][2]) < -M_PI)
+   controllerTrajectory[i][2] += (2*M_PI);
+   }
+   */
 
   ros::Duration time(0.0);
   for (UInt i = 0; i < controllerTrajectory.size(); ++i)
@@ -386,7 +390,7 @@ bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequ
   }
 
   birrtStarPlanner.setDisabledLinkMapCollisions(req.disabled_octomap_link_collision);
-  
+
   // Check the frame of the goal
   if (req.frame_id.size() == 0)
   {
@@ -395,18 +399,15 @@ bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequ
     return true;
   }
 
-  ROS_INFO("Requested joint goal:\nframe %s joints %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f", req.frame_id.c_str(),
-           req.joints[0], req.joints[1], req.joints[2], req.joints[3], req.joints[4], req.joints[5], req.joints[6], req.joints[7]);
+  ROS_INFO("Requested joint goal:\nframe %s joints %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f", req.frame_id.c_str(), req.joints[0], req.joints[1], req.joints[2],
+           req.joints[3], req.joints[4], req.joints[5], req.joints[6], req.joints[7]);
 
   // Transform the pose to the map frame
   Pose transformedJoints = transformBase(req.frame_id, PLANNING_FRAME_, req.joints);
   poseGoal = transformedJoints;
 
-  ROS_INFO_STREAM("From " <<
-                  poseCurrent[0] << " " << poseCurrent[1] << " " << poseCurrent[2] << " " << poseCurrent[3] << " " <<
-                  poseCurrent[4] << " " << poseCurrent[5] << " " << poseCurrent[6] << " " << poseCurrent[7] << "\nto " <<
-                  poseGoal[0] << " " << poseGoal[1] << " " << poseGoal[2] << " " << poseGoal[3] << " " <<
-                  poseGoal[4] << " " << poseGoal[5] << " " << poseGoal[6] << " " << poseGoal[7]);
+  ROS_INFO_STREAM(
+      "From " << poseCurrent[0] << " " << poseCurrent[1] << " " << poseCurrent[2] << " " << poseCurrent[3] << " " << poseCurrent[4] << " " << poseCurrent[5] << " " << poseCurrent[6] << " " << poseCurrent[7] << "\nto " << poseGoal[0] << " " << poseGoal[1] << " " << poseGoal[2] << " " << poseGoal[3] << " " << poseGoal[4] << " " << poseGoal[5] << " " << poseGoal[6] << " " << poseGoal[7]);
 
   //poseGoal = req.joints;
   posesTrajectory.clear();
@@ -468,7 +469,7 @@ bool Planner::serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanE
   }
 
   birrtStarPlanner.setDisabledLinkMapCollisions(req.disabled_octomap_link_collision);
-  
+
   // Check the frame of the goal
   if (req.frame_id.size() == 0)
   {
@@ -477,8 +478,8 @@ bool Planner::serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanE
     return true;
   }
 
-  ROS_INFO("Requested end effector goal:\nframe %s \nposition %.2f %.2f %.2f %.2f %.2f %.2f", req.frame_id.c_str(),
-           req.positions[0], req.positions[1], req.positions[2], req.positions[3], req.positions[4], req.positions[5]);
+  ROS_INFO("Requested end effector goal:\nframe %s \nposition %.2f %.2f %.2f %.2f %.2f %.2f", req.frame_id.c_str(), req.positions[0], req.positions[1],
+           req.positions[2], req.positions[3], req.positions[4], req.positions[5]);
 
   // Transform the pose to the planning frame
   Pose transformedPositions = transformBase(req.frame_id, PLANNING_FRAME_, req.positions);
@@ -495,11 +496,8 @@ bool Planner::serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanE
     return true;
   }
 
-  ROS_INFO_STREAM("From " <<
-                  poseCurrent[0] << " " << poseCurrent[1] << " " << poseCurrent[2] << " " << poseCurrent[3] << " " <<
-                  poseCurrent[4] << " " << poseCurrent[5] << " " << poseCurrent[6] << " " << poseCurrent[7] << "\nto " <<
-                  poseGoal[0] << " " << poseGoal[1] << " " << poseGoal[2] << " " << poseGoal[3] << " " <<
-                  poseGoal[4] << " " << poseGoal[5] << " " << poseGoal[6] << " " << poseGoal[7]);
+  ROS_INFO_STREAM(
+      "From " << poseCurrent[0] << " " << poseCurrent[1] << " " << poseCurrent[2] << " " << poseCurrent[3] << " " << poseCurrent[4] << " " << poseCurrent[5] << " " << poseCurrent[6] << " " << poseCurrent[7] << "\nto " << poseGoal[0] << " " << poseGoal[1] << " " << poseGoal[2] << " " << poseGoal[3] << " " << poseGoal[4] << " " << poseGoal[5] << " " << poseGoal[6] << " " << poseGoal[7]);
 
   posesTrajectory.clear();
   if (req.fold_arm && Tuple2D(poseGoal[0], poseGoal[1]).distance(Tuple2D(poseCurrent[0], poseCurrent[1])) > req.min_distance_before_folding)
@@ -552,10 +550,9 @@ bool Planner::serviceCallbackGoalMarker(squirrel_motion_planner_msgs::PlanEndEff
   }
 
   birrtStarPlanner.setDisabledLinkMapCollisions(req.disabled_octomap_link_collision);
-  
-  ROS_INFO("Requested interactive marker goal:\nframe %s \nposition %.2f %.2f %.2f %.2f %.2f %.2f", req.frame_id.c_str(),
-           poseInteractiveMarker[0], poseInteractiveMarker[1], poseInteractiveMarker[2],
-           poseInteractiveMarker[3], poseInteractiveMarker[4], poseInteractiveMarker[5]);
+
+  ROS_INFO("Requested interactive marker goal:\nframe %s \nposition %.2f %.2f %.2f %.2f %.2f %.2f", req.frame_id.c_str(), poseInteractiveMarker[0],
+           poseInteractiveMarker[1], poseInteractiveMarker[2], poseInteractiveMarker[3], poseInteractiveMarker[4], poseInteractiveMarker[5]);
 
   int goalPoseResult = findGoalPose(poseInteractiveMarker);
   if (goalPoseResult == 1)
@@ -569,12 +566,8 @@ bool Planner::serviceCallbackGoalMarker(squirrel_motion_planner_msgs::PlanEndEff
     return true;
   }
 
-  ROS_INFO_STREAM("From " <<
-                  poseCurrent[0] << " " << poseCurrent[1] << " " << poseCurrent[2] << " " << poseCurrent[3] << " " <<
-                  poseCurrent[4] << " " << poseCurrent[5] << " " << poseCurrent[6] << " " << poseCurrent[7] << "\nto " <<
-                  poseGoal[0] << " " << poseGoal[1] << " " << poseGoal[2] << " " << poseGoal[3] << " " <<
-                  poseGoal[4] << " " << poseGoal[5] << " " << poseGoal[6] << " " << poseGoal[7]);
-
+  ROS_INFO_STREAM(
+      "From " << poseCurrent[0] << " " << poseCurrent[1] << " " << poseCurrent[2] << " " << poseCurrent[3] << " " << poseCurrent[4] << " " << poseCurrent[5] << " " << poseCurrent[6] << " " << poseCurrent[7] << "\nto " << poseGoal[0] << " " << poseGoal[1] << " " << poseGoal[2] << " " << poseGoal[3] << " " << poseGoal[4] << " " << poseGoal[5] << " " << poseGoal[6] << " " << poseGoal[7]);
 
   posesTrajectory.clear();
   if (req.fold_arm && Tuple2D(poseGoal[0], poseGoal[1]).distance(Tuple2D(poseCurrent[0], poseCurrent[1])) > req.min_distance_before_folding)
@@ -747,19 +740,19 @@ bool Planner::serviceCallbackPrintAndShowCollisions(std_srvs::EmptyRequest &req,
 
   birrtStarPlanner.getCollisions(poseCurrent, selfCollisions, mapCollisions);
 
-  if(selfCollisions.size() > 0)
+  if (selfCollisions.size() > 0)
   {
     std::cout << "Found self collisions between joints:" << std::endl;
-    for(UInt i = 0; i < selfCollisions.size(); ++i)
+    for (UInt i = 0; i < selfCollisions.size(); ++i)
       std::cout << "   - " << selfCollisions[i].first << " - " << selfCollisions[i].second << std::endl;
   }
   else
     std::cout << "No self collisions found." << std::endl;
 
-  if(mapCollisions.size() > 0)
+  if (mapCollisions.size() > 0)
   {
     std::cout << "Found map collisions for joints:" << std::endl;
-    for(UInt i = 0; i < mapCollisions.size(); ++i)
+    for (UInt i = 0; i < mapCollisions.size(); ++i)
       std::cout << "   - " << mapCollisions[i] << std::endl;
   }
   else
@@ -781,7 +774,7 @@ bool Planner::serviceCallGetOctomap()
   if (octree)
     delete octree;
 
-  if(res.map.binary)
+  if (res.map.binary)
     octree = dynamic_cast<octomap::OcTree*>(octomap_msgs::binaryMsgToMap(res.map));
   else
     octree = dynamic_cast<octomap::OcTree*>(octomap_msgs::fullMsgToMap(res.map));
@@ -1584,7 +1577,7 @@ Pose Planner::transformBase(const std::string &sourceFrame, const std::string &t
     poseSource.header.stamp = commonTime;
     tfListener.transformPose(targetFrame, poseSource, poseTarget);
   }
-  catch(tf::TransformException &ex)
+  catch (tf::TransformException &ex)
   {
     // Error occured!
     ROS_ERROR("Tf listener exception thrown with message '%s'", ex.what());
@@ -1597,10 +1590,7 @@ Pose Planner::transformBase(const std::string &sourceFrame, const std::string &t
   transformedPose[1] = poseTarget.pose.position.y;
 
   // Get the roll, pitch and yaw
-  tf::Matrix3x3 mat(tf::Quaternion(poseTarget.pose.orientation.x,
-                                   poseTarget.pose.orientation.y,
-                                   poseTarget.pose.orientation.z,
-                                   poseTarget.pose.orientation.w) );
+  tf::Matrix3x3 mat(tf::Quaternion(poseTarget.pose.orientation.x, poseTarget.pose.orientation.y, poseTarget.pose.orientation.z, poseTarget.pose.orientation.w));
   double roll, pitch, yaw;
   mat.getEulerYPR(yaw, pitch, roll);
 
@@ -1620,6 +1610,145 @@ Pose Planner::transformBase(const std::string &sourceFrame, const std::string &t
   return transformedPose;
 }
 
+// ******************** PLANNING DESCRIPTION ********************
+
+void Planner::createPlanningDescription()
+{
+  std::string robotDescription;
+  ros::param::get("/robot_description", robotDescription);
+
+  removeAllElements("gazebo", robotDescription);
+  removeAllElements("transmission", robotDescription);
+  removeAllElements("gravity", robotDescription);
+  removeAllElements("self_collide", robotDescription);
+  removeAllSections("<!--", "-->", robotDescription);
+  removeElement("link", "origin", robotDescription);
+  removeElement("link", "base_linkx", robotDescription);
+  removeElement("link", "base_linky", robotDescription);
+  removeElement("link", "base_link", robotDescription);
+  removeElement("link", "base_link", robotDescription);
+  removeElement("joint", "origin_joint", robotDescription);
+  removeElement("joint", "base_jointx", robotDescription);
+  removeElement("joint", "base_jointy", robotDescription);
+  removeElement("joint", "base_jointz", robotDescription);
+  boost::replace_all(robotDescription, "base_linkz", "base_link");
+  insertPlannerDescription("robot", robotDescription);
+
+  ros::param::set("robot_description", robotDescription);
+}
+
+void Planner::removeAllElements(const std::string &element, std::string &description)
+{
+  while (removeElement(element, description))
+    ;
+}
+
+bool Planner::removeElement(const std::string &element, std::string &description)
+{
+  UInt posElement = description.find("<" + element);
+  if (posElement != (UInt)(-1))
+  {
+    UInt posStart = description.rfind('\n', posElement);
+    if (posStart == (UInt)(-1))
+      posStart = 0;
+
+    UInt posElementEnd = description.find("</" + element + ">", posStart);
+    if (posElementEnd == (UInt)(-1))
+      return false;
+
+    UInt posEnd = description.find('\n', posElementEnd);
+    if (posEnd == (UInt)(-1))
+      posEnd = description.size();
+
+    description.erase(posStart, posEnd - posStart);
+    return true;
+  }
+  return false;
+}
+
+bool Planner::removeElement(const std::string &element, const std::string &name, std::string &description)
+{
+  UInt searchStart = 0;
+  while (true)
+  {
+    UInt posElement = description.find("<" + element, searchStart);
+    if (posElement == (UInt)(-1))
+      return false;
+
+    UInt posElementBack = description.find(">", posElement);
+    UInt posName = description.find("name=\"", posElement);
+    if (posName > posElementBack)
+    {
+      searchStart = posElement + 1;
+      continue;
+    }
+    posName += 6;
+    UInt posNameBack = description.find("\"", posName);
+    std::string nameFound = description.substr(posName, posNameBack - posName);
+    if (nameFound != name)
+    {
+      searchStart = posElement + 1;
+      continue;
+    }
+
+    UInt posStart = description.rfind('\n', posElement);
+    if (posStart == (UInt)(-1))
+      posStart = 0;
+
+    UInt posElementEnd = description.find("</" + element + ">", posStart);
+    if (posElementEnd == (UInt)(-1))
+      return false;
+
+    UInt posEnd = description.find('\n', posElementEnd);
+    if (posEnd == (UInt)(-1))
+      posEnd = description.size();
+
+    description.erase(posStart, posEnd - posStart);
+    return true;
+
+  }
+
+  return false;
+}
+
+void Planner::removeAllSections(const std::string &start, const std::string &end, std::string &description)
+{
+  while (removeSection(start, end, description))
+    ;
+}
+
+bool Planner::removeSection(const std::string &start, const std::string &end, std::string &description)
+{
+  UInt posStart = description.find(start);
+  if (posStart == (UInt)(-1))
+    return false;
+  UInt posStartWhiteSpace = posStart;
+  if (posStart > 0)
+    posStartWhiteSpace = description.rfind('\n', posStart);
+
+  UInt posEnd = description.find(end, posStart);
+  if (posEnd == (UInt)(-1))
+    return false;
+
+  description.erase(posStartWhiteSpace, posEnd - posStartWhiteSpace + end.size());
+
+  return true;
+}
+
+void Planner::insertPlannerDescription(const std::string &previousElement, std::string &description)
+{
+  UInt posStart = description.find("<" + previousElement);
+  if (posStart == (UInt)(-1))
+    return;
+
+  UInt posStartBack = description.find('\n', posStart);
+  if (posStartBack == (UInt)(-1))
+    return;
+
+  std::string plannerDescription;
+  ros::param::get("robot_description_addition", plannerDescription);
+  description.insert(posStartBack + 1, plannerDescription);
+}
 
 // ******************** INLINES ********************
 
@@ -1652,7 +1781,8 @@ inline void Planner::loadParameter(const string &name, std::string &member, cons
   }
   catch (ros::InvalidNameException &ex)
   {
-    ROS_ERROR("ROS parameter '%s' has an invalid format. Using the default value '%s' instead.", (nh.getNamespace() + "/" + name).c_str(), defaultValue.c_str());
+    ROS_ERROR("ROS parameter '%s' has an invalid format. Using the default value '%s' instead.", (nh.getNamespace() + "/" + name).c_str(),
+              defaultValue.c_str());
     member = defaultValue;
   }
 }
@@ -1734,8 +1864,8 @@ inline bool Planner::isArmStretched() const
 
 inline bool Planner::isRobotAtTrajectoryStart() const
 {
-  // Transform the start position
-  //Pose startTrajectory = transformBase(CONTROLLER_FRAME_, PLANNING_FRAME_, posesTrajectoryNormalized.front());
+// Transform the start position
+//Pose startTrajectory = transformBase(CONTROLLER_FRAME_, PLANNING_FRAME_, posesTrajectoryNormalized.front());
   Pose startTrajectory = posesTrajectoryNormalized.front();
   if (fabs(poseCurrent[0] - startTrajectory[0] > 0.02) || fabs(poseCurrent[1] - startTrajectory[1] > 0.02)
       || fabs(poseCurrent[2] - startTrajectory[2] > 0.05236) || fabs(poseCurrent[3] - startTrajectory[3] > 0.05236)

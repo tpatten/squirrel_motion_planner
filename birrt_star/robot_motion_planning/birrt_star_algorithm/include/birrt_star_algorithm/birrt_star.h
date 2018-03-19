@@ -27,8 +27,10 @@ using namespace std;
 class BiRRTstarPlanner //: public robot_interface_definition::RobotInterface
 {
 public:
-  BiRRTstarPlanner(string planning_group);
+  BiRRTstarPlanner();
   ~BiRRTstarPlanner();
+
+  void initialize(string planning_group);
 
   //Set the planning scene
   void setPlanningSceneInfo(vector<double> size_x, vector<double> size_y, string scene_name);
