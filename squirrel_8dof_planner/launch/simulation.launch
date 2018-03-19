@@ -39,13 +39,13 @@
   <group ns="$(arg planning_ns)">
     <rosparam command="load" file="$(find squirrel_8dof_planner)/config/parameters.yaml" />
     <rosparam command="load" file="$(find squirrel_8dof_planner)/config/folding_poses_$(arg robot).yaml" />
-    <param name="robot_description" textfile="$(find squirrel_8dof_planner)/config/robotino_plan.urdf"/>
+    <param name="robot_description_addition" textfile="$(find squirrel_8dof_planner)/config/robotino_description_addition"/>
+    <!--param name="robot_description" textfile="$(find squirrel_8dof_planner)/config/robotino_plan.urdf"/-->
     <param name="robot_description_semantic" textfile="$(find squirrel_8dof_planner)/config/robotino_plan.srdf"/>
-    <!--include file="$(find squirrel_8dof_planner)/launch/move_group.launch"/-->
     <group if="$(arg planner)">
       <node name="squirrel_8dof_planner_node" pkg="squirrel_8dof_planner" type="squirrel_8dof_planner_node" output="screen"/>
+      <node name="squirrel_8dof_visualizer_node" pkg="squirrel_8dof_visualizer" type="squirrel_8dof_visualizer_node" output="screen"/>
     </group>
-    <node name="squirrel_8dof_visualizer_node" pkg="squirrel_8dof_visualizer" type="squirrel_8dof_visualizer_node" output="screen"/>
   </group>
 
   <node name="octomap_server_node" pkg="octomap_server" type="octomap_server_node" args="$(find squirrel_8dof_planner)/config/$(arg world_name).ot"/>

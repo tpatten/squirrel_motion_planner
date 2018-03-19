@@ -4,7 +4,11 @@ namespace birrt_star_motion_planning
 {
 
 //Constructor
-BiRRTstarPlanner::BiRRTstarPlanner(string planning_group)
+BiRRTstarPlanner::BiRRTstarPlanner()
+{
+}
+
+void BiRRTstarPlanner::initialize(string planning_group)
 {
   //Get namespaces of robot
   m_nh.param("ns_prefix_robot", m_ns_prefix_robot, std::string(""));
@@ -319,7 +323,6 @@ BiRRTstarPlanner::BiRRTstarPlanner(string planning_group)
   m_planner_success = 0;
 
   ROS_INFO("Planner initialized .....");
-
 }
 
 //Destructor
