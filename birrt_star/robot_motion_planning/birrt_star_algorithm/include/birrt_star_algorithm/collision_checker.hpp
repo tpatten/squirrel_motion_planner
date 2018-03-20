@@ -422,7 +422,7 @@ private:
 
   void getLinksFromString(const std::string &line, std::string &link1, std::string &link2) const
   {
-    UInt posStart = line.find("link1"), nameLength, posTmp;
+    UInt posStart = line.find("link1="), nameLength, posTmp;
     posStart += 7;
     posTmp = posStart;
     nameLength = 0;
@@ -434,7 +434,7 @@ private:
 
     link1 = line.substr(posStart, nameLength);
 
-    posStart = line.find("link2");
+    posStart = line.find("link2=");
     posStart += 7;
     posTmp = posStart;
     nameLength = 0;
