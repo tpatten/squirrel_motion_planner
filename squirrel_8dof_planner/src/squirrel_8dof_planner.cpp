@@ -1456,12 +1456,22 @@ bool Planner::isConnectionLineFree(const Tuple2D &pointStart, const Tuple2D &poi
   return true;
 }
 
-void Planner::normalizeTrajectory(const Trajectory &trajectory, Trajectory &trajectoryNormalized, const Pose &normalizedPose)
+void Planner::normalizeTrajectory(const Trajectory &trajectoryRaw, Trajectory &trajectoryNormalized, const Pose &normalizedPose)
 {
   const UInt poseDimension = normalizedPose.size();
 
-  if (poseDimension < 1 || trajectory.size() <= 1 || trajectory[0].size() != poseDimension)
+  if (poseDimension < 1 || trajectoryRaw.size() <= 1 || trajectoryRaw[0].size() != poseDimension)
     return;
+
+  Trajectory trajectory = trajectoryRaw;
+  for (UInt i = 0; i < trajectory.size(); ++i)
+  {
+    Pose &pose = trajectory[i];
+    if (pose[2] > M_PI)
+      pose[2] -= 2.0 * M_PI;
+    else if(pose[2] < -M_PI)
+      pose[2] += 2.0 * M_PI;
+  }
 
   UInt poseNextIndex = 1;
   trajectoryNormalized.clear();
