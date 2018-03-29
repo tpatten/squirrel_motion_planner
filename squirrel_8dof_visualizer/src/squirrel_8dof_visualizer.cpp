@@ -10,13 +10,25 @@ Visualizer::Visualizer(const std::string &robotDescriptionTopic) :
   subscriberPose = nh.subscribe("squirrel_8dof_planner_node/robot_goal_pose", 1, &Visualizer::subscriberSinglePoseHandler, this);
   subscriberVisibility = nhPrivate.subscribe("set_visibility", 1, &Visualizer::subscriberVisibilityHandler, this);
   subscriberRate = nhPrivate.subscribe("set_rate", 1, &Visualizer::subscriberRateHandler, this);
-  robotID = robotMarkerPublisher.addRobotFromDescription(robotDescriptionTopic);
-  robotIDSingle = robotMarkerPublisher.addRobotFromDescription(robotDescriptionTopic);
+  robotIDPlanNormalized = robotMarkerPublisher.addRobotFromDescription(robotDescriptionTopic);
+  robotIDGoal = robotMarkerPublisher.addRobotFromDescription(robotDescriptionTopic);
+
   std_msgs::ColorRGBA color;
   color.a = 0.2;
+  color.r = 0.0;
+  color.g = 0.0;
   color.b = 1.0;
-  robotMarkerPublisher.setRobotColor(robotID, color, rviz_robot_marker::RvizRobotMarkerPublisher::FORCE_COLOR);
-  robotMarkerPublisher.setRobotColor(robotIDSingle, color, rviz_robot_marker::RvizRobotMarkerPublisher::FORCE_COLOR);
+  robotMarkerPublisher.setRobotColor(robotIDPlanNormalized, color, rviz_robot_marker::RvizRobotMarkerPublisher::FORCE_COLOR);
+
+  color.r = 0.0;
+  color.g = 0.8;
+  color.b = 0.0;
+  robotMarkerPublisher.setRobotColor(robotIDGoal, color, rviz_robot_marker::RvizRobotMarkerPublisher::FORCE_COLOR);
+
+  color.r = 0.8;
+  color.g = 0.1;
+  color.b = 0.1;
+  robotMarkerPublisher.setRobotColor(robotIDPlanRaw, color, rviz_robot_marker::RvizRobotMarkerPublisher::FORCE_COLOR);
 
   transformBase.frame_id_ = "map";
   transformBase.child_frame_id_ = "base_link";
@@ -47,28 +59,28 @@ void Visualizer::run()
     rate.sleep();
     ros::spinOnce();
 
-    if (!visible || poses.size() <= 1)
+    if (!visible || posesNormalized.size() <= 1)
       continue;
 
     if (!finalPoseState)
     {
-      transformBaseTranslation[0] = poses[poseCurrent][0];
-      transformBaseTranslation[1] = poses[poseCurrent][1];
-      transformBaseRotation.setRPY(0.0, 0.0, poses[poseCurrent][2]);
+      transformBaseTranslation[0] = posesNormalized[poseCurrent][0];
+      transformBaseTranslation[1] = posesNormalized[poseCurrent][1];
+      transformBaseRotation.setRPY(0.0, 0.0, posesNormalized[poseCurrent][2]);
 
       transformBase.setOrigin(transformBaseTranslation);
       transformBase.setBasis(transformBaseRotation);
 
-      jointStatesArm->position[0] = poses[poseCurrent][3];
-      jointStatesArm->position[1] = poses[poseCurrent][4];
-      jointStatesArm->position[2] = poses[poseCurrent][5];
-      jointStatesArm->position[3] = poses[poseCurrent][6];
-      jointStatesArm->position[4] = poses[poseCurrent][7];
+      jointStatesArm->position[0] = posesNormalized[poseCurrent][3];
+      jointStatesArm->position[1] = posesNormalized[poseCurrent][4];
+      jointStatesArm->position[2] = posesNormalized[poseCurrent][5];
+      jointStatesArm->position[3] = posesNormalized[poseCurrent][6];
+      jointStatesArm->position[4] = posesNormalized[poseCurrent][7];
 
-      robotMarkerPublisher.setRobotPose(robotID, transformBase, jointStatesArm);
+      robotMarkerPublisher.setRobotPose(robotIDPlanNormalized, transformBase, jointStatesArm);
     }
 
-    if (poseCurrent == poses.size() - 1)
+    if (poseCurrent == posesNormalized.size() - 1)
     {
       if (!finalPoseState)
       {
@@ -99,13 +111,13 @@ void Visualizer::subscriberTrajectoryHandler(const std_msgs::Float64MultiArray &
     return;
   }
 
-  poses.resize(msg.layout.dim[0].size, std::vector<Real>(8));
+  posesNormalized.resize(msg.layout.dim[0].size, std::vector<Real>(8));
 
   UInt counter = 0;
   for (UInt i = 0; i < msg.layout.dim[0].size; ++i)
     for (UInt j = 0; j < 8; ++j)
     {
-      poses[i][j] = msg.data[counter];
+      posesNormalized[i][j] = msg.data[counter];
       ++counter;
     }
 
@@ -139,7 +151,7 @@ void Visualizer::subscriberSinglePoseHandler(const std_msgs::Float64MultiArray &
   jointStatesArm->position[3] = msg.data[6];
   jointStatesArm->position[4] = msg.data[7];
 
-  robotMarkerPublisher.setRobotPose(robotIDSingle, transformBase, jointStatesArm);
+  robotMarkerPublisher.setRobotPose(robotIDGoal, transformBase, jointStatesArm);
 }
 
 void Visualizer::subscriberRateHandler(const std_msgs::Float64 &msg)
@@ -152,13 +164,13 @@ void Visualizer::subscriberVisibilityHandler(const std_msgs::Bool &msg)
   visible = msg.data;
   if (visible)
   {
-    robotMarkerPublisher.showRobot(robotID);
-    robotMarkerPublisher.showRobot(robotIDSingle);
+    robotMarkerPublisher.showRobot(robotIDPlanNormalized);
+    robotMarkerPublisher.showRobot(robotIDGoal);
   }
   else
   {
-    robotMarkerPublisher.hideRobot(robotID);
-    robotMarkerPublisher.hideRobot(robotIDSingle);
+    robotMarkerPublisher.hideRobot(robotIDPlanNormalized);
+    robotMarkerPublisher.hideRobot(robotIDGoal);
   }
 }
 

@@ -44,10 +44,12 @@ private:
   ros::Subscriber subscriberRate;     ///< ROS subscriber. Subscribes to a Float64 and sets the publishing speed of the trajectory.
   ros::Subscriber subscriberVisibility;     ///< ROS subscriber. Subscribes to a Bool and sets the visiblity of the trajectory visualization.
   rviz_robot_marker::RvizRobotMarkerPublisher robotMarkerPublisher;     ///< Publisher class, takes care of direct visualization to Rviz.
-  UInt robotID;     ///< Robot ID needed to communicate with robotMarkerPublisher.
-  UInt robotIDSingle;     ///< Robot ID needed to communicate with robotMarkerPublisher.
+  UInt robotIDPlanNormalized;     ///< Robot ID needed to communicate with robotMarkerPublisher.
+  UInt robotIDPlanRaw;     ///< Robot ID needed to communicate with robotMarkerPublisher.
+  UInt robotIDGoal;     ///< Robot ID needed to communicate with robotMarkerPublisher.
 
-  std::vector<std::vector<Real> > poses;     ///< Vector to which all 8D poses are saved, once a new trajectory is received.
+  std::vector<std::vector<Real> > posesNormalized;     ///< Vector to which all 8D poses are saved, once a new trajectory is received.
+  std::vector<std::vector<Real> > posesRaw;     ///< Vector to which all 8D poses are saved, once a new trajectory is received.
   UInt poseCurrent;     ///< Index of the current pose to be visualized.
 
   tf::StampedTransform transformBase;     ///< The full base transform of the robot, sent to robotMarkerPublisher.
