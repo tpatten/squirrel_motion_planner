@@ -291,6 +291,7 @@ void Planner::publishTrajectoryController()
   if (publisherTrajectoryController.getNumSubscribers() == 0 || posesTrajectoryNormalized.size() < 1)
     return;
 
+  /*
   trajectory_msgs::JointTrajectory msg;
   msg.joint_names.resize(8);
   msg.joint_names[0] = "base_jointx";
@@ -310,6 +311,63 @@ void Planner::publishTrajectoryController()
   for (UInt i = 0; i < controllerTrajectory.size(); ++i)
   {
     transformedPose = transformBase(PLANNING_FRAME_, CONTROLLER_FRAME_, posesTrajectoryNormalized[i]);
+    //std::cout << i << " " << controllerTrajectory[i][0] << " " << controllerTrajectory[i][1] << " " << controllerTrajectory[i][2] << " -> "
+    //          << transformedPose[0] << " " << transformedPose[1] << " " << transformedPose[2] << std::endl;
+    controllerTrajectory[i] = transformedPose;
+  }
+
+  // Avoid +pi -> -pi jumps (and vice versa) for base_jointz as this screws trajecrories and leads
+  // to weird 360 deg spinning for trajectories crossing the +pi/-pi border.
+  // This is because roscontrol can not know that for this joint +pi and -pi are the same and thus
+  // creates control commands to go from +pi to -pi
+  //static float spinCorrection = 0.;
+  // for (UInt i = 1; i < controllerTrajectory.size(); ++i)
+  // controllerTrajectory[i][2] += spinCorrection;
+
+
+   //for (UInt i = 1; i < controllerTrajectory.size(); ++i)
+   //{
+   //if ((controllerTrajectory[i][2] - controllerTrajectory[i-1][2]) > M_PI)
+   //controllerTrajectory[i][2] -= (2*M_PI);
+   //else if ((controllerTrajectory[i][2] - controllerTrajectory[i-1][2]) < -M_PI)
+   //controllerTrajectory[i][2] += (2*M_PI);
+   //}
+
+  ros::Duration time(0.0);
+  for (UInt i = 0; i < controllerTrajectory.size(); ++i)
+  {
+    time += ros::Duration(timeBetweenPoses);
+    msg.points[i].positions = controllerTrajectory[i];
+    msg.points[i].time_from_start = time;
+  }
+  */
+
+  trajectory_msgs::JointTrajectory msg = trajectoryToMessage(posesTrajectoryNormalized);
+
+  publisherTrajectoryController.publish(msg);
+}
+
+trajectory_msgs::JointTrajectory Planner::trajectoryToMessage(const Trajectory &trajectory)
+{
+  trajectory_msgs::JointTrajectory msg;
+  msg.joint_names.resize(8);
+  msg.joint_names[0] = "base_jointx";
+  msg.joint_names[1] = "base_jointy";
+  msg.joint_names[2] = "base_jointz";
+  msg.joint_names[3] = "arm_joint1";
+  msg.joint_names[4] = "arm_joint2";
+  msg.joint_names[5] = "arm_joint3";
+  msg.joint_names[6] = "arm_joint4";
+  msg.joint_names[7] = "arm_joint5";
+  msg.points.resize(trajectory.size());
+
+  // Transform the base positions to odom commands
+  Trajectory controllerTrajectory = trajectory;
+  Pose originalPose, transformedPose;
+  originalPose.resize(3);
+  for (UInt i = 0; i < controllerTrajectory.size(); ++i)
+  {
+    transformedPose = transformBase(PLANNING_FRAME_, CONTROLLER_FRAME_, trajectory[i]);
     //std::cout << i << " " << controllerTrajectory[i][0] << " " << controllerTrajectory[i][1] << " " << controllerTrajectory[i][2] << " -> "
     //          << transformedPose[0] << " " << transformedPose[1] << " " << transformedPose[2] << std::endl;
     controllerTrajectory[i] = transformedPose;
@@ -341,7 +399,7 @@ void Planner::publishTrajectoryController()
     msg.points[i].time_from_start = time;
   }
 
-  publisherTrajectoryController.publish(msg);
+  return msg;
 }
 
 void Planner::subscriberPoseHandler(const sensor_msgs::JointState &msg)
@@ -445,6 +503,7 @@ bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequ
   }
 
   res.result = squirrel_motion_planner_msgs::PlanPoseResponse::SUCCESS;
+  res.trajectory = trajectoryToMessage(posesTrajectoryNormalized);
   publish2DPath();
   publishTrajectoryVisualizer();
   return true;
@@ -533,6 +592,7 @@ bool Planner::serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanE
   }
 
   res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::SUCCESS;
+  res.trajectory = trajectoryToMessage(posesTrajectoryNormalized);
   publish2DPath();
   publishTrajectoryVisualizer();
   return true;
@@ -603,6 +663,7 @@ bool Planner::serviceCallbackGoalMarker(squirrel_motion_planner_msgs::PlanEndEff
   }
 
   res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::SUCCESS;
+  res.trajectory = trajectoryToMessage(posesTrajectoryNormalized);
   publish2DPath();
   publishTrajectoryVisualizer();
   return true;
@@ -689,6 +750,7 @@ bool Planner::serviceCallbackFoldArm(squirrel_motion_planner_msgs::FoldArmReques
   }
 
   res.result = squirrel_motion_planner_msgs::FoldArmResponse::SUCCESS;
+  res.trajectory = trajectoryToMessage(posesTrajectoryNormalized);
 
   publishTrajectoryController();
   return true;
@@ -726,6 +788,7 @@ bool Planner::serviceCallbackUnfoldArm(squirrel_motion_planner_msgs::UnfoldArmRe
   }
 
   res.result = squirrel_motion_planner_msgs::UnfoldArmResponse::SUCCESS;
+  res.trajectory = trajectoryToMessage(posesTrajectoryNormalized);
 
   publishTrajectoryController();
   return true;

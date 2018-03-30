@@ -186,6 +186,11 @@ private:
   void publishTrajectoryController();
 
   /**
+   * @brief Converts a trajectory to a ros message that can be sent to the controller.
+   */
+  trajectory_msgs::JointTrajectory trajectoryToMessage(const Trajectory &trajectory);
+
+  /**
    * @brief Handler for the arm joints of the robot.
    * @param msg ROS message that contains the joint angles of  the arm information.
    */
