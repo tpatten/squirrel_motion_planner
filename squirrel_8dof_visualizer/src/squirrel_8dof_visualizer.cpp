@@ -5,7 +5,7 @@ namespace SquirrelMotionPlanning
 
 Visualizer::Visualizer(const std::string &robotDescriptionTopic) :
     nhPrivate("~"), rate(30), robotMarkerPublisher("robot_trajectory_visualization"), jointStatesArm(new sensor_msgs::JointState), visibilityNormalized(true), visibilityRaw(
-        true), visibilityGoal(true)
+        false), visibilityGoal(true)
 {
   subscriberTrajectoryNormalized = nh.subscribe("squirrel_8dof_planner_node/robot_trajectory_normalized", 1, &Visualizer::subscriberTrajectoryNormalizedHandler,
                                                 this);
@@ -38,6 +38,7 @@ Visualizer::Visualizer(const std::string &robotDescriptionTopic) :
   color.g = 0.1;
   color.b = 0.1;
   robotMarkerPublisher.setRobotColor(robotIDPlanRaw, color, rviz_robot_marker::RvizRobotMarkerPublisher::FORCE_COLOR);
+  robotMarkerPublisher.hideRobot(robotIDPlanRaw);
 
   transformBase.frame_id_ = "map";
   transformBase.child_frame_id_ = "base_link";
@@ -61,7 +62,7 @@ void Visualizer::run()
 {
   while (ros::ok())
   {
-    if (visibilityNormalized && posesNormalized.size() > 1)
+    if (posesNormalized.size() > 1)
     {
       UInt indexAdjusted = indexCurrentNormalized < posesNormalized.size() ? indexCurrentNormalized : posesNormalized.size() - 1;
 
@@ -81,7 +82,7 @@ void Visualizer::run()
       robotMarkerPublisher.setRobotPose(robotIDPlanNormalized, transformBase, jointStatesArm);
     }
 
-    if (visibilityRaw && posesRaw.size() > 1)
+    if (posesRaw.size() > 1)
     {
       UInt indexAdjusted = indexCurrentRaw < posesRaw.size() ? indexCurrentRaw : posesRaw.size() - 1;
 
@@ -101,7 +102,7 @@ void Visualizer::run()
       robotMarkerPublisher.setRobotPose(robotIDPlanRaw, transformBase, jointStatesArm);
     }
 
-    if (visibilityGoal && poseGoal.size() == 8)
+    if (poseGoal.size() == 8)
     {
       transformBaseTranslation[0] = poseGoal[0];
       transformBaseTranslation[1] = poseGoal[1];
