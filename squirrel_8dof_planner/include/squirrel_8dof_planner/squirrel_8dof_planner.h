@@ -60,9 +60,10 @@ class Planner
   ros::Publisher publisherOctomap;     ///< ROS publisher. Publishes the octomap overlayed with a floor around the robot.
   ros::Publisher publisherOccupancyMap;     ///< ROS publisher. Publishes the occupancy map that was created using the most recent octree.
   ros::Publisher publisher2DPath;     ///< ROS publisher. Publishes the 2D projection of the 8D trajectory.
-  ros::Publisher publisherTrajectoryVisualizer;     ///< ROS publisher. Publishes the full 8D trajectory as a multi float array.
+  ros::Publisher publisherTrajectoryNormalizedVisualizer;     ///< ROS publisher. Publishes the full 8D trajectory as a multi float array.
+  ros::Publisher publisherTrajectoryRawVisualizer;     ///< ROS publisher. Publishes the full 8D trajectory as a multi float array.
+  ros::Publisher publisherGoalPoseVisualizer;     ///< ROS publisher. Publishes the found goal pose as a single 8dof pose.
   ros::Publisher publisherTrajectoryController;     ///< ROS publisher. Publishes the full 8D trajectory as a joint trajectory.
-  ros::Publisher publisherGoalPose;     ///< ROS publisher. Publishes the found goal pose as a single 8dof pose.
   ros::Subscriber subscriberPose;     ///< ROS subscriber. Subscribes to /arm_controller/joint_states.
   ros::ServiceServer serviceServerGoalEndEffector;     ///< ROS service server. When called, tries to plan a trajectory to the endeffector pose.
   ros::ServiceServer serviceServerGoalPose;     ///< ROS service server. When called, tries to plan a trajectory to the robot pose.
@@ -173,7 +174,12 @@ private:
   /**
    * @brief Publishes a vector of subsequent poses from the current robot position to the requested goal after planning.
    */
-  void publishTrajectoryVisualizer() const;
+  void publishTrajectoryNormalizedVisualizer() const;
+
+  /**
+   * @brief Publishes a vector of subsequent poses from the current robot position to the requested goal after planning.
+   */
+  void publishTrajectoryRawVisualizer() const;
 
   /**
    * @brief Publishes a vector of joint angles for the found 8dof pose of the robot to a 6D EE pose.
@@ -524,6 +530,28 @@ private:
    * @param seconds The amount of seconds the loop should run for.
    */
   void waitAndSpin(const Real seconds);
+
+  /**
+   * @brief Finds the angular distance between two values in the range -pi to pi.
+   * @param angle1 First angle.
+   * @param angle2 Second angle.
+   * @return The angular distance between angle1 and angle2.
+   */
+  Real findAngularDistance(const Real angle1, const Real angle2);
+
+  /**
+   * @brief Finds the angular distance in between two values in the range -pi to pi including the sign that points from angle1 to angle2.
+   * @param angle1 First angle.
+   * @param angle2 Second angle.
+   * @return The signed angular distance between angle1 and angle2.
+   */
+  Real findAngularDistanceSigned(const Real angle1, const Real angle2);
+
+  /**
+   * @brief Normalizes an angle to the range -pi to pi, if it was from the range -2pi to 2pi.
+   * @param angle The angle to normalize.
+   */
+  void normalizeAngle(Real &angle);
 };
 
 } //namespace SquirrelMotionPlanner

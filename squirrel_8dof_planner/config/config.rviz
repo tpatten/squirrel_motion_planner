@@ -12,7 +12,7 @@ Panels:
         - /InteractiveMarkers1
         - /MarkerArray1
       Splitter Ratio: 0.5
-    Tree Height: 756
+    Tree Height: 761
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -66,7 +66,7 @@ Visualization Manager:
       Collision Enabled: false
       Enabled: true
       Links:
-        All Links Enabled: true
+        All Links Enabled: false
         Expand Joint Details: false
         Expand Link Details: false
         Expand Tree: false
@@ -135,7 +135,7 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-          Value: true
+          Value: false
         hand_base_link:
           Alpha: 1
           Show Axes: false
@@ -234,6 +234,11 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
         shell_base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        shell_base_link_front:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -260,166 +265,19 @@ Visualization Manager:
       Value: true
       Visual Enabled: true
     - Class: rviz/TF
-      Enabled: true
+      Enabled: false
       Frame Timeout: 15
       Frames:
         All Enabled: false
-        arm_base_link:
-          Value: false
-        arm_link1:
-          Value: false
-        arm_link2:
-          Value: false
-        arm_link3:
-          Value: false
-        arm_link4:
-          Value: false
-        arm_link5:
-          Value: false
-        arm_motor2:
-          Value: false
-        base_body_link:
-          Value: false
-        base_link:
-          Value: false
-        base_linkx:
-          Value: false
-        base_linky:
-          Value: false
-        base_linkz:
-          Value: false
-        base_neck_link:
-          Value: false
-        door_link:
-          Value: false
-        hand_base_link:
-          Value: false
-        hand_cableCanal_link:
-          Value: false
-        hand_left_coupler:
-          Value: false
-        hand_left_crank:
-          Value: false
-        hand_left_finger_lower_link:
-          Value: false
-        hand_left_finger_upper_link:
-          Value: false
-        hand_middle_finger_lower_link:
-          Value: false
-        hand_middle_finger_upper_link:
-          Value: false
-        hand_palm_link:
-          Value: false
-        hand_right_coupler:
-          Value: false
-        hand_right_crank:
-          Value: false
-        hand_right_finger_lower_link:
-          Value: false
-        hand_right_finger_upper_link:
-          Value: false
-        hand_wrist_link:
-          Value: true
-        head_link:
-          Value: false
-        hokuyo_link:
-          Value: false
-        kinect_depth_frame:
-          Value: false
-        kinect_depth_optical_frame:
-          Value: false
-        kinect_link:
-          Value: false
-        kinect_rgb_frame:
-          Value: false
-        kinect_rgb_optical_frame:
-          Value: false
-        map:
-          Value: true
-        neck_pan_link:
-          Value: false
-        neck_tilt_link:
-          Value: false
-        odom:
-          Value: true
-        origin:
-          Value: false
-        shell_base_link:
-          Value: false
-        wheel0_link:
-          Value: false
-        wheel1_link:
-          Value: false
-        wheel2_link:
-          Value: false
       Marker Scale: 0.3
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: true
       Tree:
-        map:
-          odom:
-            origin:
-              base_link:
-                {}
-              base_linkx:
-                base_linky:
-                  base_linkz:
-                    arm_base_link:
-                      arm_link1:
-                        arm_motor2:
-                          arm_link2:
-                            arm_link3:
-                              arm_link4:
-                                arm_link5:
-                                  hand_wrist_link:
-                                    hand_base_link:
-                                      hand_left_crank:
-                                        hand_left_coupler:
-                                          hand_left_finger_lower_link:
-                                            hand_left_finger_upper_link:
-                                              {}
-                                      hand_middle_finger_lower_link:
-                                        hand_middle_finger_upper_link:
-                                          {}
-                                      hand_right_crank:
-                                        hand_right_coupler:
-                                          hand_right_finger_lower_link:
-                                            hand_right_finger_upper_link:
-                                              {}
-                                    hand_cableCanal_link:
-                                      {}
-                                    hand_palm_link:
-                                      {}
-                    base_body_link:
-                      {}
-                    base_neck_link:
-                      neck_pan_link:
-                        neck_tilt_link:
-                          kinect_link:
-                            kinect_depth_frame:
-                              kinect_depth_optical_frame:
-                                {}
-                            kinect_rgb_frame:
-                              kinect_rgb_optical_frame:
-                                {}
-                    door_link:
-                      {}
-                    head_link:
-                      {}
-                    hokuyo_link:
-                      {}
-                    shell_base_link:
-                      {}
-                    wheel0_link:
-                      {}
-                    wheel1_link:
-                      {}
-                    wheel2_link:
-                      {}
+        {}
       Update Interval: 0
-      Value: true
+      Value: false
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /squirrel_8dof_planning/robot_trajectory_visualization
@@ -442,7 +300,7 @@ Visualization Manager:
       Marker Topic: /squirrel_8dof_planning/collision_modell
       Name: MarkerArray
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
   Enabled: true
@@ -469,7 +327,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 3.94907
+      Distance: 1.94987
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
@@ -481,10 +339,10 @@ Visualization Manager:
         Z: 0.0295628
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.524798
+      Pitch: 0.364798
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 6.19723
+      Yaw: 0.319045
     Saved: ~
 Window Geometry:
   Displays:
@@ -492,7 +350,7 @@ Window Geometry:
   Height: 1056
   Hide Left Dock: false
   Hide Right Dock: true
-  QMainWindow State: 000000ff00000000fd0000000400000000000001c600000386fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000006500fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000002800000386000000e000fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000010f00000388fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000002800000388000000b500fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000073f0000004cfc0100000002fb0000000800540069006d006501000000000000073f000002b000fffffffb0000000800540069006d00650100000000000004500000000000000000000005730000038600000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000400000000000001c600000388fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000006400fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000002800000388000000dd00fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000010f00000388fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000002800000388000000b000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000073f0000004cfc0100000002fb0000000800540069006d006501000000000000073f000002f600fffffffb0000000800540069006d00650100000000000004500000000000000000000005730000038800000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -502,5 +360,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1855
-  X: 1145
-  Y: 745
+  X: 65
+  Y: 24

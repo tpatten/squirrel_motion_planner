@@ -6,13 +6,14 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   rviz_robot_marker
   std_msgs
+  std_srvs
   tf
   sensor_msgs
 )
 
 catkin_package(
    INCLUDE_DIRS include
-   CATKIN_DEPENDS roscpp rospy rviz_robot_marker std_msgs tf sensor_msgs
+   CATKIN_DEPENDS roscpp rospy rviz_robot_marker std_msgs std_srvs tf sensor_msgs
 )
 
 include_directories(

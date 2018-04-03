@@ -108,8 +108,9 @@ void Planner::initializeMessageHandling()
   publisherOctomap = nh.advertise<octomap_msgs::Octomap>("octomap_planning", 1);
   publisherOccupancyMap = nhPrivate.advertise<nav_msgs::OccupancyGrid>("occupancy_map", 1);
   publisher2DPath = nhPrivate.advertise<nav_msgs::Path>("path_2d", 10);
-  publisherTrajectoryVisualizer = nhPrivate.advertise<std_msgs::Float64MultiArray>("robot_trajectory_multi_array", 10);
-  publisherGoalPose = nhPrivate.advertise<std_msgs::Float64MultiArray>("robot_goal_pose", 10);
+  publisherTrajectoryNormalizedVisualizer = nhPrivate.advertise<std_msgs::Float64MultiArray>("robot_trajectory_normalized", 10);
+  publisherTrajectoryRawVisualizer = nhPrivate.advertise<std_msgs::Float64MultiArray>("robot_trajectory_raw", 10);
+  publisherGoalPoseVisualizer = nhPrivate.advertise<std_msgs::Float64MultiArray>("robot_goal_pose", 10);
   publisherTrajectoryController = nh.advertise<trajectory_msgs::JointTrajectory>("/arm_controller/joint_trajectory_controller/command", 10);
 }
 
@@ -234,9 +235,9 @@ void Planner::publish2DPath() const
   publisher2DPath.publish(msg);
 }
 
-void Planner::publishTrajectoryVisualizer() const
+void Planner::publishTrajectoryNormalizedVisualizer() const
 {
-  if (publisherTrajectoryVisualizer.getNumSubscribers() == 0 || posesTrajectoryNormalized.size() <= 1)
+  if (publisherTrajectoryNormalizedVisualizer.getNumSubscribers() == 0 || posesTrajectoryNormalized.size() <= 1)
     return;
 
   std_msgs::Float64MultiArray msg;
@@ -262,12 +263,43 @@ void Planner::publishTrajectoryVisualizer() const
     }
   }
 
-  publisherTrajectoryVisualizer.publish(msg);
+  publisherTrajectoryNormalizedVisualizer.publish(msg);
+}
+
+void Planner::publishTrajectoryRawVisualizer() const
+{
+  if (publisherTrajectoryRawVisualizer.getNumSubscribers() == 0 || posesTrajectory.size() <= 1)
+    return;
+
+  std_msgs::Float64MultiArray msg;
+
+  msg.layout.data_offset = 0;
+  msg.layout.dim.resize(2);
+  msg.layout.dim[0].label = "pose";
+  msg.layout.dim[0].size = posesTrajectory.size();
+  msg.layout.dim[0].stride = posesTrajectory.size() * 8;
+  msg.layout.dim[1].label = "joint";
+  msg.layout.dim[1].size = 8;
+  msg.layout.dim[1].stride = 8;
+
+  msg.data.resize(posesTrajectory.size() * 8);
+
+  UInt index = 0;
+  for (UInt i = 0; i < posesTrajectory.size(); ++i)
+  {
+    for (UInt j = 0; j < 8; ++j)
+    {
+      msg.data[index] = posesTrajectory[i][j];
+      ++index;
+    }
+  }
+
+  publisherTrajectoryRawVisualizer.publish(msg);
 }
 
 void Planner::publishGoalPose() const
 {
-  if (publisherGoalPose.getNumSubscribers() == 0 || poseGoal.size() != 8)
+  if (publisherGoalPoseVisualizer.getNumSubscribers() == 0 || poseGoal.size() != 8)
     return;
 
   std_msgs::Float64MultiArray msg;
@@ -283,7 +315,7 @@ void Planner::publishGoalPose() const
   for (UInt i = 0; i < 8; ++i)
     msg.data[i] = poseGoal[i];
 
-  publisherGoalPose.publish(msg);
+  publisherGoalPoseVisualizer.publish(msg);
 }
 
 void Planner::publishTrajectoryController()
@@ -505,7 +537,8 @@ bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequ
   res.result = squirrel_motion_planner_msgs::PlanPoseResponse::SUCCESS;
   res.trajectory = trajectoryToMessage(posesTrajectoryNormalized);
   publish2DPath();
-  publishTrajectoryVisualizer();
+  publishTrajectoryNormalizedVisualizer();
+  publishTrajectoryRawVisualizer();
   return true;
 }
 
@@ -594,7 +627,8 @@ bool Planner::serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanE
   res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::SUCCESS;
   res.trajectory = trajectoryToMessage(posesTrajectoryNormalized);
   publish2DPath();
-  publishTrajectoryVisualizer();
+  publishTrajectoryNormalizedVisualizer();
+  publishTrajectoryRawVisualizer();
   return true;
 }
 
@@ -665,7 +699,8 @@ bool Planner::serviceCallbackGoalMarker(squirrel_motion_planner_msgs::PlanEndEff
   res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::SUCCESS;
   res.trajectory = trajectoryToMessage(posesTrajectoryNormalized);
   publish2DPath();
-  publishTrajectoryVisualizer();
+  publishTrajectoryNormalizedVisualizer();
+  publishTrajectoryRawVisualizer();
   return true;
 }
 
@@ -1519,12 +1554,22 @@ bool Planner::isConnectionLineFree(const Tuple2D &pointStart, const Tuple2D &poi
   return true;
 }
 
-void Planner::normalizeTrajectory(const Trajectory &trajectory, Trajectory &trajectoryNormalized, const Pose &normalizedPose)
+void Planner::normalizeTrajectory(const Trajectory &trajectoryRaw, Trajectory &trajectoryNormalized, const Pose &normalizedPose)
 {
-  UInt poseDimension = normalizedPose.size();
+  const UInt poseDimension = normalizedPose.size();
 
-  if (poseDimension < 1 || trajectory.size() <= 1 || trajectory[0].size() != poseDimension)
+  if (poseDimension < 1 || trajectoryRaw.size() <= 1 || trajectoryRaw[0].size() != poseDimension)
     return;
+
+  Trajectory trajectory = trajectoryRaw;
+  for (UInt i = 0; i < trajectory.size(); ++i)
+  {
+    Pose &pose = trajectory[i];
+    if (pose[2] > M_PI)
+      pose[2] -= 2.0 * M_PI;
+    else if(pose[2] < -M_PI)
+      pose[2] += 2.0 * M_PI;
+  }
 
   UInt poseNextIndex = 1;
   trajectoryNormalized.clear();
@@ -1538,7 +1583,12 @@ void Planner::normalizeTrajectory(const Trajectory &trajectory, Trajectory &traj
     Real frac = fabs(poseNext[0] - poseLast[0]) / normalizedPose[0];
     for (UInt i = 1; i < poseDimension; ++i)
     {
-      const Real fracNew = fabs(poseNext[i] - poseLast[i]) / normalizedPose[i];
+      Real fracNew;
+      if (poseDimension == 8 && i == 2)
+        fracNew = findAngularDistance(poseNext[i], poseLast[i]) / normalizedPose[i];
+      else
+        fracNew = fabs(poseNext[i] - poseLast[i]) / normalizedPose[i];
+
       if (fracNew > frac)
         frac = fracNew;
     }
@@ -1556,12 +1606,28 @@ void Planner::normalizeTrajectory(const Trajectory &trajectory, Trajectory &traj
 
     UInt counterMax = (UInt)frac + 1;
     frac = std::ceil(frac);
+    const Real fracRecip = 1.0 / frac;
     const Pose poseLastCopy = trajectoryNormalized.back();
+
+    Pose poseDifference(poseDimension);
+    for (UInt i = 0; i < poseDimension; ++i)
+    {
+      if (poseDimension == 8 && i == 2)
+        poseDifference[i] = findAngularDistanceSigned(poseLastCopy[i], poseNext[i]);
+      else
+        poseDifference[i] = poseNext[i] - poseLastCopy[i];
+    }
+
     for (UInt i = 1; i <= counterMax; ++i)
     {
       trajectoryNormalized.push_back(poseLastCopy);
       for (UInt j = 0; j < poseDimension; ++j)
-        trajectoryNormalized.back()[j] += i * (poseNext[j] - trajectoryNormalized.back()[j]) / frac;
+      {
+        trajectoryNormalized.back()[j] += i * poseDifference[j] * fracRecip;
+        if (poseDimension == 8 && j == 2)
+          normalizeAngle(trajectoryNormalized.back()[j]);
+      }
+
     }
 
     ++poseNextIndex;
@@ -1957,4 +2023,35 @@ inline void Planner::waitAndSpin(const Real seconds)
   }
 }
 
-} //namespace SquirrelMotionPlanner
+inline Real Planner::findAngularDistance(const Real angle1, const Real angle2)
+{
+  const Real dist = fabs(angle2 - angle1);
+  if (dist <= M_PI)
+    return dist;
+  else
+    return 2 * M_PI - dist;
+}
+
+inline Real Planner::findAngularDistanceSigned(const Real angle1, const Real angle2)
+{
+  const Real distSigned = angle2 - angle1;
+  if (fabs(distSigned) <= M_PI)
+    return distSigned;
+  else
+  {
+    if (distSigned > 0.0)
+      return -2.0 * M_PI + distSigned;
+    else
+      return 2.0 * M_PI + distSigned;
+  }
+}
+
+inline void Planner::normalizeAngle(Real &angle)
+{
+  if (angle < -M_PI)
+    angle += 2.0 * M_PI;
+  else if (angle > M_PI)
+    angle -= 2.0 * M_PI;
+}
+
+} //namespace SquirrelMotionPlanne
