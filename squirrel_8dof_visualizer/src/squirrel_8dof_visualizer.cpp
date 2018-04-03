@@ -216,7 +216,7 @@ bool Visualizer::serviceCallbackSetVisibilityNormalized(std_srvs::SetBoolRequest
   visibilityNormalized = req.data;
   res.success = true;
 
-  if (visibilityNormalized)
+  if (visibilityNormalized && posesNormalized.size() > 1)
     robotMarkerPublisher.showRobot(robotIDPlanNormalized);
   else
     robotMarkerPublisher.hideRobot(robotIDPlanNormalized);
@@ -229,7 +229,7 @@ bool Visualizer::serviceCallbackSetVisibilityRaw(std_srvs::SetBoolRequest &req, 
   visibilityRaw = req.data;
   res.success = true;
 
-  if (visibilityRaw)
+  if (visibilityRaw && posesRaw.size() > 1)
     robotMarkerPublisher.showRobot(robotIDPlanRaw);
   else
     robotMarkerPublisher.hideRobot(robotIDPlanRaw);
@@ -242,7 +242,7 @@ bool Visualizer::serviceCallbackSetVisibilityGoal(std_srvs::SetBoolRequest &req,
   visibilityGoal = req.data;
   res.success = true;
 
-  if (visibilityGoal)
+  if (visibilityGoal && poseGoal.size() == 8)
     robotMarkerPublisher.showRobot(robotIDGoal);
   else
     robotMarkerPublisher.hideRobot(robotIDGoal);
