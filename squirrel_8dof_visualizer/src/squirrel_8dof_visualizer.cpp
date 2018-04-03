@@ -4,14 +4,23 @@ namespace SquirrelMotionPlanning
 {
 
 Visualizer::Visualizer(const std::string &robotDescriptionTopic) :
-    nhPrivate("~"), rate(30), robotMarkerPublisher("robot_trajectory_visualization"), jointStatesArm(new sensor_msgs::JointState)
+    nhPrivate("~"), rate(30), robotMarkerPublisher("robot_trajectory_visualization"), jointStatesArm(new sensor_msgs::JointState), visibilityNormalized(true), visibilityRaw(
+        true), visibilityGoal(true)
 {
-  subscriberTrajectory = nh.subscribe("squirrel_8dof_planner_node/robot_trajectory_multi_array", 1, &Visualizer::subscriberTrajectoryHandler, this);
-  subscriberPose = nh.subscribe("squirrel_8dof_planner_node/robot_goal_pose", 1, &Visualizer::subscriberSinglePoseHandler, this);
-  subscriberVisibility = nhPrivate.subscribe("set_visibility", 1, &Visualizer::subscriberVisibilityHandler, this);
+  subscriberTrajectoryNormalized = nh.subscribe("squirrel_8dof_planner_node/robot_trajectory_normalized", 1, &Visualizer::subscriberTrajectoryNormalizedHandler,
+                                                this);
+  subscriberTrajectoryRaw = nh.subscribe("squirrel_8dof_planner_node/robot_trajectory_raw", 1, &Visualizer::subscriberTrajectoryRawHandler, this);
+  subscriberGoalPose = nh.subscribe("squirrel_8dof_planner_node/robot_goal_pose", 1, &Visualizer::subscriberGoalPoseHandler, this);
   subscriberRate = nhPrivate.subscribe("set_rate", 1, &Visualizer::subscriberRateHandler, this);
-  robotIDPlanNormalized = robotMarkerPublisher.addRobotFromDescription(robotDescriptionTopic);
+
+  serviceServerSetVisibilityNormalized = nh.advertiseService("set_visibility_normalized", &Visualizer::serviceCallbackSetVisibilityNormalized, this);
+  serviceServerSetVisibilityRaw = nh.advertiseService("set_visibility_raw", &Visualizer::serviceCallbackSetVisibilityRaw, this);
+  serviceServerSetVisibilityGoal = nh.advertiseService("set_visibility_goal", &Visualizer::serviceCallbackSetVisibilityGoal, this);
+
   robotIDGoal = robotMarkerPublisher.addRobotFromDescription(robotDescriptionTopic);
+  robotIDPlanNormalized = robotMarkerPublisher.addRobotFromDescription(robotDescriptionTopic);
+  robotIDPlanRaw = robotMarkerPublisher.addRobotFromDescription(robotDescriptionTopic);
+
 
   std_msgs::ColorRGBA color;
   color.a = 0.2;
@@ -45,10 +54,6 @@ Visualizer::Visualizer(const std::string &robotDescriptionTopic) :
   jointStatesArm->name[3] = "arm_joint4";
   jointStatesArm->name[4] = "arm_joint5";
 
-  poseCurrent = 0;
-  finalPoseState = false;
-  visible = true;
-
   run();
 }
 
@@ -56,49 +61,79 @@ void Visualizer::run()
 {
   while (ros::ok())
   {
-    rate.sleep();
-    ros::spinOnce();
-
-    if (!visible || posesNormalized.size() <= 1)
-      continue;
-
-    if (!finalPoseState)
+    if (visibilityNormalized && posesNormalized.size() > 1)
     {
-      transformBaseTranslation[0] = posesNormalized[poseCurrent][0];
-      transformBaseTranslation[1] = posesNormalized[poseCurrent][1];
-      transformBaseRotation.setRPY(0.0, 0.0, posesNormalized[poseCurrent][2]);
+      UInt indexAdjusted = indexCurrentNormalized < posesNormalized.size() ? indexCurrentNormalized : posesNormalized.size() - 1;
+
+      transformBaseTranslation[0] = posesNormalized[indexAdjusted][0];
+      transformBaseTranslation[1] = posesNormalized[indexAdjusted][1];
+      transformBaseRotation.setRPY(0.0, 0.0, posesNormalized[indexAdjusted][2]);
 
       transformBase.setOrigin(transformBaseTranslation);
       transformBase.setBasis(transformBaseRotation);
 
-      jointStatesArm->position[0] = posesNormalized[poseCurrent][3];
-      jointStatesArm->position[1] = posesNormalized[poseCurrent][4];
-      jointStatesArm->position[2] = posesNormalized[poseCurrent][5];
-      jointStatesArm->position[3] = posesNormalized[poseCurrent][6];
-      jointStatesArm->position[4] = posesNormalized[poseCurrent][7];
+      jointStatesArm->position[0] = posesNormalized[indexAdjusted][3];
+      jointStatesArm->position[1] = posesNormalized[indexAdjusted][4];
+      jointStatesArm->position[2] = posesNormalized[indexAdjusted][5];
+      jointStatesArm->position[3] = posesNormalized[indexAdjusted][6];
+      jointStatesArm->position[4] = posesNormalized[indexAdjusted][7];
 
       robotMarkerPublisher.setRobotPose(robotIDPlanNormalized, transformBase, jointStatesArm);
     }
 
-    if (poseCurrent == posesNormalized.size() - 1)
+    if (visibilityRaw && posesRaw.size() > 1)
     {
-      if (!finalPoseState)
-      {
-        finalPoseState = true;
-        finalPoseTime = ros::WallTime::now();
-      }
-      else if (ros::WallTime::now() - finalPoseTime >= ros::WallDuration(2.0))
-      {
-        finalPoseState = false;
-        poseCurrent = 0;
-      }
+      UInt indexAdjusted = indexCurrentRaw < posesRaw.size() ? indexCurrentRaw : posesRaw.size() - 1;
+
+      transformBaseTranslation[0] = posesRaw[indexAdjusted][0];
+      transformBaseTranslation[1] = posesRaw[indexAdjusted][1];
+      transformBaseRotation.setRPY(0.0, 0.0, posesRaw[indexAdjusted][2]);
+
+      transformBase.setOrigin(transformBaseTranslation);
+      transformBase.setBasis(transformBaseRotation);
+
+      jointStatesArm->position[0] = posesRaw[indexAdjusted][3];
+      jointStatesArm->position[1] = posesRaw[indexAdjusted][4];
+      jointStatesArm->position[2] = posesRaw[indexAdjusted][5];
+      jointStatesArm->position[3] = posesRaw[indexAdjusted][6];
+      jointStatesArm->position[4] = posesRaw[indexAdjusted][7];
+
+      robotMarkerPublisher.setRobotPose(robotIDPlanRaw, transformBase, jointStatesArm);
     }
-    else
-      ++poseCurrent;
+
+    if (visibilityGoal && poseGoal.size() == 8)
+    {
+      transformBaseTranslation[0] = poseGoal[0];
+      transformBaseTranslation[1] = poseGoal[1];
+      transformBaseRotation.setRPY(0.0, 0.0, poseGoal[2]);
+
+      transformBase.setOrigin(transformBaseTranslation);
+      transformBase.setBasis(transformBaseRotation);
+
+      jointStatesArm->position[0] = poseGoal[3];
+      jointStatesArm->position[1] = poseGoal[4];
+      jointStatesArm->position[2] = poseGoal[5];
+      jointStatesArm->position[3] = poseGoal[6];
+      jointStatesArm->position[4] = poseGoal[7];
+
+      robotMarkerPublisher.setRobotPose(robotIDGoal, transformBase, jointStatesArm);
+    }
+
+    ++indexCurrentNormalized;
+    ++indexCurrentRaw;
+
+    if (indexCurrentNormalized > indexMaxNormalized)
+      indexCurrentNormalized = 0;
+
+    if (indexCurrentRaw > indexMaxRaw)
+      indexCurrentRaw = 0;
+
+    ros::spinOnce();
+    rate.sleep();
   }
 }
 
-void Visualizer::subscriberTrajectoryHandler(const std_msgs::Float64MultiArray &msg)
+void Visualizer::subscriberTrajectoryNormalizedHandler(const std_msgs::Float64MultiArray &msg)
 {
   if (msg.layout.dim[1].size != 8)
   {
@@ -112,6 +147,7 @@ void Visualizer::subscriberTrajectoryHandler(const std_msgs::Float64MultiArray &
   }
 
   posesNormalized.resize(msg.layout.dim[0].size, std::vector<Real>(8));
+  indexMaxNormalized = posesNormalized.size() + 40;
 
   UInt counter = 0;
   for (UInt i = 0; i < msg.layout.dim[0].size; ++i)
@@ -121,11 +157,37 @@ void Visualizer::subscriberTrajectoryHandler(const std_msgs::Float64MultiArray &
       ++counter;
     }
 
-  poseCurrent = 0;
-  finalPoseState = false;
+  indexCurrentNormalized = 0;
 }
 
-void Visualizer::subscriberSinglePoseHandler(const std_msgs::Float64MultiArray &msg)
+void Visualizer::subscriberTrajectoryRawHandler(const std_msgs::Float64MultiArray &msg)
+{
+  if (msg.layout.dim[1].size != 8)
+  {
+    ROS_WARN("Wrong robot trajectory dimension. Expected '8', but received '%d'.", msg.layout.dim[1].size);
+    return;
+  }
+  else if (msg.layout.dim[0].size * msg.layout.dim[1].size != msg.data.size())
+  {
+    ROS_WARN("Specified layout does not match dimension of data.");
+    return;
+  }
+
+  posesRaw.resize(msg.layout.dim[0].size, std::vector<Real>(8));
+  indexMaxRaw = posesRaw.size() + 40;
+
+  UInt counter = 0;
+  for (UInt i = 0; i < msg.layout.dim[0].size; ++i)
+    for (UInt j = 0; j < 8; ++j)
+    {
+      posesRaw[i][j] = msg.data[counter];
+      ++counter;
+    }
+
+  indexCurrentRaw = 0;
+}
+
+void Visualizer::subscriberGoalPoseHandler(const std_msgs::Float64MultiArray &msg)
 {
   if (msg.layout.dim[0].size != 8)
   {
@@ -138,20 +200,9 @@ void Visualizer::subscriberSinglePoseHandler(const std_msgs::Float64MultiArray &
     return;
   }
 
-  transformBaseTranslation[0] = msg.data[0];
-  transformBaseTranslation[1] = msg.data[1];
-  transformBaseRotation.setRPY(0.0, 0.0, msg.data[2]);
-
-  transformBase.setOrigin(transformBaseTranslation);
-  transformBase.setBasis(transformBaseRotation);
-
-  jointStatesArm->position[0] = msg.data[3];
-  jointStatesArm->position[1] = msg.data[4];
-  jointStatesArm->position[2] = msg.data[5];
-  jointStatesArm->position[3] = msg.data[6];
-  jointStatesArm->position[4] = msg.data[7];
-
-  robotMarkerPublisher.setRobotPose(robotIDGoal, transformBase, jointStatesArm);
+  poseGoal.resize(8);
+  for (UInt j = 0; j < 8; ++j)
+    poseGoal[j] = msg.data[j];
 }
 
 void Visualizer::subscriberRateHandler(const std_msgs::Float64 &msg)
@@ -159,19 +210,43 @@ void Visualizer::subscriberRateHandler(const std_msgs::Float64 &msg)
   rate = ros::Rate(msg.data);
 }
 
-void Visualizer::subscriberVisibilityHandler(const std_msgs::Bool &msg)
+bool Visualizer::serviceCallbackSetVisibilityNormalized(std_srvs::SetBoolRequest &req, std_srvs::SetBoolResponse &res)
 {
-  visible = msg.data;
-  if (visible)
-  {
+  visibilityNormalized = req.data;
+  res.success = true;
+
+  if (visibilityNormalized)
     robotMarkerPublisher.showRobot(robotIDPlanNormalized);
-    robotMarkerPublisher.showRobot(robotIDGoal);
-  }
   else
-  {
     robotMarkerPublisher.hideRobot(robotIDPlanNormalized);
+
+  return true;
+}
+
+bool Visualizer::serviceCallbackSetVisibilityRaw(std_srvs::SetBoolRequest &req, std_srvs::SetBoolResponse &res)
+{
+  visibilityRaw = req.data;
+  res.success = true;
+
+  if (visibilityRaw)
+    robotMarkerPublisher.showRobot(robotIDPlanRaw);
+  else
+    robotMarkerPublisher.hideRobot(robotIDPlanRaw);
+
+  return true;
+}
+
+bool Visualizer::serviceCallbackSetVisibilityGoal(std_srvs::SetBoolRequest &req, std_srvs::SetBoolResponse &res)
+{
+  visibilityGoal = req.data;
+  res.success = true;
+
+  if (visibilityGoal)
+    robotMarkerPublisher.showRobot(robotIDGoal);
+  else
     robotMarkerPublisher.hideRobot(robotIDGoal);
-  }
+
+  return true;
 }
 
 } //namespace SquirrelMotionPlanning

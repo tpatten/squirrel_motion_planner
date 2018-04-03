@@ -9,6 +9,7 @@
 #include <std_msgs/Float64.h>
 #include <std_msgs/ColorRGBA.h>
 #include <std_msgs/Bool.h>
+#include <std_srvs/SetBool.h>
 #include <tf/transform_datatypes.h>
 #include <sensor_msgs/JointState.h>
 #include <rviz_robot_marker/RvizRobotMarkerPublisher.h>
@@ -39,18 +40,29 @@ public:
 private:
   ros::NodeHandle nh;     ///< ROS node handle with global namespace.
   ros::NodeHandle nhPrivate;     ///< ROS node handle with namespace relative to current node.
-  ros::Subscriber subscriberTrajectory;     ///< ROS subscriber. Subscribes to a Float64MultiArray that contains a vector of 8D poses.
-  ros::Subscriber subscriberPose;     ///< ROS subscriber. Subscribes to a Float64MultiArray that contains a vector of 8D poses.
+  ros::Subscriber subscriberTrajectoryNormalized;     ///< ROS subscriber. Subscribes to a Float64MultiArray that contains a vector of 8D poses.
+  ros::Subscriber subscriberTrajectoryRaw;     ///< ROS subscriber. Subscribes to a Float64MultiArray that contains a vector of 8D poses.
+  ros::Subscriber subscriberGoalPose;     ///< ROS subscriber. Subscribes to a Float64MultiArray that contains a 8D pose.
   ros::Subscriber subscriberRate;     ///< ROS subscriber. Subscribes to a Float64 and sets the publishing speed of the trajectory.
-  ros::Subscriber subscriberVisibility;     ///< ROS subscriber. Subscribes to a Bool and sets the visiblity of the trajectory visualization.
+  ros::ServiceServer serviceServerSetVisibilityNormalized;     ///< ROS service server. Sets the visibility of the normlized trajectory.
+  ros::ServiceServer serviceServerSetVisibilityRaw;     ///< ROS service server. Sets the visibility of the raw trajectory.
+  ros::ServiceServer serviceServerSetVisibilityGoal;     ///< ROS service server. Sets the visibility of the goal pose.
+
   rviz_robot_marker::RvizRobotMarkerPublisher robotMarkerPublisher;     ///< Publisher class, takes care of direct visualization to Rviz.
   UInt robotIDPlanNormalized;     ///< Robot ID needed to communicate with robotMarkerPublisher.
   UInt robotIDPlanRaw;     ///< Robot ID needed to communicate with robotMarkerPublisher.
   UInt robotIDGoal;     ///< Robot ID needed to communicate with robotMarkerPublisher.
 
-  std::vector<std::vector<Real> > posesNormalized;     ///< Vector to which all 8D poses are saved, once a new trajectory is received.
-  std::vector<std::vector<Real> > posesRaw;     ///< Vector to which all 8D poses are saved, once a new trajectory is received.
-  UInt poseCurrent;     ///< Index of the current pose to be visualized.
+  std::vector<std::vector<Real> > posesNormalized;     ///< Vector to which all normalized 8D poses are saved, once a new trajectory is received.
+  std::vector<std::vector<Real> > posesRaw;     ///< Vector to which all raw 8D poses are saved, once a new trajectory is received.
+  std::vector<Real> poseGoal;     ///< Current 8D goal pose to which a trajectory is planned.
+  UInt indexMaxNormalized;     ///< Maximum index for the playback of the normlalized trajectory, =posesNormalized.size() + 30.
+  UInt indexMaxRaw;     ///< Maximum index for the playback of the raw trajectory, =posesRaw.size() + 30.
+  UInt indexCurrentNormalized;     ///< Index of the current normalized pose to be visualized.
+  UInt indexCurrentRaw;     ///< Index of the current raw pose to be visualized.
+  bool visibilityNormalized;
+  bool visibilityRaw;
+  bool visibilityGoal;
 
   tf::StampedTransform transformBase;     ///< The full base transform of the robot, sent to robotMarkerPublisher.
   tf::Vector3 transformBaseTranslation;     ///< Base translation, used to set translation of transformBase.
@@ -58,9 +70,6 @@ private:
   sensor_msgs::JointStatePtr jointStatesArm;     ///< The full set of arm joint angles, sent to robotMarkerPublisher.
 
   ros::Rate rate;     ///< Current publishing rate, set in subscriberRateHandler.
-  bool visible;     ///< Set in subscriberVisibilityHandler, indicates if the visualization is currently visible.
-  bool finalPoseState;     ///< True if the final pose is currently being shown.
-  ros::WallTime finalPoseTime;     ///< Time at which the last final pose has been reached.
 
   /**
    * @brief Main loop running at rate. Sets current robot pose and publishes it using robotMarkerPublisher.
@@ -68,16 +77,22 @@ private:
   void run();
 
   /**
-   * @brief Handler for the robot trajectory. Checks the dimension of the multi array and saves it to poses.
+   * @brief Handler for the normalized robot trajectory. Checks the dimension of the multi array and saves it to poses.
    * @param msg Contains the full robot trajectory represented as vector of 8D poses.
    */
-  void subscriberTrajectoryHandler(const std_msgs::Float64MultiArray &msg);
+  void subscriberTrajectoryNormalizedHandler(const std_msgs::Float64MultiArray &msg);
 
   /**
-   * @brief Handler for a single robot pose. Checks the dimension of the multi array and saves it to poseSingle.
+   * @brief Handler for the raw robot trajectory. Checks the dimension of the multi array and saves it to poses.
+   * @param msg Contains the full robot trajectory represented as vector of 8D poses.
+   */
+  void subscriberTrajectoryRawHandler(const std_msgs::Float64MultiArray &msg);
+
+  /**
+   * @brief Handler for the goal pose. Checks the dimension of the multi array and saves it to poseSingle.
    * @param msg Contains the a robot pose represented as an 8D pose.
    */
-  void subscriberSinglePoseHandler(const std_msgs::Float64MultiArray &msg);
+  void subscriberGoalPoseHandler(const std_msgs::Float64MultiArray &msg);
 
   /**
     * @brief Handler for the visualization rate. Sets rate and changes the sleep time between visualization of poses in the main loop.
@@ -86,11 +101,25 @@ private:
   void subscriberRateHandler(const std_msgs::Float64 &msg);
 
   /**
-   * @brief Handler for the visibility of the visualization. Sets visible and changes the visibility of the ghost model in Rviz.
-   * @param msg Contains the visiblity state.
+   * @brief Callback for setting the visibility of the normalized trajectory.
+   * @param req The service request that contains visibility setting.
+   * @param res The service response.
    */
-  void subscriberVisibilityHandler(const std_msgs::Bool &msg);
+  bool serviceCallbackSetVisibilityNormalized(std_srvs::SetBoolRequest &req, std_srvs::SetBoolResponse &res);
 
+  /**
+   * @brief Callback for setting the visibility of the raw trajectory.
+   * @param req The service request that contains visibility setting.
+   * @param res The service response.
+   */
+  bool serviceCallbackSetVisibilityRaw(std_srvs::SetBoolRequest &req, std_srvs::SetBoolResponse &res);
+
+  /**
+   * @brief Callback for setting the visibility of the goal pose.
+   * @param req The service request that contains visibility setting.
+   * @param res The service response.
+   */
+  bool serviceCallbackSetVisibilityGoal(std_srvs::SetBoolRequest &req, std_srvs::SetBoolResponse &res);
 }; //Visualizer
 
 

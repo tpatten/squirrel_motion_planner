@@ -108,8 +108,9 @@ void Planner::initializeMessageHandling()
   publisherOctomap = nh.advertise<octomap_msgs::Octomap>("octomap_planning", 1);
   publisherOccupancyMap = nhPrivate.advertise<nav_msgs::OccupancyGrid>("occupancy_map", 1);
   publisher2DPath = nhPrivate.advertise<nav_msgs::Path>("path_2d", 10);
-  publisherTrajectoryVisualizer = nhPrivate.advertise<std_msgs::Float64MultiArray>("robot_trajectory_multi_array", 10);
-  publisherGoalPose = nhPrivate.advertise<std_msgs::Float64MultiArray>("robot_goal_pose", 10);
+  publisherTrajectoryNormalizedVisualizer = nhPrivate.advertise<std_msgs::Float64MultiArray>("robot_trajectory_normalized", 10);
+  publisherTrajectoryRawVisualizer = nhPrivate.advertise<std_msgs::Float64MultiArray>("robot_trajectory_raw", 10);
+  publisherGoalPoseVisualizer = nhPrivate.advertise<std_msgs::Float64MultiArray>("robot_goal_pose", 10);
   publisherTrajectoryController = nh.advertise<trajectory_msgs::JointTrajectory>("/arm_controller/joint_trajectory_controller/command", 10);
 }
 
@@ -234,9 +235,9 @@ void Planner::publish2DPath() const
   publisher2DPath.publish(msg);
 }
 
-void Planner::publishTrajectoryVisualizer() const
+void Planner::publishTrajectoryNormalizedVisualizer() const
 {
-  if (publisherTrajectoryVisualizer.getNumSubscribers() == 0 || posesTrajectoryNormalized.size() <= 1)
+  if (publisherTrajectoryNormalizedVisualizer.getNumSubscribers() == 0 || posesTrajectoryNormalized.size() <= 1)
     return;
 
   std_msgs::Float64MultiArray msg;
@@ -262,12 +263,43 @@ void Planner::publishTrajectoryVisualizer() const
     }
   }
 
-  publisherTrajectoryVisualizer.publish(msg);
+  publisherTrajectoryNormalizedVisualizer.publish(msg);
+}
+
+void Planner::publishTrajectoryRawVisualizer() const
+{
+  if (publisherTrajectoryRawVisualizer.getNumSubscribers() == 0 || posesTrajectory.size() <= 1)
+    return;
+
+  std_msgs::Float64MultiArray msg;
+
+  msg.layout.data_offset = 0;
+  msg.layout.dim.resize(2);
+  msg.layout.dim[0].label = "pose";
+  msg.layout.dim[0].size = posesTrajectory.size();
+  msg.layout.dim[0].stride = posesTrajectory.size() * 8;
+  msg.layout.dim[1].label = "joint";
+  msg.layout.dim[1].size = 8;
+  msg.layout.dim[1].stride = 8;
+
+  msg.data.resize(posesTrajectory.size() * 8);
+
+  UInt index = 0;
+  for (UInt i = 0; i < posesTrajectory.size(); ++i)
+  {
+    for (UInt j = 0; j < 8; ++j)
+    {
+      msg.data[index] = posesTrajectory[i][j];
+      ++index;
+    }
+  }
+
+  publisherTrajectoryRawVisualizer.publish(msg);
 }
 
 void Planner::publishGoalPose() const
 {
-  if (publisherGoalPose.getNumSubscribers() == 0 || poseGoal.size() != 8)
+  if (publisherGoalPoseVisualizer.getNumSubscribers() == 0 || poseGoal.size() != 8)
     return;
 
   std_msgs::Float64MultiArray msg;
@@ -283,7 +315,7 @@ void Planner::publishGoalPose() const
   for (UInt i = 0; i < 8; ++i)
     msg.data[i] = poseGoal[i];
 
-  publisherGoalPose.publish(msg);
+  publisherGoalPoseVisualizer.publish(msg);
 }
 
 void Planner::publishTrajectoryController()
@@ -446,7 +478,8 @@ bool Planner::serviceCallbackGoalPose(squirrel_motion_planner_msgs::PlanPoseRequ
 
   res.result = squirrel_motion_planner_msgs::PlanPoseResponse::SUCCESS;
   publish2DPath();
-  publishTrajectoryVisualizer();
+  publishTrajectoryNormalizedVisualizer();
+  publishTrajectoryRawVisualizer();
   return true;
 }
 
@@ -534,7 +567,8 @@ bool Planner::serviceCallbackGoalEndEffector(squirrel_motion_planner_msgs::PlanE
 
   res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::SUCCESS;
   publish2DPath();
-  publishTrajectoryVisualizer();
+  publishTrajectoryNormalizedVisualizer();
+  publishTrajectoryRawVisualizer();
   return true;
 }
 
@@ -604,7 +638,8 @@ bool Planner::serviceCallbackGoalMarker(squirrel_motion_planner_msgs::PlanEndEff
 
   res.result = squirrel_motion_planner_msgs::PlanEndEffectorResponse::SUCCESS;
   publish2DPath();
-  publishTrajectoryVisualizer();
+  publishTrajectoryNormalizedVisualizer();
+  publishTrajectoryRawVisualizer();
   return true;
 }
 
